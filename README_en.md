@@ -100,6 +100,13 @@ As an SA/SE visiting customer sites, I repeatedly heard "we have data on NAS but
 
 The first PoC is **3D print quality monitoring** (visually compelling, failures happen frequently for easy test data collection).
 
+## Current Limitations
+
+- **No hardware testing yet**: Edge devices (Raspberry Pi, camera) have not arrived. End-to-end hardware testing is pending. Cloud side (Lambda, Bedrock) is verified.
+- **AI accuracy tested with synthetic data only**: Prompt testing used public and synthetic images (9/9 correct). Real-environment accuracy (lighting, camera angle, filament color) is unverified.
+- **ONTAP integration is design-only**: FPolicy, SnapMirror, S3 AP integration code is implemented but untested against real ONTAP (mock tests only).
+- **Single-device configuration**: Multi-device concurrent operation and scale-out are untested.
+
 ## Current Status
 
 | Component | Status | Notes |
