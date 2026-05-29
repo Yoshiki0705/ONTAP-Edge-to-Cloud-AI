@@ -75,8 +75,11 @@ def save_to_ontap(image_bytes: bytes, timestamp: str) -> Path:
 def invoke_analysis_lambda(image_path: Path, image_bytes: bytes) -> dict | None:
     """Invoke the image analysis Lambda function.
 
-    Passes the ONTAP file path (for reference) and uploads image to S3
-    for Lambda to read (Lambda can't access on-prem NFS directly).
+    Note on S3 upload: In the full architecture, Lambda would access images
+    via FSxN S3 Access Points (ONTAP → SnapMirror → FSxN → S3 AP). However,
+    for PoC Phase 1 (before SnapMirror/FSxN is configured), Pi uploads
+    directly to S3 as a shortcut. This will be replaced by S3 AP access
+    once SnapMirror is operational in Phase 3.
     """
     lambda_client = boto3.client("lambda", region_name=AWS_REGION)
 
