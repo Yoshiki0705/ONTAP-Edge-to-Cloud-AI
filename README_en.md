@@ -2,18 +2,56 @@
 
 # ONTAP Edge-to-Cloud AI
 
-> Reference architecture using NetApp ONTAP as a data hub to aggregate field data from edge devices and leverage AI/analytics
+> Reference architecture for leveraging factory/site NAS data with edge devices and AI
 
-## Overview
+> **Disclaimer**: This is a personal technical exploration project and does not represent official views or recommendations of any organization. It does not recommend purchasing any specific product.
 
-Pipelines where edge devices (Raspberry Pi, cameras, sensors, etc.) write collected field data to ONTAP (FAS/AFF, ONTAP Select, or FSx for ONTAP) via NFS/SMB, then connect to AWS AI/analytics services through ONTAP capabilities (FPolicy, SnapMirror, S3 Access Points).
+## The Problem
 
-The first PoC implements **3D print quality monitoring**.
+Factories and sites accumulate inspection images, equipment logs, and sensor data on NAS storage daily. In most cases, this data is "just stored" — not analyzed or leveraged by AI.
+
+**Common situations:**
+- Terabytes of inspection images on NAS, used only for manual visual review
+- Equipment logs are saved but failure precursors go undetected
+- Want to analyze data with cloud AI services, but full copy to cloud is impractical
+- Want to integrate edge device (camera, sensor) data with existing storage infrastructure
+
+## This Project's Approach
+
+Use existing ONTAP NAS as the data aggregation point. Edge devices write collected data via NFS/SMB, then connect to cloud AI/analytics services through ONTAP capabilities.
+
+**Key points:**
+- No full data copy to S3 (direct access via ONTAP S3 Access Points)
+- Existing file workflows (NFS/SMB) remain unchanged
+- File arrival triggers automated analysis (FPolicy)
+- Edge → cloud sync uses incremental transfer (SnapMirror)
+
+### Target Audience
+
+- **Existing ONTAP users**: Want to leverage NAS data with AI/analytics
+- **IoT/Edge developers**: Want to integrate edge device data with existing storage
+- **AWS users**: Want to use Athena/Bedrock/SageMaker with non-S3 storage sources
+
+### What If I Don't Have ONTAP?
+
+This architecture assumes ONTAP, but the core pattern (edge collection → aggregation → AI analysis) works with other storage:
+
+| Storage | What's Possible | Additional Value with ONTAP |
+|---------|----------------|---------------------------|
+| S3 direct | Edge → S3 → Athena/Bedrock | — (simplest approach) |
+| EFS | NFS mount → Lambda/Bedrock | — |
+| **ONTAP** | All of the above + below | FPolicy (event-driven), SnapMirror (incremental sync), Multi-Protocol (NFS+SMB+S3 on same data), Snapshot (data preservation), ARP/AI (security) |
+
+ONTAP's additional value applies when:
+- You already have ONTAP/NAS with accumulated data
+- You need both NFS and SMB access to the same data
+- You want to analyze data via S3 API without copying to cloud
+- You want file-arrival-triggered automated processing
 
 ## Architecture
 
 ```
-[Edge Devices]                   [ONTAP Data Hub]                 [AI / Analytics]
+[Edge Devices]                   [ONTAP (Data Aggregation)]       [AI / Analytics]
                                  FAS/AFF | ONTAP Select | FSxN
 ┌────────────────┐               ┌────────────────────┐          ┌──────────────────┐
 │ Raspberry Pi 5 │──NFS─────────→│                    │          │ AWS              │
@@ -25,70 +63,51 @@ The first PoC implements **3D print quality monitoring**.
 │ USB Camera     │──NFS─────────→│  FPolicy (events)   │          │  QuickSight (BI) │
 └────────────────┘               │  REST API (telemetry)│          ├──────────────────┤
                                  │  ARP/AI (protection) │          │ Local AI         │
-[Edge Connectivity Options]      │  Snapshot (preserve) │          │  AIDE GPU Server │
+[Connectivity Options]           │  Snapshot (preserve) │          │  GPU Server      │
 ├─ Wired LAN (10GbE)            └────────────────────┘          │  Pi Edge Infer.  │
 ├─ Wi-Fi                                                         └──────────────────┘
 ├─ SORACOM Cellular (option)
 └─ SORACOM S+ Camera (option)
 ```
 
-### Data Flow
-
-1. **Edge → ONTAP**: Devices write directly to ONTAP via NFS/SMB (over LAN)
-2. **ONTAP → AI/Analytics**: FPolicy event-driven, SnapMirror sync, S3 AP access to AWS services
-3. **AI Results → ONTAP**: Inference results written back to ONTAP, referenced by edge devices
-
-### Why ONTAP as Data Hub
-
-| Feature | Role |
-|---------|------|
-| **Multi-Protocol** | NFS (Linux/Pi) + SMB (Windows/printer) + S3 (AWS) on same data |
-| **FPolicy** | Trigger automated analysis pipelines on file arrival |
-| **SnapMirror** | Bandwidth-efficient edge ONTAP → cloud FSxN synchronization |
-| **S3 Access Points** | Direct S3 API access to ONTAP/FSxN data (no data copying) |
-| **Snapshot** | Fix datasets at any point in time (AI training data, audit) |
-| **ARP/AI** | Ransomware detection and auto-protection on IoT device compromise |
-| **FlexCache** | Low-latency edge reference of cloud AI results |
-
 ### Edge Devices (Options)
 
 | Device | Connection | Purpose |
 |--------|-----------|---------|
-| Raspberry Pi 5 (16GB) | Wired LAN (NFS) | Camera capture, sensor collection, edge inference |
+| Raspberry Pi 5 | Wired LAN (NFS) | Camera capture, sensor collection, edge inference |
 | USB Camera (4K) | Via Pi | Visual inspection, quality monitoring |
-| CSI Camera (NoIR V2) | Via Pi | Low-light, near-infrared capture |
-| 3D Printer | Wired LAN (SMB) | Print data storage, status integration |
-| SORACOM S+ Camera | Cellular (option) | Camera for sites without wired LAN |
-| SORACOM Air + Pi | Cellular (option) | Connectivity for sites without wired LAN |
-| Industrial Sensors | Pi GPIO / I2C / SPI | Temperature, vibration, current, pressure |
+| CSI Camera (NoIR V2) | Via Pi | Low-light, near-infrared |
+| 3D Printer | Wired LAN (SMB) | Print data storage |
+| SORACOM S+ Camera | Cellular (option) | Sites without wired LAN |
+| SORACOM Air + Pi | Cellular (option) | Connectivity for sites without LAN |
+| Industrial Sensors | Pi GPIO / I2C / SPI | Temperature, vibration, current |
 
 ### ONTAP Platforms (Options)
 
 | Platform | Deployment | Characteristics |
 |----------|-----------|----------------|
-| FAS/AFF | On-premises | Hardware appliance. Entry to high-end |
+| FAS/AFF | On-premises | Hardware appliance |
 | ONTAP Select | On-premises / VM | Software-defined. Runs on commodity servers or VMs |
-| FSx for ONTAP | AWS Cloud | Fully managed. S3 AP, SnapMirror destination |
+| FSx for ONTAP | AWS Cloud | Fully managed. SnapMirror destination, S3 AP support |
 
-### AI/Analytics (Options)
+## Motivation
 
-| Service | Deployment | Purpose |
-|---------|-----------|---------|
-| Amazon Bedrock | Cloud | Image AI (Claude Vision), report generation |
-| Amazon SageMaker | Cloud | Custom ML models (predictive maintenance, anomaly detection) |
-| Amazon Athena | Cloud | SQL analytics (query ONTAP data directly via S3 AP) |
-| AWS Glue | Cloud | ETL, data catalog |
-| AIDE GPU Server | Local | On-premises AI inference (large models) |
-| Pi Edge Inference | Edge | TensorFlow Lite / ONNX Runtime (lightweight models) |
+As an SA/SE visiting customer sites, I repeatedly heard "we have data on NAS but can't leverage it." With the following technologies maturing in 2024-2025, a practical solution became feasible for the first time:
+
+- **FSx for ONTAP S3 Access Points** (2025 GA): S3 API access without data copying
+- **SORACOM Flux** (2024 GA): Low-code camera × AI pipeline
+- **Claude Vision / Multimodal AI**: Industrial image judgment at practical accuracy with generic prompts
+
+The first PoC is **3D print quality monitoring** (visually compelling, failures happen frequently for easy test data collection).
 
 ## Current Status
 
 | Component | Status | Notes |
 |-----------|--------|-------|
 | AWS Infrastructure (CFn) | ✅ Deployed | S3, Kinesis, Lambda, IAM, Glue, SNS |
-| Lambda (Two-Stage AI) | ✅ Deployed | Haiku screening + Sonnet detailed analysis |
+| Lambda (Two-Stage AI) | ✅ Deployed | Haiku screening + Sonnet detail (85% cost reduction) |
 | ONTAP Telemetry Collector | ✅ Implemented | REST API polling (mock E2E tested) |
-| Edge Camera Code | ✅ Implemented | Awaiting Pi arrival for testing |
+| Edge Camera Code | ✅ Implemented | Awaiting Pi arrival |
 | Design Documents | ✅ Complete | 8 documents, ja/en synced |
 | Hardware Testing | 📋 Pending | After Pi + camera + ONTAP arrival |
 
@@ -98,45 +117,21 @@ The first PoC implements **3D print quality monitoring**.
 
 - AWS CLI v2 + credentials configured
 - Python 3.12+
-- Bedrock model access enabled (Claude Haiku 4.5 / Sonnet 4.5)
+- Bedrock model access enabled
 - ONTAP 9.13.1+ (FPolicy, REST API, S3 AP)
 
-### Deploy AWS Infrastructure
+### Deploy
 
 ```bash
+# AWS infrastructure
 aws cloudformation deploy \
   --template-file cloud/ingestion/template.yaml \
   --stack-name edge-to-cloud-ai-poc \
   --parameter-overrides Environment=poc \
   --capabilities CAPABILITY_NAMED_IAM \
   --region ap-northeast-1
-```
 
-### Edge Device Setup
-
-```bash
-# Raspberry Pi initial setup → edge/raspberry-pi/SETUP.md
-cd edge/raspberry-pi/camera
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python simple_capture.py --loop
-```
-
-## Directory Structure
-
-```
-edge/                          Edge device code
-  raspberry-pi/
-    camera/                    Camera capture → ONTAP NFS write
-    sensors/                   ONTAP REST API telemetry collector
-    SETUP.md                   Initial setup playbook
-  soracom/                     SORACOM config guide (option)
-cloud/                         AWS cloud infrastructure
-  ingestion/template.yaml      CloudFormation
-  ai/                          Lambda (image analysis, feedback recording)
-  processing/                  Glue ETL
-docs/                          Design documents (ja/en synced)
-tests/                         Tests (20 tests passing)
+# Edge device → edge/raspberry-pi/SETUP.md
 ```
 
 ## Documentation
@@ -153,7 +148,7 @@ tests/                         Tests (20 tests passing)
 
 ## Related Projects
 
-- [fsxn-lakehouse-integrations](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations) — FSx for ONTAP S3 Access Points × Lakehouse integrations (parent project)
+- [fsxn-lakehouse-integrations](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations) — FSx for ONTAP S3 AP × Lakehouse integrations
 
 ## License
 
