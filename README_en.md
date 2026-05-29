@@ -8,7 +8,7 @@
 
 ## Overview
 
-Pipelines that collect and pre-process file data (inspection images, equipment logs, sensor CSVs) from ONTAP (on-premises FAS/AFF or FSx for ONTAP) via IoT edge devices, then leverage AWS AI/analytics services. The first PoC implements **3D print quality monitoring**.
+Pipelines that collect and pre-process file data (inspection images, equipment logs, sensor CSVs) from ONTAP (on-premises FAS/AFF, ONTAP Select, or FSx for ONTAP) via IoT edge devices, then leverage AWS AI/analytics services. The first PoC implements **3D print quality monitoring**.
 
 ### Why ONTAP is Central
 
@@ -22,18 +22,18 @@ Pipelines that collect and pre-process file data (inspection images, equipment l
 
 ```
 [Edge]                    [SORACOM]              [AWS Cloud]
-Raspberry Pi 5            Flux / Funnel          ┌─────────────────────────────┐
-┌──────────────┐          ┌─────────┐           │  S3 Data Lake               │
+Raspberry Pi 5            Flux / Funnel         ┌──────────────────────────────┐
+┌──────────────┐          ┌─────────┐           │  S3 Data Lake                │
 │ USB Camera   │──60s────→│ Cellular│──HTTPS──→ │    ↓                         │
 │ (1080p JPEG) │          │ or WiFi │           │  Lambda (Two-Stage)          │
 └──────────────┘          └─────────┘           │    ├─ Haiku: Screening       │
-                                                │    └─ Sonnet: Detail (anomaly)│
+                                                │    └─ Sonnet: Detail(anomaly)│
 [ONTAP Storage]                                 │    ↓                         │
 ┌──────────────┐                                │  SNS → Slack/Email alert     │
 │ FAS/AFF      │──SnapMirror──→ FSx for ONTAP   │    ↓                         │
 │ FPolicy      │                  ↓ S3 AP       │  Athena (SQL)                │
 │ REST API     │                  Bedrock/SM    │  QuickSight (BI)             │
-└──────────────┘                                └─────────────────────────────┘
+└──────────────┘                                └──────────────────────────────┘
 ```
 
 ### Cost Optimization

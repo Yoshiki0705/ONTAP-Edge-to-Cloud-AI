@@ -8,7 +8,7 @@
 
 ## 概要
 
-ONTAP（オンプレミス FAS/AFF または FSx for ONTAP）上のファイルデータ（検査画像、設備ログ、センサーCSV）を、IoT エッジデバイスで収集・前処理し、AWS の AI/分析サービスで活用するパイプラインです。最初の PoC として **3Dプリント品質監視** を実装しています。
+ONTAP（オンプレミス FAS/AFF、ONTAP Select、または FSx for ONTAP）上のファイルデータ（検査画像、設備ログ、センサーCSV）を、IoT エッジデバイスで収集・前処理し、AWS の AI/分析サービスで活用するパイプラインです。最初の PoC として **3Dプリント品質監視** を実装しています。
 
 ### ONTAP が中心にある理由
 
@@ -22,17 +22,17 @@ ONTAP（オンプレミス FAS/AFF または FSx for ONTAP）上のファイル�
 
 ```
 [Edge]                    [SORACOM]              [AWS Cloud]
-Raspberry Pi 5            Flux / Funnel          ┌─────────────────────────────┐
+Raspberry Pi 5            Flux / Funnel         ┌─────────────────────────────┐
 ┌──────────────┐          ┌─────────┐           │  S3 Data Lake               │
-│ USB Camera   │──60s間隔→│ Cellular│──HTTPS──→ │    ↓                         │
-│ (1080p JPEG) │          │ or WiFi │           │  Lambda (2段階分析)          │
-└──────────────┘          └─────────┘           │    ├─ Haiku: スクリーニング   │
-                                                │    └─ Sonnet: 詳細分析(異常時)│
+│ USB Camera   │──60s間隔→ │ Cellular│──HTTPS──→ │    ↓                        │
+│ (1080p JPEG) │          │ or WiFi │           │  Lambda (2段階分析)           │
+└──────────────┘          └─────────┘           │    ├─ Haiku: スクリーニング    │
+                                                │    └─ Sonnet: 詳細分析(異常時) │
 [ONTAP Storage]                                 │    ↓                         │
 ┌──────────────┐                                │  SNS → Slack/Email 通知      │
 │ FAS/AFF      │──SnapMirror──→ FSx for ONTAP   │    ↓                         │
 │ FPolicy      │                  ↓ S3 AP       │  Athena (SQL分析)            │
-│ REST API     │                  Bedrock/SM    │  QuickSight (BI)             │
+│ REST API     │                  Bedrock/SM    │  QuickSight (BI)            │
 └──────────────┘                                └─────────────────────────────┘
 ```
 
