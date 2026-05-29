@@ -1,91 +1,61 @@
-# FAQ: Edge-to-Cloud AI
+# FAQ
 
-> Typical questions partners/SIs receive from customers, with answers
+## Setup
 
----
+**Q: Can I try this without ONTAP?**
 
-## Security
+A: The cloud side (Lambda + Bedrock) works without ONTAP. The edge side can also be validated with Pi + camera + direct S3 upload. ONTAP integration (FPolicy, SnapMirror, S3 AP) is a Phase 2+ option.
 
-**Q: What happens if a device is hacked?**
+**Q: Does this work on devices other than Raspberry Pi?**
 
-A: Three layers of defense are designed. (1) No AWS credentials stored on device (SORACOM SIM auth + AssumeRole), (2) Network segmentation (no access to ONTAP management plane), (3) ONTAP ARP/AI detects abnormal write patterns and auto-creates protective Snapshots. On device compromise, SIM suspension immediately cuts communication.
+A: The camera capture script is OpenCV-based, so it works on any Linux + USB camera. Should work on NVIDIA Jetson, x86 Linux PC, WSL2 (untested).
 
-**Q: Where is image data stored? Is it encrypted?**
+**Q: Which AWS region does this work in?**
 
-A: Stored in S3 (SSE-KMS encryption) and ONTAP (NVE: AES-256). In-transit encryption via TLS 1.2+. S3 bucket policy denies unencrypted transport.
-
-**Q: Could employees appear in camera images?**
-
-A: Cameras are positioned to capture only products/equipment. If people may appear in frame, a privacy impact assessment is conducted before installation, with mitigations including capture area restriction, blur processing, or relocation.
-
----
-
-## Cost
-
-**Q: What's the monthly cost?**
-
-A: PoC scale (1 device): ~¥5,500/month (AWS ~¥5,000 + SORACOM ~¥500). Two-stage AI analysis achieves ~85% cost reduction compared to analyzing all images with the high-accuracy model.
-
-**Q: How does cost scale for production deployment?**
-
-A: Proportional to device count. 10 devices: AWS ~¥30,000-50,000/month + SORACOM ~¥5,000/month + hardware initial ~¥150,000. Since only the cheap Haiku model runs during normal operation, lower anomaly rates mean better cost efficiency.
-
-**Q: Can this integrate with existing AWS environments at no additional cost?**
-
-A: Existing S3, CloudWatch, and IAM can be leveraged. Additional costs are only Bedrock API calls (pay-per-use) and Kinesis (ON_DEMAND: usage-based billing).
-
----
+A: Requires a region where Bedrock Claude models are available. This project is validated in `ap-northeast-1` (Tokyo). Change the region parameter in the CloudFormation template for other regions.
 
 ## Technical
 
-**Q: Can this work without existing ONTAP / NAS?**
-
-A: Yes. ONTAP integration is a Phase 2 option. Phase 1 runs with Pi + SORACOM + S3 + Bedrock only. When ONTAP exists, it provides additional value through existing data AI utilization and event-driven integration.
-
-**Q: Can this work at sites without internet?**
-
-A: SORACOM cellular SIM enables operation without wired networks. In cellular dead zones, data is buffered locally and batch-uploaded when connectivity returns. For fully offline environments, edge inference (TensorFlow Lite) provides basic detection (Phase 3+).
-
 **Q: What's the AI accuracy?**
 
-A: 100% in testing (9/9 test cases correct). Production accuracy varies with environmental conditions (lighting, camera position, filament color), so PoC validates real-environment accuracy. Target: ≥80% accuracy, ≤10% false positive rate.
+A: 9/9 correct in testing (public images + text-described scenarios). Real-environment accuracy (lighting, camera angle, filament color) is unverified. The prompt is conservatively designed to flag only clear defects.
 
-**Q: Is this limited to 3D print inspection?**
+**Q: How does two-stage analysis work?**
 
-A: No. The architecture is generic. By changing the prompt, it applies to visual inspection (scratches, discoloration, dimensions), inventory management (stocktaking), safety equipment verification (helmet detection), and any image-based judgment.
+A: Stage 1: Claude Haiku (cheap, fast) determines "defect yes/no." Only if "yes," Stage 2: Claude Sonnet (high accuracy) performs detailed analysis. In environments with mostly normal images, this reduces cost by 85%.
 
-**Q: Is Raspberry Pi suitable for industrial use?**
+**Q: Can this be used for inspections other than 3D printing?**
 
-A: Sufficient for PoC/pilot. For production, consider industrial enclosures (dust/waterproof), UPS (power protection), and industrial Pi-compatible devices (RevPi, etc.).
+A: Yes. Change the Lambda prompt to apply to any image judgment — visual inspection (scratches, discoloration), inventory checks, safety equipment verification. Prompt change only, no model retraining needed.
 
----
+**Q: What's the performance impact of FPolicy?**
 
-## Operations
+A: FPolicy adds latency to target file operations (several ms to tens of ms in synchronous mode). For high-frequency write environments, use asynchronous mode or narrow notification targets via filtering.
 
-**Q: What happens if a device fails?**
+**Q: What are FSxN S3 Access Points constraints?**
 
-A: (1) Auto-alert if no captures for 5 minutes, (2) Remote diagnosis via SORACOM Napter, (3) If unrecoverable, swap with spare (setup guide available, 30 minutes). Printing itself continues without the Pi.
+A: No conditional writes (no direct Iceberg/Delta Lake writes), no S3 event notifications (no Lambda triggers). See [use-case-research.md](use-case-research.md) section 5.1 for details.
 
-**Q: What's the impact of AI false positives?**
+## Cost
 
-A: Auto-stop only for severity: high/critical (resumable). All others are notification-only with human judgment. False positive feedback is recorded and reflected in weekly accuracy improvements.
+**Q: What's the monthly AWS cost?**
 
-**Q: Can this integrate with existing monitoring (Nagios, Zabbix, etc.)?**
+A: PoC scale (1 device, 60-second intervals): ~$40/month. Breakdown: Bedrock API ~$30, S3 ~$3, Kinesis ~$0 (ON_DEMAND, no data = no charge), Lambda ~$1, other ~$5.
 
-A: SNS enables notification to any endpoint. Supports Webhook, email, SMS, PagerDuty, Slack. CloudWatch metrics can also be ingested into existing monitoring systems.
+**Q: How to reduce cost?**
 
----
+A: (1) Extend capture interval to 120s (halves cost), (2) Skip when printer is idle, (3) Use Haiku only without Sonnet (lower accuracy).
 
-## Implementation Process
+## Troubleshooting
 
-**Q: How long does a PoC take?**
+**Q: Lambda returns AccessDenied error**
 
-A: 4 weeks (1 week prep + 1 week build + 1 week validation + 1 week evaluation). AWS infrastructure deploys in 1 command via CloudFormation. Edge device starts operating in 1-2 hours following the setup guide.
+A: The S3 bucket policy enforces KMS encryption. PutObject without `ServerSideEncryption: aws:kms` header is denied. Also, GetObject on non-existent objects requires ListBucket permission.
 
-**Q: What changes for production after PoC?**
+**Q: Bedrock returns ValidationException**
 
-A: Main additions: (1) Increased device count, (2) 24/7 monitoring, (3) Automated OTA updates, (4) Security hardening (VPG private network), (5) Formal SLA/SLO agreement. The architecture itself remains the same as PoC.
+A: Model ID requires an inference profile. Use `jp.anthropic.claude-sonnet-4-5-20250929-v1:0` (JP profile) instead of `anthropic.claude-sonnet-4-5-20250929-v1:0`.
 
-**Q: Can field operators without AWS knowledge manage this?**
+**Q: Tests are failing**
 
-A: Daily operations are only Slack/Teams notification review and feedback recording. No AWS console access needed. For incidents, follow the Runbook; if unresolved, escalation flow hands off to engineers.
+A: Verify `pip install pytest requests opencv-python-headless numpy`. Python 3.12+ required. Tests have no external dependencies (all mocked).
