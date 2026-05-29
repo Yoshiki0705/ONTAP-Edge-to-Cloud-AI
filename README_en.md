@@ -43,9 +43,9 @@ This architecture assumes ONTAP, but the core pattern (edge collection → aggre
 
 | Storage | Data Flow | Characteristics | Constraints |
 |---------|-----------|----------------|-------------|
-| **S3 direct** | Edge → S3 → Athena/Bedrock | Simplest. Easy setup. Native AWS integration | No NFS/SMB access. Integrating with existing file workflows requires extra work |
-| **EFS** | Edge → NFS → EFS → Lambda/Bedrock | NFS mountable. Good affinity with Linux devices | No SMB. No direct S3 API access. Event-driven requires Lambda + CloudWatch |
-| **ONTAP** | Edge → NFS/SMB → ONTAP → S3 AP → AWS AI | NFS + SMB + S3 on same data. FPolicy file-arrival triggers. SnapMirror incremental sync | Requires ONTAP environment. S3 AP has no conditional writes. Needs ONTAP operational knowledge |
+| **S3 direct** | Edge → S3 → Athena/Bedrock | Simplest. Easy setup. Native AWS integration. S3 Object Lock for tamper protection. CloudFront for edge cache delivery | No NFS/SMB access. Integrating with existing file workflows requires extra work. Event-driven via S3 Event Notifications |
+| **EFS** | Edge → NFS → EFS → Lambda/Bedrock | NFS mountable. Good affinity with Linux devices. Auto-scaling. AWS Backup for protection | No SMB. No direct S3 API access. Event-driven requires Lambda + CloudWatch. Cross-region via EFS Replication |
+| **ONTAP** | Edge → NFS/SMB → ONTAP → S3 AP → AWS AI | NFS + SMB + S3 on same data. FPolicy file-arrival triggers. SnapMirror incremental sync. FlexCache for low-latency remote site delivery. ARP/AI ransomware anomaly detection with automatic Snapshot protection | Requires ONTAP environment. S3 AP has no conditional writes. Needs ONTAP operational knowledge |
 
 **Which to choose:**
 - No existing data / greenfield → **S3 direct** is simplest
