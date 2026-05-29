@@ -22,16 +22,17 @@ class CaptureConfig:
 
 @dataclass(frozen=True)
 class UploadConfig:
-    """SORACOM upload settings."""
+    """Upload/output settings (fallback: SORACOM cellular when no wired LAN)."""
 
     endpoint_url: str = os.getenv(
-        "SORACOM_ENDPOINT_URL",
-        "http://unified.soracom.io",
+        "UPLOAD_ENDPOINT_URL",
+        "http://unified.soracom.io",  # Option: only for cellular fallback
     )
-    upload_path: str = os.getenv("SORACOM_UPLOAD_PATH", "/")
+    upload_path: str = os.getenv("UPLOAD_PATH", "/")
     timeout_seconds: int = int(os.getenv("UPLOAD_TIMEOUT_SECONDS", "30"))
     max_retries: int = int(os.getenv("UPLOAD_MAX_RETRIES", "3"))
     retry_delay_seconds: int = int(os.getenv("UPLOAD_RETRY_DELAY_SECONDS", "5"))
+    ontap_nfs_path: str = os.getenv("ONTAP_NFS_PATH", "/mnt/ontap/images")  # Primary path
 
 
 @dataclass(frozen=True)

@@ -57,7 +57,7 @@ class TestUploadConfig:
     """Tests for UploadConfig."""
 
     def test_default_endpoint(self):
-        """Test default SORACOM endpoint."""
+        """Test default upload endpoint (cellular fallback)."""
         with patch.dict(os.environ, {}, clear=True):
             import importlib
             import config as cfg
@@ -67,6 +67,7 @@ class TestUploadConfig:
             assert u.endpoint_url == "http://unified.soracom.io"
             assert u.timeout_seconds == 30
             assert u.max_retries == 3
+            assert u.ontap_nfs_path == "/mnt/ontap/images"
 
 
 class TestDeviceConfig:
