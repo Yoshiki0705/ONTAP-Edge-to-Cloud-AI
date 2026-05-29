@@ -100,7 +100,7 @@ class TestONTAPTelemetryE2E:
         "ONTAP_VERIFY_SSL": "false",
         "DEVICE_ID": "rpi5-e2e-test",
         "COLLECTION_INTERVAL_SECONDS": "60",
-        "SORACOM_ENDPOINT_URL": "http://mock-soracom.local",
+        
     })
     def test_full_collection_cycle(self):
         """Test a complete collection cycle: connect → collect → format → upload."""
@@ -162,29 +162,22 @@ class TestONTAPTelemetryE2E:
             assert message["payload"]["cluster"]["name"] == "edge-cluster-01"
             assert message["payload"]["node_metrics"]["cpu_utilization_percent"] == 32.0
 
-            # Step 6: Upload to SORACOM (mocked)
-            with patch("ontap_telemetry.requests.post") as mock_post:
-                mock_post.return_value = MagicMock(status_code=200)
-                success = ot.send_to_soracom(message)
+            # Step 6: Save to ONTAP NFS (mocked via tmp dir)
+            import tempfile
+            with patch.dict("os.environ", {"OUTPUT_PATH": tempfile.mkdtemp()}):
+                importlib.reload(ot)
+                success = ot.save_to_ontap(message)
                 assert success is True
-
-                # Verify the upload was called with correct endpoint
-                mock_post.assert_called_once()
-                call_args = mock_post.call_args
-                assert call_args[0][0] == "http://mock-soracom.local"
-                sent_body = call_args[1]["json"]
-                assert sent_body["message_type"] == "ontap_telemetry"
-                assert sent_body["device_id"] == "rpi5-e2e-test"
 
     @patch.dict("os.environ", {
         "ONTAP_HOST": "192.0.2.10",
         "ONTAP_USER": "svc-iot-telemetry",
         "ONTAP_PASSWORD": "test-password",
         "DEVICE_ID": "rpi5-e2e-test",
-        "SORACOM_ENDPOINT_URL": "http://mock-soracom.local",
+        "OUTPUT_PATH": "/tmp/test-ontap-telemetry",
     })
-    def test_upload_failure_handling(self):
-        """Test that upload failures are handled gracefully."""
+    def test_save_failure_handling(self):
+        """Test that save failures are handled gracefully."""
         import importlib
         import ontap_telemetry as ot
         importlib.reload(ot)
@@ -194,11 +187,10 @@ class TestONTAPTelemetryE2E:
             {}, [], {}
         )
 
-        # Simulate network failure
-        with patch("ontap_telemetry.requests.post") as mock_post:
-            import requests as req
-            mock_post.side_effect = req.exceptions.ConnectionError("Connection refused")
-            success = ot.send_to_soracom(message)
+        # Simulate write failure (non-existent path)
+        with patch.dict("os.environ", {"OUTPUT_PATH": "/nonexistent/path"}):
+            importlib.reload(ot)
+            success = ot.save_to_ontap(message)
             assert success is False
 
     @patch.dict("os.environ", {
@@ -206,10 +198,10 @@ class TestONTAPTelemetryE2E:
         "ONTAP_USER": "svc-iot-telemetry",
         "ONTAP_PASSWORD": "test-password",
         "DEVICE_ID": "rpi5-e2e-test",
-        "SORACOM_ENDPOINT_URL": "http://mock-soracom.local",
+        "OUTPUT_PATH": "/tmp/test-ontap-telemetry",
     })
-    def test_upload_http_error_handling(self):
-        """Test that HTTP errors are handled gracefully."""
+    def test_save_http_error_handling(self):
+        """Test that save to non-writable path is handled gracefully."""
         import importlib
         import ontap_telemetry as ot
         importlib.reload(ot)
@@ -219,10 +211,9 @@ class TestONTAPTelemetryE2E:
             {}, [], {}
         )
 
-        # Simulate HTTP 500
-        with patch("ontap_telemetry.requests.post") as mock_post:
-            mock_post.return_value = MagicMock(status_code=500)
-            success = ot.send_to_soracom(message)
+        # Simulate permission error
+        with patch("pathlib.Path.mkdir", side_effect=PermissionError("Permission denied")):
+            success = ot.save_to_ontap(message)
             assert success is False
 
     @patch.dict("os.environ", {

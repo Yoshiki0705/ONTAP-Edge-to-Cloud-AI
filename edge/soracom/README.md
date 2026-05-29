@@ -1,8 +1,10 @@
-# SORACOM Configuration Guide
+# SORACOM Configuration Guide (Option: Cellular Connectivity)
 
 > 🌐 [日本語](./README_ja.md) | English
 
-This guide covers SORACOM service configuration for the edge-to-cloud-ai project.
+> **Note**: This guide is for sites WITHOUT wired LAN connectivity. If wired LAN is available, the primary data path is Pi → NFS → ONTAP (see main README). SORACOM is positioned as a fallback/remote connectivity option.
+
+This guide covers SORACOM service configuration for cellular connectivity scenarios.
 
 ## Prerequisites
 

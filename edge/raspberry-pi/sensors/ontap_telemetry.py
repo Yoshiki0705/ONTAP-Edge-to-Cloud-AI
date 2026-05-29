@@ -1,12 +1,14 @@
 """ONTAP REST API telemetry collector.
 
 Periodically polls ONTAP cluster metrics (IOPS, latency, throughput,
-capacity, node health) and forwards to SORACOM for cloud analytics.
+capacity, node health) and writes to ONTAP NFS volume as JSON files.
+SnapMirror syncs to FSxN for cloud analytics via S3 Access Points.
 
 Requires:
     - ONTAP 9.13.1+ with REST API enabled
     - Service account with readonly role
     - Network access from Pi to ONTAP data LIF (port 443)
+    - NFS mount configured for telemetry output
 
 Environment variables:
     ONTAP_HOST: ONTAP cluster management or data LIF IP/hostname
@@ -15,7 +17,7 @@ Environment variables:
     ONTAP_VERIFY_SSL: Whether to verify SSL certificate (default: true)
     COLLECTION_INTERVAL_SECONDS: Polling interval (default: 60)
     DEVICE_ID: Device identifier (default: rpi5-001)
-    SORACOM_ENDPOINT_URL: SORACOM unified endpoint
+    OUTPUT_PATH: NFS mount path for telemetry output (default: /mnt/ontap/telemetry)
 """
 
 import json
@@ -38,7 +40,7 @@ ONTAP_PASSWORD = os.getenv("ONTAP_PASSWORD", "")
 ONTAP_VERIFY_SSL = os.getenv("ONTAP_VERIFY_SSL", "true").lower() == "true"
 COLLECTION_INTERVAL = int(os.getenv("COLLECTION_INTERVAL_SECONDS", "60"))
 DEVICE_ID = os.getenv("DEVICE_ID", "rpi5-001")
-SORACOM_ENDPOINT = os.getenv("SORACOM_ENDPOINT_URL", "http://unified.soracom.io")
+OUTPUT_PATH = os.getenv("OUTPUT_PATH", "/mnt/ontap/telemetry")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
 # Global shutdown flag
@@ -200,22 +202,25 @@ def build_telemetry_message(
     }
 
 
-def send_to_soracom(message: dict) -> bool:
-    """Send telemetry message to SORACOM unified endpoint."""
+def save_to_ontap(message: dict) -> bool:
+    """Save telemetry message to ONTAP NFS mount as JSON file."""
     try:
-        resp = requests.post(
-            SORACOM_ENDPOINT,
-            json=message,
-            timeout=30,
-            headers={"Content-Type": "application/json"},
+        from pathlib import Path
+        timestamp = datetime.now(timezone.utc)
+        output_dir = Path(OUTPUT_PATH) / timestamp.strftime("%Y/%m/%d")
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        filename = f"{timestamp.strftime('%Y%m%dT%H%M%SZ')}_{DEVICE_ID}.json"
+        output_path = output_dir / filename
+
+        output_path.write_text(
+            json.dumps(message, ensure_ascii=False, indent=2),
+            encoding="utf-8",
         )
-        if resp.status_code in (200, 201, 202):
-            logger.debug("Telemetry sent successfully")
-            return True
-        logger.warning("SORACOM upload failed: HTTP %d", resp.status_code)
-        return False
-    except requests.exceptions.RequestException as e:
-        logger.warning("SORACOM upload error: %s", e)
+        logger.debug("Telemetry saved: %s", output_path)
+        return True
+    except OSError as e:
+        logger.warning("Failed to save telemetry: %s", e)
         return False
 
 
@@ -235,11 +240,17 @@ def main() -> int:
         logger.error("ONTAP_PASSWORD environment variable is required")
         return 1
 
+    from pathlib import Path
+    if not Path(OUTPUT_PATH).exists():
+        logger.error("OUTPUT_PATH does not exist: %s. Mount ONTAP NFS volume first.", OUTPUT_PATH)
+        return 1
+
     logger.info(
-        "Starting ONTAP telemetry collector: host=%s, user=%s, interval=%ds",
+        "Starting ONTAP telemetry collector: host=%s, user=%s, interval=%ds, output=%s",
         ONTAP_HOST,
         ONTAP_USER,
         COLLECTION_INTERVAL,
+        OUTPUT_PATH,
     )
 
     client = ONTAPClient(ONTAP_HOST, ONTAP_USER, ONTAP_PASSWORD, ONTAP_VERIFY_SSL)
@@ -265,7 +276,7 @@ def main() -> int:
                 cluster_info, cluster_metrics, volumes, node_metrics
             )
 
-            send_to_soracom(message)
+            save_to_ontap(message)
             collection_count += 1
 
             if collection_count % 10 == 0:

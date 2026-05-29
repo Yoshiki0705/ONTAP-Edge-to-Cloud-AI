@@ -1,6 +1,7 @@
-# SORACOM Flux App Specification: print-quality-monitor
+# SORACOM Flux App Specification: print-quality-monitor (Option)
 
-> このファイルは SORACOM コンソールで Flux アプリを作成する際の設定仕様書です。  
+> **注意**: このドキュメントは有線LANが利用できない現場で SORACOM Flux を使用する場合の設定仕様書です。  
+> 有線LAN環境では、主経路（Pi → NFS → ONTAP → FPolicy → Lambda → Bedrock）を使用してください。  
 > SIM がなくてもアプリ定義は作成可能です。
 
 ## App 基本情報
