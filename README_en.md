@@ -98,9 +98,9 @@ This architecture assumes ONTAP, but the core pattern (edge collection → aggre
 
 As an SA/SE visiting customer sites, I repeatedly heard "we have data on NAS but can't leverage it." With the following technologies maturing in 2024-2025, a practical solution became feasible for the first time:
 
-- **FSx for ONTAP S3 Access Points** (2025 GA): S3 API access without data copying
-- **SORACOM Flux** (2024 GA): Low-code camera × AI pipeline
+- **FSx for ONTAP S3 Access Points** (2025 GA): S3 API access to ONTAP data without copying
 - **Claude Vision / Multimodal AI**: Industrial image judgment at practical accuracy with generic prompts
+- **Raspberry Pi 5 (16GB)**: Edge pre-processing and lightweight inference at practical performance
 
 The first PoC is **3D print quality monitoring** (visually compelling, failures happen frequently for easy test data collection).
 
