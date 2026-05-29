@@ -1,0 +1,30 @@
+#!/bin/bash
+# Pre-commit hook: email check + gitleaks + zizmor
+
+set -euo pipefail
+
+# 1. Author email verification
+AUTHOR_EMAIL=$(git config user.email)
+if [[ ! "$AUTHOR_EMAIL" =~ @(netapp\.com|gmail\.com)$ ]]; then
+  echo "❌ ERROR: Author email must be @netapp.com or @gmail.com"
+  echo "   Current: $AUTHOR_EMAIL"
+  echo "   Fix: git config user.email 'your-email@netapp.com'"
+  exit 1
+fi
+
+# 2. Gitleaks secret scanning (staged files only)
+if command -v gitleaks &> /dev/null; then
+  echo "🔍 Running gitleaks on staged files..."
+  gitleaks protect --staged --config .gitleaks.toml --no-banner
+else
+  echo "⚠️  gitleaks not installed — skipping secret scan"
+fi
+
+# 3. Zizmor lint (only if workflow files changed)
+WORKFLOW_FILES=$(git diff --cached --name-only -- '.github/workflows/*.yml' '.github/workflows/*.yaml' 2>/dev/null || true)
+if [[ -n "$WORKFLOW_FILES" ]] && command -v zizmor &> /dev/null; then
+  echo "🔍 Running zizmor on changed workflow files..."
+  echo "$WORKFLOW_FILES" | xargs zizmor
+fi
+
+echo "✅ Pre-commit checks passed"

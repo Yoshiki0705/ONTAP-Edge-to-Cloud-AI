@@ -1,0 +1,604 @@
+# ONTAP × IoT × AWS Analytics/AI Use Case Research
+
+> Created: 2026-05-29  
+> Project: edge-to-cloud-ai  
+> Parent project: [fsxn-lakehouse-integrations](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations)
+
+---
+
+## 1. Executive Summary
+
+This research systematically organizes use cases for collecting data accumulated on NetApp ONTAP (on-premises FAS/AFF or FSx for ONTAP) via IoT devices (Raspberry Pi 5, SORACOM cellular gateways) and leveraging AWS Analytics/AI services.
+
+**Key Findings:**
+
+1. **Multi-layered ONTAP value**: Differentiation across five axes — FPolicy event-driven integration, SnapMirror edge-to-cloud sync, FlexCache low-latency caching, ARP/AI security, and S3 Access Points for direct AWS service connectivity
+2. **SORACOM Flux**: Released in 2024, this low-code IoT app builder significantly simplifies camera image × generative AI combinations
+3. **FSx for ONTAP S3 AP strategic positioning**: Using FSxN as the final storage destination for edge-collected data, with S3 AP providing direct connectivity to Athena/Glue/Bedrock/SageMaker, represents the most integrated pattern
+4. **Hardware configuration affinity**: The combination of Raspberry Pi 5 + camera + 3D printer + ONTAP entry-level storage enables immediate PoC construction for manufacturing visual inspection and predictive maintenance
+
+---
+
+## 2. Architecture Patterns
+
+### Pattern A: Edge Image Capture → Cloud AI Analysis
+
+```
+[Edge]                            [Aggregation]             [Cloud]
+Raspberry Pi 5                   SORACOM                   AWS
+┌─────────────────┐              ┌──────────┐             ┌─────────────────────────┐
+│ Camera Module   │──capture──→  │ Beam     │──HTTPS──→   │ S3 / FSxN               │
+│ (NoIR V2/BRIO)  │              │ Funnel   │             │   ↓                     │
+│                 │              │ Flux     │             │ Bedrock (Claude Vision) │
+│ Pre-processing: │              └──────────┘             │ Rekognition             │
+│  - Resize       │                                       │   ↓                     │
+│  - JPEG compress│                                       │ DynamoDB (results)      │
+│  - Timestamp    │                                       │ SNS (alerts)            │
+└─────────────────┘                                       └─────────────────────────┘
+```
+
+**Applicable use cases**: Visual inspection, 3D print quality monitoring, inventory image management, safety equipment verification
+
+### Pattern B: Sensor Data → Real-time Analytics + Prediction
+
+```
+[Edge]                            [Aggregation]             [Cloud]
+Raspberry Pi 5                   SORACOM                   AWS
+┌─────────────────┐              ┌──────────┐             ┌─────────────────────────┐
+│ Sensor arra     │──JSON──→     │ Funnel   │──Kinesis──→ │ Kinesis Data Streams    │
+│ - Temp/humidity │              │          │  Firehose   │   ↓                     │
+│ - Vibration     │              └──────────┘             │ S3 Data Lake / FSxN     │
+│ - Current       │                                       │   ↓                     │
+│ - Pressure      │                                       │ Glue ETL → Athena       │
+│                 │                                       │ SageMaker (prediction)  │
+│ Pre-processing: │                                       │ CloudWatch (alerts)     │
+│ - Aggregation   │                                       │ QuickSight (BI)         │
+│ - Outlier filter│                                       └─────────────────────────┘
+└─────────────────┘
+```
+
+**Applicable use cases**: Predictive maintenance, environmental monitoring, HVAC optimization
+
+### Pattern C: ONTAP Event-Driven → Edge Notification + Cloud Processing
+
+```
+[On-premises ONTAP]              [Edge]                    [Cloud]
+ONTAP (Entry/Mid-range)          Raspberry Pi 5            AWS
+┌─────────────────┐              ┌──────────┐             ┌─────────────────────────┐
+│  FPolicy        │──notify──→   │ FPolicy  │──SORACOM──→ │ Lambda (event handler)  │
+│ - File create   │              │ Server   │             │   ↓                     │
+│ - File modify   │              │ (Python) │             │ Step Functions          │
+│ - File delete   │              │          │             │   ├── Glue (ETL)        │
+│                 │              └──────────┘             │   ├── Bedrock (analysis)│
+│  REST API       │──polling──→  │ Telemetry│──SORACOM──→ │   └── SNS (notify)      │
+│ - Performance   │              │ collector│             │                         │
+│ - Capacity      │              └──────────┘             │ FSxN (SnapMirror dest)  │
+│ - Health        │                                       └─────────────────────────┘
+└─────────────────┘
+```
+
+**Applicable use cases**: File-arrival triggered processing, storage health monitoring, data lifecycle management
+
+### Pattern D: SnapMirror/FlexCache Hybrid Data Sync
+
+```
+[On-premises]                                              [Cloud]
+ONTAP (Entry/Mid-range)                                    FSx for ONTAP
+┌─────────────────┐                                       ┌─────────────────────────┐
+│ Factory data    │                                       │ FSxN Volume             │
+│ - Inspection img│──SnapMirror (async)───────────────→   │   ↓ S3 Access Point     │
+│ - Sensor CSV    │                                       │ Athena (SQL analytics)  │
+│ - Equipment logs│                                       │ Glue (ETL/catalog)      │
+│                 │                                       │ Bedrock (RAG)           │
+│ FlexCache       │←───────────────────────────────────── │ AI inference results    │
+│ (ref results)   │                                       │ SageMaker model output  │
+└─────────────────┘                                       └─────────────────────────┘
+```
+
+**Applicable use cases**: Staged cloud migration of large datasets, edge AI result reference, DR/BCP
+
+---
+
+## 3. Industry Use Case Details
+
+### 3.1 Manufacturing
+
+#### UC-M1: 3D Print Quality Monitoring
+
+> **IoT classification**: Retrofit IoT (adding external camera to existing 3D printer)  
+> **Constraints**: No internal printer modification, printer API access is vendor-dependent, power via USB-C (Pi) + USB (camera) independently supplied
+
+| Item | Details |
+|------|---------|
+| **Overview** | Periodically capture images during FDM 3D printing with Raspberry Pi + camera, detect quality anomalies via Bedrock Claude Vision |
+| **Edge equipment** | Raspberry Pi 5 (16GB) + Logitech BRIO 4K (suited for high-resolution capture in lit environments; NoIR camera is for low-light/near-infrared use cases) |
+| **Data flow** | Pi → SORACOM Flux → S3 → Bedrock Claude Vision → SNS notification |
+| **ONTAP integration** | Store 3D models (STL/3MF) on ONTAP NFS share; FPolicy detects new files → auto-queue print jobs |
+| **AI usage** | Claude Vision: detect stringing, layer delamination, nozzle clogging |
+| **Business value** | Early failure detection during unattended printing, filament waste reduction, improved print success rate |
+| **Bandwidth estimate** | 30-sec interval capture × 1080p JPEG (~300KB/image) = ~600KB/min = ~36MB/hour. Cellular transfer cost: ~¥50-100/day (SORACOM plan-D) |
+| **Success metrics** | Detection accuracy ≥80%, capture-to-alert ≤60s, false positive rate ≤10% |
+
+#### UC-M2: Equipment Vibration Monitoring + Predictive Maintenance
+
+| Item | Details |
+|------|---------|
+| **Overview** | Collect vibration data from ONTAP storage disk shelves and equipment via sensors, learn anomaly patterns for failure prediction |
+| **Edge equipment** | Raspberry Pi 5 + ADXL345 accelerometer + SORACOM SIM |
+| **Data flow** | Pi → SORACOM Funnel → Kinesis Firehose → S3 → SageMaker |
+| **ONTAP integration** | Simultaneously collect disk IOPS/latency via ONTAP REST API for correlation analysis |
+| **AI usage** | SageMaker: time-series anomaly detection (Random Cut Forest); Bedrock: root cause diagnosis report generation |
+| **Business value** | Reduce unplanned downtime, optimize part replacement timing |
+
+#### UC-M3: Automated Visual Inspection
+
+| Item | Details |
+|------|---------|
+| **Overview** | Photograph finished products on production line, auto-detect scratches, discoloration, dimensional anomalies |
+| **Edge equipment** | Raspberry Pi 5 + Logitech BRIO 4K (high resolution) |
+| **Data flow** | Pi → SORACOM Beam → Lambda → Rekognition Custom Labels / Bedrock |
+| **ONTAP integration** | Store inspection images on ONTAP (NFS), SnapMirror to FSxN, analyze via S3 AP with Athena |
+| **AI usage** | Rekognition Custom Labels: defect classification; Bedrock: automated inspection report generation |
+| **Business value** | Inspection process automation, human error reduction, traceability |
+
+### 3.2 Logistics & Warehousing
+
+#### UC-L1: Inventory Image Management + AI Stocktaking
+
+| Item | Details |
+|------|---------|
+| **Overview** | Periodically photograph warehouse shelves, auto-recognize inventory quantities and placement via AI |
+| **Edge equipment** | Raspberry Pi 5 + Logitech BRIO 4K |
+| **Data flow** | Pi → SORACOM Flux (AI image analysis) → S3 → Bedrock Claude Vision |
+| **ONTAP integration** | Manage inventory master data on ONTAP NFS, distribute to edge sites via FlexCache |
+| **AI usage** | Claude Vision: shelf inventory counting, stockout detection, placement anomaly detection |
+| **Business value** | Reduced stocktaking labor, real-time inventory visibility, stockout alerts |
+
+#### UC-L2: Inbound/Outbound Tracking
+
+| Item | Details |
+|------|---------|
+| **Overview** | Read package labels at loading dock cameras, auto-record shipments |
+| **Edge equipment** | Raspberry Pi 5 + camera |
+| **Data flow** | Pi → SORACOM Beam → Lambda → Rekognition (OCR) → DynamoDB |
+| **ONTAP integration** | Store shipping document PDFs on ONTAP; FPolicy detects new files → auto-OCR processing |
+| **AI usage** | Rekognition: text detection (barcode/QR/labels); Bedrock: document content structuring |
+| **Business value** | Reduced manual entry errors, shortened lead times, traceability |
+
+### 3.3 Agriculture & Environment
+
+#### UC-A1: Environmental Sensor Monitoring
+
+| Item | Details |
+|------|---------|
+| **Overview** | Periodically collect field temperature/humidity, soil moisture, and illuminance to optimize growing conditions |
+| **Edge equipment** | Raspberry Pi 5 + DHT22 + soil moisture sensor + SORACOM SIM |
+| **Data flow** | Pi → SORACOM Harvest (visualization) + Funnel → Kinesis → S3 → Athena |
+| **ONTAP integration** | Accumulate historical weather/harvest data on ONTAP, SnapMirror to FSxN for Athena analysis |
+| **AI usage** | SageMaker: yield prediction model; Bedrock: cultivation advice generation |
+| **Business value** | Yield optimization, water/fertilizer efficiency, early response to abnormal weather |
+
+#### UC-A2: Image-Based Growth Management
+
+| Item | Details |
+|------|---------|
+| **Overview** | Fixed-point cameras photograph crop growth status, early detection of pests/diseases and growth abnormalities |
+| **Edge equipment** | Raspberry Pi 5 + NoIR Camera V2 (near-infrared for vegetation index measurement) |
+| **Data flow** | Pi → SORACOM Flux → S3 → Bedrock Claude Vision |
+| **ONTAP integration** | Store time-series image archives on ONTAP for year-over-year comparative analysis |
+| **AI usage** | Claude Vision: pest/disease detection, growth stage classification, NDVI calculation |
+| **Business value** | Early pest/disease discovery, pesticide usage optimization, harvest timing prediction |
+
+### 3.4 Building Management
+
+#### UC-B1: HVAC & Power Monitoring
+
+| Item | Details |
+|------|---------|
+| **Overview** | Real-time collection of per-floor temperature/humidity and power consumption to optimize HVAC control |
+| **Edge equipment** | Raspberry Pi 5 + temp/humidity sensor + CT current sensor + SORACOM SIM |
+| **Data flow** | Pi → SORACOM Funnel → Kinesis → S3 → Athena + QuickSight |
+| **ONTAP integration** | Aggregate BMS (Building Management System) logs on ONTAP for long-term trend analysis |
+| **AI usage** | SageMaker: power demand forecasting; Bedrock: automated energy-saving report generation |
+| **Business value** | Power cost reduction (10-30%), comfort maintenance, carbon footprint visibility |
+
+#### UC-B2: Equipment Anomaly Detection (Audio)
+
+| Item | Details |
+|------|---------|
+| **Overview** | Collect operational sounds from HVAC/elevators via microphone, detect anomalous sounds |
+| **Edge equipment** | Raspberry Pi 5 + USB microphone |
+| **Data flow** | Pi (edge inference: anomaly score) → SORACOM → S3 → SageMaker |
+| **ONTAP integration** | Store audio data archives on ONTAP as training data for normal/anomaly pattern learning |
+| **AI usage** | Edge: TensorFlow Lite (anomaly score); Cloud: SageMaker (model retraining) |
+| **Business value** | Equipment failure precursor detection, maintenance cost reduction, tenant satisfaction |
+
+---
+
+## 4. ONTAP-Specific Value
+
+### 4.1 SnapMirror: Edge-to-Cloud Data Synchronization
+
+| Characteristic | Value in IoT/Edge Context |
+|---------------|--------------------------|
+| Block-level incremental transfer | Efficient data sync from bandwidth-constrained edge sites |
+| Schedule control | Night-time batch sync to conserve cellular bandwidth |
+| Multiple destinations | Sync from one edge ONTAP to multiple FSxN instances across regions |
+| Snapshot integration | Fix AI training datasets at arbitrary points in time |
+
+**Scenario**: Inspection images and sensor CSVs accumulated on factory ONTAP during the day are synced to FSxN via SnapMirror overnight. By next morning, data is available for Athena/SageMaker analysis.
+
+> **RPO guidance**: Configurable from RPO 1 hour to 24 hours via schedule settings. Over cellular connections, RPO 8-24 hours is realistic due to bandwidth constraints. Wired connections can achieve RPO under 1 hour.
+
+### 4.2 FlexCache: Low-Latency Edge Data Access
+
+| Characteristic | Value in IoT/Edge Context |
+|---------------|--------------------------|
+| Read cache | Reference cloud AI inference results at edge with low latency |
+| Write-through | Edge writes automatically reflected at origin |
+| Global consistency | Multiple sites can reference identical datasets |
+
+**Scenario**: AI model inference results (pass/fail thresholds, etc.) trained in the cloud are distributed to edge ONTAP via FlexCache. Edge Raspberry Pi references them in real-time.
+
+> **Note**: FlexCache writes use write-around behavior — writes go directly to the origin volume, incurring WAN latency. For IoT write-heavy workloads, local volume writes + SnapMirror sync may be more appropriate. FlexCache is optimal for read-heavy use cases (model distribution, master data reference).
+
+### 4.3 FPolicy: Event-Driven Data Integration
+
+| Characteristic | Value in IoT/Edge Context |
+|---------------|--------------------------|
+| File operation notifications | Immediately detect new file arrivals and trigger processing pipelines |
+| Filtering | Narrow notification targets by extension, path, operation type |
+| External server integration | Run Raspberry Pi as FPolicy server for lightweight pre-processing |
+
+**Scenario**: Inspection equipment saves images to ONTAP NFS share → FPolicy notifies Raspberry Pi → Pi uploads to S3 via SORACOM → Bedrock analysis.
+
+> **Note**: FPolicy adds latency to target file operations (several ms to tens of ms in synchronous mode). For high-frequency IoT write environments, use asynchronous mode or narrow notification targets via filtering.
+
+### 4.4 Multi-Protocol (NFS/SMB/S3)
+
+| Characteristic | Value in IoT/Edge Context |
+|---------------|--------------------------|
+| NFS + S3 simultaneous access | Edge devices write via NFS, AWS services read via S3 AP |
+| SMB + NFS | Windows inspection equipment (SMB) and Linux edge devices (NFS) access same data |
+| No protocol conversion needed | Different workloads use same data without copying |
+
+**Scenario**: 3D printer control PC (Windows/SMB) saves G-code, Raspberry Pi (NFS) reads it to monitor print status. Same volume's S3 AP enables Athena analysis of print history.
+
+### 4.5 ARP/AI (Autonomous Ransomware Protection)
+
+| Characteristic | Value in IoT/Edge Context |
+|---------------|--------------------------|
+| AI anomaly detection | Immediately detect ransomware spread if IoT device is compromised |
+| Automatic Snapshot | Auto-create Snapshot on attack detection to protect data |
+| FSxN support | Equivalent protection on cloud-side FSxN |
+
+**Scenario**: If an IoT device is compromised and attempts to encrypt ONTAP data, ARP/AI detects the abnormal write pattern and automatically creates a Snapshot to protect data.
+
+---
+
+## 5. Technical Constraints & Considerations
+
+### 5.1 FSx for ONTAP S3 Access Points Constraints
+
+Constraints verified in parent project (fsxn-lakehouse-integrations):
+
+| Constraint | Impact | Workaround |
+|-----------|--------|-----------|
+| Conditional writes not supported | Cannot write directly with Iceberg/Delta Lake | Write via S3 bucket, use FSxN as read-only |
+| Event notifications not supported | Cannot trigger Lambda via S3 events | Use EventBridge + polling, or leverage FPolicy |
+| ListObjectsV2 limitations | Performance impact on large file listings | Mitigate with Glue Crawler partition design |
+| Internet network origin required | NAT Gateway needed for VPC access | Route via internet rather than VPC endpoint |
+
+### 5.2 SORACOM Cellular Communication Constraints
+
+| Constraint | Impact | Mitigation |
+|-----------|--------|-----------|
+| Bandwidth limits (LTE: several Mbps to tens of Mbps) | Limits real-time high-resolution image transfer | Resize/compress at edge, differential transfer |
+| Data volume billing | Large data transfers increase cost | Reduce transfer volume via edge pre-processing, night batch |
+| Latency (tens to hundreds of ms) | Not suitable for real-time control | Edge inference + async cloud processing |
+| Connection stability | Disconnections due to signal conditions | Local buffering + retry control |
+
+### 5.3 Raspberry Pi 5 Constraints
+
+| Constraint | Impact | Mitigation |
+|-----------|--------|-----------|
+| Compute (ARM Cortex-A76) | Large AI model edge inference is difficult | TensorFlow Lite / ONNX Runtime with lightweight models |
+| Memory (16GB) | Limited large image batch processing | Streaming processing, one-at-a-time |
+| Storage (NVMe SSD 128-256GB) | Insufficient for long-term data retention | Periodic transfer to ONTAP, local as temp buffer |
+| Power (27W) | No UPS needed but data protection on power loss required | Journaling FS + periodic sync |
+
+### 5.4 SORACOM Service Selection Criteria
+
+| Service | Use Case | Protocol | Characteristics |
+|---------|----------|----------|----------------|
+| **Beam** | General protocol conversion | MQTT→MQTTS, HTTP→HTTPS | Offloads device-side encryption, forwards to any endpoint |
+| **Funnel** | Direct cloud service integration | UDP/TCP → AWS Kinesis, S3, etc. | Config-only AWS service delivery, minimal device code |
+| **Harvest** | Data storage & visualization | HTTP/UDP | Store and graph data on SORACOM platform, ideal for prototyping |
+| **Flux** | AI-integrated workflows | Camera images + GenAI | Low-code camera → AI analysis → notification pipeline |
+
+**Selection guide**:
+- Prototype/validation: **Harvest** (instant visualization)
+- Sensor data → AWS: **Funnel** (config only, no code)
+- Camera images → AI: **Flux** (low-code, GenAI integrated)
+- Custom integration: **Beam** (flexible protocol conversion)
+
+### 5.5 Security Architecture Considerations
+
+| Concern | Risk | Mitigation |
+|---------|------|-----------|
+| FPolicy server (Pi) compromise | Becomes access path to ONTAP management plane | Network segmentation: isolate FPolicy communication VLAN, allow only FPolicy ports from Pi → ONTAP |
+| Pi → ONTAP communication (NFS) | NFS v3 is unencrypted | NFS v4.1 + Kerberos, or physical isolation via dedicated network segment |
+| SORACOM authentication | SIM-based auth alone may be insufficient | SORACOM Endorse (device certificates) + VPG (private network) combination |
+| Image data confidentiality | May contain proprietary product designs | S3 encryption (SSE-KMS), ONTAP Volume Encryption (NVE), TLS in transit |
+| IoT device hardening | Default Pi configuration is an attack target | Disable unnecessary services, firewall (ufw), SSH key-only auth, automatic security updates |
+
+### 5.6 Estimated Cost (PoC #1: 3D Print Quality Monitoring, Monthly)
+
+| Item | Estimated Cost | Assumptions |
+|------|---------------|-------------|
+| SORACOM Air (plan-D) | ¥300-500/month | Base fee + data (~1GB/month) |
+| SORACOM Flux | ¥0-1,000/month | Within free tier or pay-per-use |
+| S3 Storage | $1-3/month | ~30GB/month (image archive) |
+| Bedrock (Claude Vision) | $5-20/month | ~2,880 calls/day × 30 days, input token billing |
+| Kinesis Firehose | $1-5/month | Low throughput |
+| Athena | $1-5/month | Several GB/month scanned |
+| **Total** | **~¥2,000-5,000/month** | PoC scale, 1 device |
+
+> **Note**: Above is a PoC-scale estimate. Production environments scale with device count, capture frequency, and retention period. Use AWS Pricing Calculator for accurate estimates.
+
+### 5.7 Prerequisites (Required for PoC Start)
+
+| Category | Required | Notes |
+|----------|----------|-------|
+| **AWS** | AWS account, IAM user/role | Bedrock model access enablement required |
+| **SORACOM** | SORACOM account, IoT SIM (plan-D) | Japan coverage |
+| **Hardware** | Raspberry Pi 5 (16GB), camera module, NVMe SSD | microSD works but SSD recommended |
+| **ONTAP** | ONTAP 9.13.1+ (FPolicy external server, REST API) | For FSxN, S3 AP-compatible version required |
+| **Network** | LAN between Pi ↔ ONTAP, cellular for Pi | 10GbE switch recommended for large image transfers |
+| **Development** | Python 3.12, Git, AWS CLI v2 | Develop directly on Pi or remote |
+
+---
+
+## 6. Recommended Initial PoC Candidates
+
+### Evaluation Matrix
+
+| # | PoC Candidate | Feasibility | Impact | Hardware Availability | ONTAP Differentiation | Total Score |
+|---|--------------|-------------|--------|---------------|----------------------|-------------|
+| 1 | 3D Print Quality Monitoring | ★★★★★ | ★★★★ | ★★★★★ | ★★★ | **22/25** |
+| 2 | ONTAP Telemetry Collection → Predictive Analytics | ★★★★ | ★★★★ | ★★★★ | ★★★★★ | **21/25** |
+| 3 | FPolicy → Automated Image Analysis Pipeline | ★★★ | ★★★★★ | ★★★★ | ★★★★★ | **21/25** |
+| 4 | Environmental Sensor → Real-time Dashboard | ★★★★★ | ★★★ | ★★★ | ★★ | **18/25** |
+| 5 | Inventory Image AI Stocktaking | ★★★ | ★★★★ | ★★★ | ★★★ | **16/25** |
+
+### PoC #1 Recommended: 3D Print Quality Monitoring (UC-M1)
+
+#### Why External Monitoring Instead of Built-in Printer Camera?
+
+Many FDM 3D printers have built-in cameras and cloud monitoring. Reasons for building an external camera + custom pipeline:
+
+| Aspect | Built-in Printer Feature | This Architecture |
+|--------|-------------------------|-------------------|
+| AI analysis | Timelapse recording only (no real-time anomaly detection) | Real-time defect detection via Claude Vision |
+| Action integration | Notification only | Printer pause API call, ONTAP integration, business workflow |
+| Data accumulation | Locked in vendor cloud | Stored in own S3/ONTAP, cross-analysis with Athena/SageMaker |
+| Multi-printer | Separate management per printer | Unified dashboard for multiple printers |
+| Customizability | Vendor-dependent | Freely modify prompts, thresholds, notification targets |
+| Scalability | Same vendor machines only | Applicable to any printer or manufacturing equipment |
+
+#### Connectivity Design
+
+```
+[Lab/Factory Network]                        [Cloud]
+Pi ──Ethernet──→ ONTAP (NFS: local storage)
+Pi ──Ethernet──→ 10GbE Switch ──→ Internet ──→ AWS (normal)
+Pi ──Cellular──→ SORACOM ──→ AWS (Ethernet failure fallback)
+```
+
+| Path | Purpose | Rationale |
+|------|---------|-----------|
+| Ethernet (wired) | Pi ↔ ONTAP data read/write | High bandwidth, low latency, no data charges |
+| Ethernet → Internet | Pi → AWS (S3/Bedrock) normal upload | No bandwidth constraints, minimal cost |
+| Cellular (SORACOM) | Fallback communication + remote management | Redundancy on wired failure, SORACOM Napter for remote SSH |
+
+> **Design decision**: When wired network is available at the site, prioritize wired for data transfer. Cellular is positioned for "sites without network" or "wired failure fallback." SORACOM's value extends beyond fallback to Napter (remote access), Flux (low-code AI), and device management.
+
+#### Post-Alert Action Workflow
+
+```
+[Anomaly Detected] → [Severity Assessment] → [Action]
+
+severity: low    → Log only, re-check on next capture
+severity: medium → Slack/Teams notification + operator confirmation
+severity: high   → Notification + printer pause API call (automatic)
+severity: critical → Immediate stop + emergency notification (phone/PagerDuty)
+```
+
+| Action | Implementation | Phase |
+|--------|---------------|-------|
+| Logging | S3 + CloudWatch Logs | Phase 1 |
+| Slack/Teams notification | SNS → Chatbot or Webhook | Phase 1 |
+| Printer pause | Printer API call (Lambda) | Phase 2 |
+| Emergency notification | PagerDuty / phone | Phase 3 (production) |
+
+#### Success Criteria (Go/No-Go)
+
+| Metric | Phase 1 Target | Go/No-Go Threshold |
+|--------|---------------|-------------------|
+| Detection accuracy | ≥80% | Below 70% → improve prompt or change model |
+| Capture-to-alert | ≤60 seconds | Over 120s → architecture review |
+| False positive rate | ≤10% | Over 20% → threshold adjustment or training data |
+| System uptime | ≥95% | Below 90% → hardware/network review |
+| Monthly operating cost | ≤¥5,000 | Over ¥10,000 → optimize frequency/resolution |
+
+#### Implementation Steps (Revised)
+
+```
+Phase 1 (1 week): Minimal config, get it running ← "Build small, run it, validate"
+  Goal: Confirm camera → AI analysis → notification works
+  Config: Pi + camera + SORACOM Flux only (no Lambda needed)
+  Steps:
+    1. Pi + USB camera setup, wired LAN connection
+    2. Periodic capture script (Python, 60-second intervals ← 30s is excessive)
+    3. SORACOM Flux: image upload → Claude Vision analysis → Slack notification
+    4. Run for 1 day to verify accuracy and stability
+  ONTAP: Not required (don't use at this stage)
+  Go/No-Go: Accuracy ≥70% & stable operation → proceed to Phase 2
+
+Phase 2 (1-2 weeks): Customization + ONTAP integration
+  Goal: Improve analysis accuracy + build data accumulation foundation
+  Config: Phase 1 + Lambda (custom analysis) + ONTAP NFS
+  Steps:
+    1. Deploy Lambda function (prompt optimization, action branching)
+    2. Create ONTAP NFS share → local inspection image storage
+    3. FPolicy: new image arrival → auto-analysis trigger
+    4. Implement action workflow (severity-based response)
+  Go/No-Go: Accuracy ≥80% & action integration working → proceed to Phase 3
+
+Phase 3 (2 weeks): Analytics foundation + production readiness
+  Goal: Data analytics + operational readiness
+  Config: Phase 2 + SnapMirror → FSxN + Athena + QuickSight
+  Steps:
+    1. SnapMirror: ONTAP → FSxN sync configuration
+    2. FSxN S3 AP → Athena analysis (print success rate, failure patterns)
+    3. QuickSight dashboard
+    4. Operations runbook (device replacement, incident response)
+    5. Health monitoring setup (Pi heartbeat → CloudWatch)
+```
+
+#### PoC → Pilot → Production Roadmap
+
+```
+PoC (4 weeks)          Pilot (4-8 weeks)         Production
+─────────────────→ ─────────────────────→ ──────────────→
+1 printer              3-5 printers expanded     All printers
+Lab environment        Real operating env        24/7 operation
+Manual monitoring      Semi-automated ops        Fully automated
+Flux + manual check    Lambda + auto-actions     Auto-stop + recovery
+```
+
+### PoC #2 Recommended: ONTAP Telemetry Collection → Predictive Analytics
+
+**Selection rationale**:
+1. ONTAP REST API immediately available (no additional equipment needed)
+2. Clear differentiation as storage specialists
+3. Direct value proposition to NetApp customers
+4. Aligned with AIOps/predictive maintenance trends
+
+**Implementation steps**:
+
+```
+Phase 1 (1 week): Telemetry collection
+  - ONTAP REST API polling script (Python)
+    - /api/cluster/metrics (IOPS, latency, throughput)
+    - /api/storage/volumes (capacity, utilization)
+    - /api/cluster/nodes (CPU, memory)
+  - Periodic execution on Raspberry Pi 5 (1-minute intervals)
+  - SORACOM Funnel → Kinesis Firehose → S3
+
+Phase 2 (1 week): Analytics foundation
+  - Glue Crawler for data catalog creation
+  - Athena for ad-hoc analysis
+  - CloudWatch dashboard (real-time)
+
+Phase 3 (2 weeks): AI prediction
+  - SageMaker: capacity prediction model (when will it fill up)
+  - SageMaker: anomaly detection model (latency spike prediction)
+  - Bedrock: natural language health report auto-generation
+```
+
+---
+
+## 7. References & Sources
+
+### AWS Official
+
+- [FSx for ONTAP S3 Access Points × Athena Tutorial](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/tutorial-query-data-with-athena.html)
+- [FSx for ONTAP S3 Access Points × Glue ETL Tutorial](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/tutorial-transform-data-with-glue.html)
+- [FSx for ONTAP × AWS Service Integration](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/using-access-points-with-aws-services.html)
+- [AWS IoT Greengrass + Raspberry Pi Camera Inference](https://docs.aws.amazon.com/greengrass/v2/developerguide/ml-tutorial-image-classification-camera.html)
+- [AWS IoT Core + Raspberry Pi Connection Guide](https://docs.aws.amazon.com/iot/latest/developerguide/connecting-to-existing-device.html)
+- [Kinesis Video Streams + RTSP Camera](https://aws.amazon.com/jp/awstv/watch/a3bff86453f/)
+- [AWS IoT Predictive Maintenance Blog](https://aws.amazon.com/blogs/iot/using-aws-iot-for-predictive-maintenance/)
+- [Bedrock Multimodal Predictive Maintenance](https://aws.amazon.com/blogs/machine-learning/build-a-multimodal-generative-ai-assistant-for-root-cause-diagnosis-in-predictive-maintenance-using-amazon-bedrock/)
+- [Event-Driven Architectures with IoT Sensor Data](https://aws.amazon.com/blogs/architecture/building-event-driven-architectures-with-iot-sensor-data/)
+- [Guidance for Predictive Maintenance with SAP using AWS IoT](https://aws.amazon.com/solutions/guidance/predictive-maintenance-with-sap-using-aws-iot/)
+
+### NetApp Official
+
+- [NetApp and AWS: Industry 4.0](https://www.netapp.com/blog/netapp-aws-meet-challenges-of-industry-4-0/)
+- [Synchronize Manufacturing Operational Data – AWS Cloud](https://netapp.com/blog/synchronize-manufacturing-operational-data-aws-cloud/)
+- [Bridging the OT-IT Divide in Manufacturing](https://netapp.com/blog/bridging-the-ot-it-divide-in-manufacturing)
+- [ONTAP REST API Performance Metrics](https://docs.netapp.com/us-en/ontap-automation/rest/performance_metrics.html)
+- [FPolicy Documentation](https://docs.netapp.com/us-en/ontap-restapi-991/ontap/post-protocols-fpolicy.html)
+- [FlexCache Overview](https://www.netapp.com/data-storage/what-is-flex-cache/)
+- [SnapMirror Data Replication × AWS](https://www.netapp.com/blog/snapmirror-data-replication-aws/)
+- [ARP/AI for FSx for ONTAP](https://www.netapp.com/blog/fsx-ontap-autonomous-ransomware-protection)
+- [FSxN S3 AP × Athena Direct Analytics (Tech ONTAP Blog)](https://community.netapp.com/t5/Tech-ONTAP-Blogs/Run-advanced-analytics-with-Amazon-Athena-directly-on-data-in-Amazon-FSx-for/m-p/466956)
+- [NetApp on AWS Outposts](https://community.netapp.com/t5/Tech-ONTAP-Blogs/NetApp-on-premises-enterprise-storage-arrays-for-AWS-Outposts/ba-p/456976)
+
+### SORACOM Official
+
+- [SORACOM × AWS IoT Integration](https://soracom.io/aws/)
+- [SORACOM Flux Overview](https://developers.soracom.io/en/docs/flux/)
+- [Flux AI Image Analysis Getting Started](https://developers.soracom.io/en/docs/flux/getting-started/ai-image-analysis/)
+- [AI-Powered Inventory Monitoring with Raspberry Pi and Soracom Flux](https://soracom.io/blog/ai-powered-inventory-monitoring-with-raspberry-pi-and-soracom-flux/)
+- [Beam → AWS IoT Core Connection](https://developers.soracom.io/en/start/aws/beam-iotcore)
+- [Funnel → Kinesis → S3](https://developers.soracom.io/en/start/aws/funnel-kinesis-s3)
+- [Beam → SageMaker AI Prediction](https://developers.soracom.io/en/start/aws/beam-sagemaker)
+- [Beam → Lambda Integration](https://developers.soracom.io/en/start/aws/beam-lambda)
+- [Flux → AWS IoT Webhook](https://developers.soracom.io/en/start/aws/soracom-flux-webhook-aws-iot)
+- [Beam/Funnel/Funk Selection Guide](https://www.soracom.io/blog/solving-iot-issues-how-to-choose-between-soracom-beam-funnel-and-funk/)
+- [SORACOM AWS Case Study](https://aws.amazon.com/solutions/case-studies/soracom/)
+
+### Community & Examples
+
+- [River Monitoring with IoT Flow Meter (Hackster.io)](https://hackster.io/rhammell/river-monitoring-with-an-iot-flow-meter-9af852)
+- [Raspberry Pi + AWS Rekognition Image Recognition](https://github.com/MatthiasGemelli/IntelliCam)
+- [Kinesis Video Streams + Rekognition Fire Detection](https://community.aws/content/2hTnRBhcqWU1nO7pHUw8fVKqQlN/how-to-detect-forest-fires-using-kinesis-video-streams-and-amazon-rekognition)
+- [Smart 3D Printing Surveillance (SCALE 21x)](https://www.socallinuxexpo.org/scale/21x/presentations/smart-3d-printing-surveillance-detecting-failures-computer-vision-and)
+- [Industrial Monitoring with Raspberry Pi (Industrial Shields)](https://www.industrialshields.com/blog/raspberry-pi-for-industry-26/industrial-monitoring-and-data-extraction-with-raspberry-pi-how-gateberry-raspberry-plc-and-touchberry-are-redefining-the-edge-675)
+
+---
+
+## Appendix: Reference Configuration (Minimum Hardware)
+
+| Equipment | Role in PoC | Applicable Use Cases |
+|-----------|-------------|---------------------|
+| ONTAP Storage (entry-level) | Edge ONTAP: data storage, FPolicy, REST API telemetry | UC-M1, M2, M3, L2 |
+| Raspberry Pi 5 (16GB) ×2 | Edge compute: sensor collection, camera capture, pre-processing | All UCs |
+| NVMe SSD (M.2 2280, 128-256GB) | Pi local buffer: temp data storage, edge inference model storage | All UCs |
+| Camera module (near-infrared) | Low-light capture, vegetation index measurement | UC-A2 |
+| USB Camera (4K) | High-resolution capture: visual inspection, inventory images, 3D print monitoring | UC-M1, M3, L1 |
+| FDM 3D Printer | Monitoring target: print quality monitoring demo subject | UC-M1 |
+| 10GbE L3 Switch | Network: high-speed communication between ONTAP ↔ Pi | All UCs |
+| ONTAP Mid-Range (future expansion) | Large-scale data storage, SnapMirror source | Pattern D |
+
+---
+
+## Appendix: Action List (Before / After Hardware Arrival)
+
+### Available Now (No Hardware Required)
+
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| 1 | AWS infrastructure deploy (CloudFormation) | ✅ Done | S3, Kinesis, Lambda, IAM, Glue |
+| 2 | Bedrock model access enablement | ✅ Done | Claude Sonnet 4.5 |
+| 3 | SNS alert email subscription | ✅ Done | Awaiting confirmation click |
+| 4 | Get SORACOM Operator ID → update CFn | 📋 Pending | Get from console, run script |
+| 5 | Create SORACOM Flux app (console) | 📋 Pending | No SIM required for setup |
+| 6 | Camera mount design → 3D print | 📋 Pending | Print after printer arrives |
+| 7 | Pre-test Bedrock prompts | 📋 Possible | Test accuracy with sample 3D print images |
+
+### After Pi Arrival
+
+| # | Action | Duration | Dependency |
+|---|--------|----------|-----------|
+| 1 | OS flash + initial setup | 1 hour | Pi + SSD |
+| 2 | Camera connection + test capture | 30 min | Pi + camera |
+| 3 | SORACOM SIM setup | 30 min | Pi + SIM + dongle |
+| 4 | simple_capture.py verification | 15 min | Steps 1-3 complete |
+| 5 | SORACOM Flux integration test | 30 min | Step 4 + Flux configured |
+| 6 | Camera installation + framing | 1 hour | Pi + camera + printer |
+| 7 | 24-hour continuous operation test | 24 hours | Step 6 complete |
+| 8 | Go/No-Go decision → Phase 2 | — | Step 7 results |

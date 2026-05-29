@@ -1,0 +1,25 @@
+{
+  "name": "edge-to-cloud-ai",
+  "version": "0.1.0",
+  "description": "Edge-to-cloud data collection, analytics, and AI pipelines from Raspberry Pi and SORACOM to AWS services",
+  "private": true,
+  "scripts": {
+    "test": "pytest",
+    "lint": "cfn-lint cloud/**/*.yaml"
+  },
+  "keywords": [
+    "iot",
+    "edge-computing",
+    "raspberry-pi",
+    "soracom",
+    "aws",
+    "kinesis",
+    "athena",
+    "sagemaker",
+    "bedrock",
+    "generative-ai",
+    "machine-learning"
+  ],
+  "author": "Yoshiki0705",
+  "license": "MIT"
+}

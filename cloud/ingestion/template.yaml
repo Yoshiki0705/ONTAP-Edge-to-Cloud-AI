@@ -1,0 +1,345 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Edge-to-Cloud AI - Ingestion Layer
+  S3 data lake, Kinesis stream, Lambda processors, and IAM roles
+  for IoT data ingestion from SORACOM edge devices.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: poc
+    AllowedValues: [poc, staging, production]
+    Description: Deployment environment
+
+  SoracomOperatorId:
+    Type: String
+    Description: SORACOM Operator ID for ExternalId in trust policy
+    NoEcho: true
+
+  AlertEmail:
+    Type: String
+    Description: Email address for anomaly alerts
+    Default: ""
+
+Resources:
+  # ============================================================
+  # S3 Data Lake
+  # ============================================================
+  DataLakeBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub "edge-to-cloud-ai-${Environment}-${AWS::AccountId}"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+            BucketKeyEnabled: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: raw-lifecycle
+            Status: Enabled
+            Prefix: raw/
+            Transitions:
+              - StorageClass: STANDARD_IA
+                TransitionInDays: 90
+              - StorageClass: GLACIER
+                TransitionInDays: 365
+            ExpirationInDays: 1095
+          - Id: processed-lifecycle
+            Status: Enabled
+            Prefix: processed/
+            Transitions:
+              - StorageClass: STANDARD_IA
+                TransitionInDays: 365
+            ExpirationInDays: 1095
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Project
+          Value: edge-to-cloud-ai
+        - Key: Environment
+          Value: !Ref Environment
+
+  DataLakeBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref DataLakeBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyUnencryptedTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !GetAtt DataLakeBucket.Arn
+              - !Sub "${DataLakeBucket.Arn}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+
+  # ============================================================
+  # Kinesis Data Stream
+  # ============================================================
+  IngestionStream:
+    Type: AWS::Kinesis::Stream
+    Properties:
+      Name: !Sub "edge-to-cloud-${Environment}-ingestion"
+      StreamModeDetails:
+        StreamMode: ON_DEMAND
+      RetentionPeriodHours: 24
+      StreamEncryption:
+        EncryptionType: KMS
+        KeyId: alias/aws/kinesis
+      Tags:
+        - Key: Project
+          Value: edge-to-cloud-ai
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ============================================================
+  # Kinesis Firehose → S3
+  # ============================================================
+  DeliveryStream:
+    Type: AWS::KinesisFirehose::DeliveryStream
+    Properties:
+      DeliveryStreamName: !Sub "edge-to-cloud-${Environment}-to-s3"
+      DeliveryStreamType: KinesisStreamAsSource
+      KinesisStreamSourceConfiguration:
+        KinesisStreamARN: !GetAtt IngestionStream.Arn
+        RoleARN: !GetAtt FirehoseRole.Arn
+      S3DestinationConfiguration:
+        BucketARN: !GetAtt DataLakeBucket.Arn
+        Prefix: "raw/sensor_reading/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/"
+        ErrorOutputPrefix: "errors/!{firehose:error-output-type}/year=!{timestamp:yyyy}/month=!{timestamp:MM}/"
+        BufferingHints:
+          IntervalInSeconds: 300
+          SizeInMBs: 5
+        CompressionFormat: GZIP
+        RoleARN: !GetAtt FirehoseRole.Arn
+        EncryptionConfiguration:
+          KMSEncryptionConfig:
+            AWSKMSKeyARN: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/s3"
+
+  # ============================================================
+  # SNS Alert Topic
+  # ============================================================
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "edge-to-cloud-${Environment}-alerts"
+      KmsMasterKeyId: alias/aws/sns
+      Tags:
+        - Key: Project
+          Value: edge-to-cloud-ai
+
+  AlertSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasAlertEmail
+    Properties:
+      TopicArn: !Ref AlertTopic
+      Protocol: email
+      Endpoint: !Ref AlertEmail
+
+  # ============================================================
+  # IAM Roles
+  # ============================================================
+  SoracomIngestionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "EdgeToCloud-SoracomIngestion-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: "arn:aws:iam::762707677580:root"
+            Action: "sts:AssumeRole"
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Ref SoracomOperatorId
+      Policies:
+        - PolicyName: IngestionAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: AllowKinesisWrite
+                Effect: Allow
+                Action:
+                  - kinesis:PutRecord
+                  - kinesis:PutRecords
+                Resource: !GetAtt IngestionStream.Arn
+              - Sid: AllowS3Write
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource: !Sub "${DataLakeBucket.Arn}/raw/*"
+      Tags:
+        - Key: Project
+          Value: edge-to-cloud-ai
+
+  ImageAnalyzerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "EdgeToCloud-ImageAnalyzer-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: ImageAnalysis
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: AllowS3Read
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Sub "${DataLakeBucket.Arn}/raw/image_capture/*"
+              - Sid: AllowBedrockInvoke
+                Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                Resource: !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/anthropic.claude-*"
+              - Sid: AllowResultWrite
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource: !Sub "${DataLakeBucket.Arn}/processed/image_analysis/*"
+              - Sid: AllowSNSPublish
+                Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref AlertTopic
+      Tags:
+        - Key: Project
+          Value: edge-to-cloud-ai
+
+  FirehoseRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "EdgeToCloud-Firehose-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: firehose.amazonaws.com
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: FirehoseAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: AllowKinesisRead
+                Effect: Allow
+                Action:
+                  - kinesis:DescribeStream
+                  - kinesis:GetShardIterator
+                  - kinesis:GetRecords
+                  - kinesis:ListShards
+                Resource: !GetAtt IngestionStream.Arn
+              - Sid: AllowS3Write
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                Resource: !Sub "${DataLakeBucket.Arn}/*"
+              - Sid: AllowS3List
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !GetAtt DataLakeBucket.Arn
+
+  GlueETLRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "EdgeToCloud-GlueETL-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+      Policies:
+        - PolicyName: GlueDataAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: AllowS3ReadWrite
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub "${DataLakeBucket.Arn}/raw/*"
+                  - !Sub "${DataLakeBucket.Arn}/processed/*"
+                  - !Sub "${DataLakeBucket.Arn}/curated/*"
+              - Sid: AllowS3List
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !GetAtt DataLakeBucket.Arn
+
+  # ============================================================
+  # Glue Database
+  # ============================================================
+  GlueDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: edge_to_cloud_ai
+        Description: Edge-to-Cloud AI data catalog
+
+Conditions:
+  HasAlertEmail: !Not [!Equals [!Ref AlertEmail, ""]]
+
+Outputs:
+  DataLakeBucketName:
+    Description: S3 data lake bucket name
+    Value: !Ref DataLakeBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-BucketName"
+
+  DataLakeBucketArn:
+    Description: S3 data lake bucket ARN
+    Value: !GetAtt DataLakeBucket.Arn
+
+  IngestionStreamArn:
+    Description: Kinesis ingestion stream ARN
+    Value: !GetAtt IngestionStream.Arn
+
+  SoracomIngestionRoleArn:
+    Description: IAM role ARN for SORACOM Funnel/Beam
+    Value: !GetAtt SoracomIngestionRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-SoracomRoleArn"
+
+  ImageAnalyzerRoleArn:
+    Description: IAM role ARN for image analysis Lambda
+    Value: !GetAtt ImageAnalyzerRole.Arn
+
+  AlertTopicArn:
+    Description: SNS topic ARN for alerts
+    Value: !Ref AlertTopic
+
+  GlueDatabaseName:
+    Description: Glue database name
+    Value: !Ref GlueDatabase

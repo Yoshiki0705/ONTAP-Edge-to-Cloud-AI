@@ -1,0 +1,42 @@
+title = "edge-to-cloud-analytics gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "internal-ip-address"
+description = "Internal/Private IP Address"
+regex = '''(?:^|[^0-9])(?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2[0-9]|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})(?:[^0-9]|$)'''
+tags = ["internal", "ip"]
+
+[[rules]]
+id = "aws-account-id-suspicious"
+description = "AWS Account ID in suspicious context"
+regex = '''(?i)(?:account[_-]?id|aws[_-]?account)\s*[:=]\s*["\']?\d{12}["\']?'''
+tags = ["aws", "account"]
+
+[[rules]]
+id = "internal-hostname"
+description = "Internal hostname patterns"
+regex = '''[\w.-]+\.(?:internal|corp|local)\b'''
+tags = ["internal", "hostname"]
+
+[[rules]]
+id = "vpn-config"
+description = "VPN configuration values"
+regex = '''(?i)(?:vpn[_-]?(?:server|endpoint|gateway|host))\s*[:=]\s*["\']?[\w.-]+["\']?'''
+tags = ["vpn", "config"]
+
+[[rules]]
+id = "netapp-internal"
+description = "NetApp internal references"
+regex = '''(?i)(?:[\w.-]+@netapp\.com|[\w.-]+\.netapp\.internal)'''
+tags = ["netapp", "internal"]
+
+[allowlist]
+paths = [
+  '''\.gitleaks\.toml$''',
+  '''\.gitignore$''',
+  '''.*\.example$''',
+  '''.*\.md$''',
+]

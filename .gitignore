@@ -1,0 +1,59 @@
+# IDE & Editor
+.kiro/
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Environment & Secrets
+*.env
+.env.*
+*.pem
+*.key
+*.tfvars
+!*.tfvars.example
+*-params.json
+!*-params.example.json
+
+# Private operational logs
+.private/
+**/.private/
+
+# Temporary files
+.tmp/
+*.tmp
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+package-lock.json
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Test outputs
+**/tests/results/
+**/tests/screenshots/
+**/tests/sample_images/*.jpg
+**/tests/sample_images/*.png
+
+# Build artifacts
+dist/
+build/
+
+# Blog drafts (not public)
+blog/
+
+# Playwright MCP logs
+.playwright-mcp/

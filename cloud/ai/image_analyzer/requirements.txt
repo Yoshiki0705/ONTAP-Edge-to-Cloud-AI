@@ -1,0 +1,2 @@
+# Lambda dependencies (boto3 is provided by Lambda runtime)
+# Only include if packaging as a container or layer

@@ -1,0 +1,29 @@
+[Unit]
+Description=Edge Camera Capture Service
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=iot-operator
+Group=video
+WorkingDirectory=/opt/edge-camera
+ExecStart=/opt/edge-camera/.venv/bin/python main.py
+EnvironmentFile=/opt/edge-camera/.env
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=edge-camera
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/edge-camera
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
