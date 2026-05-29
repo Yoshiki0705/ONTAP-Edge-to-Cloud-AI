@@ -13,7 +13,7 @@ This research systematically organizes use cases for collecting data accumulated
 **Key Findings:**
 
 1. **Multi-layered ONTAP utilization**: Five axes of application — FPolicy event-driven integration, SnapMirror edge-to-cloud sync, FlexCache low-latency caching, ARP/AI security, and S3 Access Points for direct AWS service connectivity
-2. **SORACOM Flux**: Released in 2024, this low-code IoT app builder significantly simplifies camera image × generative AI combinations
+2. **FPolicy event-driven pipeline**: Edge devices simply write to ONTAP via NFS/SMB, and FPolicy triggers Lambda for automatic Bedrock analysis — no cloud integration code needed on the device side
 3. **FSx for ONTAP S3 AP strategic positioning**: Using FSxN as the final storage destination for edge-collected data, with S3 AP providing direct connectivity to Athena/Glue/Bedrock/SageMaker, represents the most integrated pattern
 4. **Hardware configuration affinity**: The combination of Raspberry Pi 5 + camera + 3D printer + ONTAP entry-level storage enables immediate PoC construction for manufacturing visual inspection and predictive maintenance
 
@@ -21,59 +21,67 @@ This research systematically organizes use cases for collecting data accumulated
 
 ## 2. Architecture Patterns
 
-### Pattern A: Edge Image Capture → Cloud AI Analysis
+### Pattern A: Edge Image Capture → ONTAP → FPolicy → Cloud AI Analysis
 
 ```
-[Edge]                            [Aggregation]             [Cloud]
-Raspberry Pi 5                   SORACOM                   AWS
-┌─────────────────┐              ┌──────────┐             ┌─────────────────────────┐
-│ Camera Module   │──capture──→  │ Beam     │──HTTPS──→   │ S3 / FSxN               │
-│ (NoIR V2/BRIO)  │              │ Funnel   │             │   ↓                     │
-│                 │              │ Flux     │             │ Bedrock (Claude Vision) │
-│ Pre-processing: │              └──────────┘             │ Rekognition             │
-│  - Resize       │                                       │   ↓                     │
-│  - JPEG compress│                                       │ DynamoDB (results)      │
-│  - Timestamp    │                                       │ SNS (alerts)            │
-└─────────────────┘                                       └─────────────────────────┘
+[Edge]                            [ONTAP (Data Hub)]        [Cloud]
+Raspberry Pi 5                   On-premises ONTAP         AWS
+┌─────────────────┐              ┌──────────────────┐     ┌─────────────────────────┐
+│ Camera Module   │──NFS write─→ │ NFS Volume       │     │                         │
+│ (NoIR V2/BRIO)  │              │   ↓              │     │ Lambda (event handler)  │
+│                 │              │ FPolicy (detect) │──→  │   ↓                     │
+│ Pre-processing: │              │   ↓              │     │ Bedrock (Claude Vision) │
+│  - Resize       │              │ Lambda trigger   │     │ Rekognition             │
+│  - JPEG compress│              └──────────────────┘     │   ↓                     │
+│  - Timestamp    │                                       │ DynamoDB (results)      │
+└─────────────────┘                                       │ SNS (alerts)            │
+                                                          └─────────────────────────┘
 ```
 
 **Applicable use cases**: Visual inspection, 3D print quality monitoring, inventory image management, safety equipment verification
 
-### Pattern B: Sensor Data → Real-time Analytics + Prediction
+### Pattern B: Sensor Data → ONTAP → SnapMirror → Cloud Analytics
 
 ```
-[Edge]                            [Aggregation]             [Cloud]
-Raspberry Pi 5                   SORACOM                   AWS
-┌─────────────────┐              ┌──────────┐             ┌─────────────────────────┐
-│ Sensor arra     │──JSON──→     │ Funnel   │──Kinesis──→ │ Kinesis Data Streams    │
-│ - Temp/humidity │              │          │  Firehose   │   ↓                     │
-│ - Vibration     │              └──────────┘             │ S3 Data Lake / FSxN     │
-│ - Current       │                                       │   ↓                     │
-│ - Pressure      │                                       │ Glue ETL → Athena       │
-│                 │                                       │ SageMaker (prediction)  │
-│ Pre-processing: │                                       │ CloudWatch (alerts)     │
-│ - Aggregation   │                                       │ QuickSight (BI)         │
-│ - Outlier filter│                                       └─────────────────────────┘
+[Edge]                            [ONTAP (Data Hub)]        [Cloud]
+Raspberry Pi 5                   On-premises ONTAP         AWS (FSx for ONTAP)
+┌─────────────────┐              ┌──────────────────┐     ┌─────────────────────────┐
+│ Sensor array    │──NFS write─→ │ NFS Volume       │     │ FSxN Volume             │
+│ - Temp/humidity │  (CSV/JSON)   │   ↓              │     │   ↓ S3 Access Point     │
+│ - Vibration     │              │ SnapMirror ──────│──→  │ Athena (SQL analytics)  │
+│ - Current       │              │ (incremental)    │     │ Glue ETL                │
+│ - Pressure      │              └──────────────────┘     │ SageMaker (prediction)  │
+│                 │                                       │ CloudWatch (alerts)     │
+│ Pre-processing: │                                       │ QuickSight (BI)         │
+│ - Aggregation   │                                       └─────────────────────────┘
+│ - Outlier filter│
 └─────────────────┘
 ```
 
 **Applicable use cases**: Predictive maintenance, environmental monitoring, HVAC optimization
 
-### Pattern C: ONTAP Event-Driven → Edge Notification + Cloud Processing
+### Pattern C: ONTAP Event-Driven → Cloud Processing
 
 ```
-[On-premises ONTAP]              [Edge]                    [Cloud]
-ONTAP (Entry/Mid-range)          Raspberry Pi 5            AWS
-┌─────────────────┐              ┌──────────┐             ┌─────────────────────────┐
-│  FPolicy        │──notify──→   │ FPolicy  │──SORACOM──→ │ Lambda (event handler)  │
-│ - File create   │              │ Server   │             │   ↓                     │
-│ - File modify   │              │ (Python) │             │ Step Functions          │
-│ - File delete   │              │          │             │   ├── Glue (ETL)        │
-│                 │              └──────────┘             │   ├── Bedrock (analysis)│
-│  REST API       │──polling──→  │ Telemetry│──SORACOM──→ │   └── SNS (notify)      │
-│ - Performance   │              │ collector│             │                         │
-│ - Capacity      │              └──────────┘             │ FSxN (SnapMirror dest)  │
-│ - Health        │                                       └─────────────────────────┘
+[On-premises ONTAP]              [Cloud]
+ONTAP (Entry/Mid-range)          AWS
+┌─────────────────┐              ┌─────────────────────────┐
+│  FPolicy        │──Lambda──→   │ Lambda (event handler)  │
+│ - File create   │  trigger     │   ↓                     │
+│ - File modify   │              │ Step Functions          │
+│ - File delete   │              │   ├── Glue (ETL)        │
+│                 │              │   ├── Bedrock (analysis)│
+│  REST API       │              │   └── SNS (notify)      │
+│ - Performance   │              │                         │
+│ - Capacity      │              │ FSxN (SnapMirror dest)  │
+│ - Health        │              └─────────────────────────┘
+└─────────────────┘
+       ▲
+       │ NFS/SMB writes
+┌─────────────────┐
+│ Raspberry Pi 5  │
+│ (sensors/camera) │
+│ Telemetry       │
 └─────────────────┘
 ```
 
@@ -112,11 +120,11 @@ ONTAP (Entry/Mid-range)                                    FSx for ONTAP
 |------|---------|
 | **Overview** | Periodically capture images during FDM 3D printing with Raspberry Pi + camera, detect quality anomalies via Bedrock Claude Vision |
 | **Edge equipment** | Raspberry Pi 5 (16GB) + Logitech BRIO 4K (suited for high-resolution capture in lit environments; NoIR camera is for low-light/near-infrared use cases) |
-| **Data flow** | Pi → SORACOM Flux → S3 → Bedrock Claude Vision → SNS notification |
+| **Data flow** | Pi → NFS → ONTAP → FPolicy → Lambda → Bedrock Claude Vision → SNS notification |
 | **ONTAP integration** | Store 3D models (STL/3MF) on ONTAP NFS share; FPolicy detects new files → auto-queue print jobs |
 | **AI usage** | Claude Vision: detect stringing, layer delamination, nozzle clogging |
 | **Business value** | Early failure detection during unattended printing, filament waste reduction, improved print success rate |
-| **Bandwidth estimate** | 30-sec interval capture × 1080p JPEG (~300KB/image) = ~600KB/min = ~36MB/hour. Cellular transfer cost: ~¥50-100/day (SORACOM plan-D) |
+| **Bandwidth estimate** | 30-sec interval capture × 1080p JPEG (~300KB/image) = ~600KB/min = ~36MB/hour. No bandwidth constraints over wired LAN. Cellular (if used): ~¥50-100/day (SORACOM plan-D) |
 | **Success metrics** | Detection accuracy ≥80%, capture-to-alert ≤60s, false positive rate ≤10% |
 
 #### UC-M2: Equipment Vibration Monitoring + Predictive Maintenance
@@ -125,7 +133,7 @@ ONTAP (Entry/Mid-range)                                    FSx for ONTAP
 |------|---------|
 | **Overview** | Collect vibration data from ONTAP storage disk shelves and equipment via sensors, learn anomaly patterns for failure prediction |
 | **Edge equipment** | Raspberry Pi 5 + ADXL345 accelerometer + SORACOM SIM |
-| **Data flow** | Pi → SORACOM Funnel → Kinesis Firehose → S3 → SageMaker |
+| **Data flow** | Pi → NFS → ONTAP → SnapMirror → FSxN → S3 AP → SageMaker |
 | **ONTAP integration** | Simultaneously collect disk IOPS/latency via ONTAP REST API for correlation analysis |
 | **AI usage** | SageMaker: time-series anomaly detection (Random Cut Forest); Bedrock: root cause diagnosis report generation |
 | **Business value** | Reduce unplanned downtime, optimize part replacement timing |
@@ -136,7 +144,7 @@ ONTAP (Entry/Mid-range)                                    FSx for ONTAP
 |------|---------|
 | **Overview** | Photograph finished products on production line, auto-detect scratches, discoloration, dimensional anomalies |
 | **Edge equipment** | Raspberry Pi 5 + Logitech BRIO 4K (high resolution) |
-| **Data flow** | Pi → SORACOM Beam → Lambda → Rekognition Custom Labels / Bedrock |
+| **Data flow** | Pi → NFS → ONTAP → FPolicy → Lambda → Rekognition Custom Labels / Bedrock |
 | **ONTAP integration** | Store inspection images on ONTAP (NFS), SnapMirror to FSxN, analyze via S3 AP with Athena |
 | **AI usage** | Rekognition Custom Labels: defect classification; Bedrock: automated inspection report generation |
 | **Business value** | Inspection process automation, human error reduction, traceability |
@@ -149,7 +157,7 @@ ONTAP (Entry/Mid-range)                                    FSx for ONTAP
 |------|---------|
 | **Overview** | Periodically photograph warehouse shelves, auto-recognize inventory quantities and placement via AI |
 | **Edge equipment** | Raspberry Pi 5 + Logitech BRIO 4K |
-| **Data flow** | Pi → SORACOM Flux (AI image analysis) → S3 → Bedrock Claude Vision |
+| **Data flow** | Pi → NFS → ONTAP → FPolicy → Lambda → Bedrock Claude Vision |
 | **ONTAP integration** | Manage inventory master data on ONTAP NFS, distribute to edge sites via FlexCache |
 | **AI usage** | Claude Vision: shelf inventory counting, stockout detection, placement anomaly detection |
 | **Business value** | Reduced stocktaking labor, real-time inventory visibility, stockout alerts |
@@ -160,7 +168,7 @@ ONTAP (Entry/Mid-range)                                    FSx for ONTAP
 |------|---------|
 | **Overview** | Read package labels at loading dock cameras, auto-record shipments |
 | **Edge equipment** | Raspberry Pi 5 + camera |
-| **Data flow** | Pi → SORACOM Beam → Lambda → Rekognition (OCR) → DynamoDB |
+| **Data flow** | Pi → NFS → ONTAP → FPolicy → Lambda → Rekognition (OCR) → DynamoDB |
 | **ONTAP integration** | Store shipping document PDFs on ONTAP; FPolicy detects new files → auto-OCR processing |
 | **AI usage** | Rekognition: text detection (barcode/QR/labels); Bedrock: document content structuring |
 | **Business value** | Reduced manual entry errors, shortened lead times, traceability |
@@ -173,7 +181,7 @@ ONTAP (Entry/Mid-range)                                    FSx for ONTAP
 |------|---------|
 | **Overview** | Periodically collect field temperature/humidity, soil moisture, and illuminance to optimize growing conditions |
 | **Edge equipment** | Raspberry Pi 5 + DHT22 + soil moisture sensor + SORACOM SIM |
-| **Data flow** | Pi → SORACOM Harvest (visualization) + Funnel → Kinesis → S3 → Athena |
+| **Data flow** | Pi → NFS → ONTAP → SnapMirror → FSxN → S3 AP → Athena |
 | **ONTAP integration** | Accumulate historical weather/harvest data on ONTAP, SnapMirror to FSxN for Athena analysis |
 | **AI usage** | SageMaker: yield prediction model; Bedrock: cultivation advice generation |
 | **Business value** | Yield optimization, water/fertilizer efficiency, early response to abnormal weather |
@@ -184,7 +192,7 @@ ONTAP (Entry/Mid-range)                                    FSx for ONTAP
 |------|---------|
 | **Overview** | Fixed-point cameras photograph crop growth status, early detection of pests/diseases and growth abnormalities |
 | **Edge equipment** | Raspberry Pi 5 + NoIR Camera V2 (near-infrared for vegetation index measurement) |
-| **Data flow** | Pi → SORACOM Flux → S3 → Bedrock Claude Vision |
+| **Data flow** | Pi → NFS → ONTAP → FPolicy → Lambda → Bedrock Claude Vision |
 | **ONTAP integration** | Store time-series image archives on ONTAP for year-over-year comparative analysis |
 | **AI usage** | Claude Vision: pest/disease detection, growth stage classification, NDVI calculation |
 | **Business value** | Early pest/disease discovery, pesticide usage optimization, harvest timing prediction |
@@ -197,7 +205,7 @@ ONTAP (Entry/Mid-range)                                    FSx for ONTAP
 |------|---------|
 | **Overview** | Real-time collection of per-floor temperature/humidity and power consumption to optimize HVAC control |
 | **Edge equipment** | Raspberry Pi 5 + temp/humidity sensor + CT current sensor + SORACOM SIM |
-| **Data flow** | Pi → SORACOM Funnel → Kinesis → S3 → Athena + QuickSight |
+| **Data flow** | Pi → NFS → ONTAP → SnapMirror → FSxN → S3 AP → Athena + QuickSight |
 | **ONTAP integration** | Aggregate BMS (Building Management System) logs on ONTAP for long-term trend analysis |
 | **AI usage** | SageMaker: power demand forecasting; Bedrock: automated energy-saving report generation |
 | **Business value** | Power cost reduction (10-30%), comfort maintenance, carbon footprint visibility |
@@ -208,7 +216,7 @@ ONTAP (Entry/Mid-range)                                    FSx for ONTAP
 |------|---------|
 | **Overview** | Collect operational sounds from HVAC/elevators via microphone, detect anomalous sounds |
 | **Edge equipment** | Raspberry Pi 5 + USB microphone |
-| **Data flow** | Pi (edge inference: anomaly score) → SORACOM → S3 → SageMaker |
+| **Data flow** | Pi (edge inference: anomaly score) → NFS → ONTAP → SnapMirror → FSxN → S3 AP → SageMaker |
 | **ONTAP integration** | Store audio data archives on ONTAP as training data for normal/anomaly pattern learning |
 | **AI usage** | Edge: TensorFlow Lite (anomaly score); Cloud: SageMaker (model retraining) |
 | **Business value** | Equipment failure precursor detection, maintenance cost reduction, tenant satisfaction |
@@ -250,7 +258,7 @@ ONTAP (Entry/Mid-range)                                    FSx for ONTAP
 | Filtering | Narrow notification targets by extension, path, operation type |
 | External server integration | Run Raspberry Pi as FPolicy server for lightweight pre-processing |
 
-**Scenario**: Inspection equipment saves images to ONTAP NFS share → FPolicy notifies Raspberry Pi → Pi uploads to S3 via SORACOM → Bedrock analysis.
+**Scenario**: Inspection equipment saves images to ONTAP NFS share → FPolicy detects file creation → triggers Lambda → Bedrock analysis.
 
 > **Note**: FPolicy adds latency to target file operations (several ms to tens of ms in synchronous mode). For high-frequency IoT write environments, use asynchronous mode or narrow notification targets via filtering.
 
@@ -307,7 +315,9 @@ Constraints verified in parent project (fsxn-lakehouse-integrations):
 | Storage (NVMe SSD 128-256GB) | Insufficient for long-term data retention | Periodic transfer to ONTAP, local as temp buffer |
 | Power (27W) | No UPS needed but data protection on power loss required | Journaling FS + periodic sync |
 
-### 5.4 SORACOM Service Selection Criteria
+### 5.4 Edge Connectivity Options (For Sites Without Wired LAN)
+
+> **Note**: The primary data path in this architecture is Pi → NFS/SMB → ONTAP (wired LAN). The following SORACOM services are positioned as fallback connectivity options for sites where wired LAN is unavailable.
 
 | Service | Use Case | Protocol | Characteristics |
 |---------|----------|----------|----------------|
@@ -316,11 +326,16 @@ Constraints verified in parent project (fsxn-lakehouse-integrations):
 | **Harvest** | Data storage & visualization | HTTP/UDP | Store and graph data on SORACOM platform, ideal for prototyping |
 | **Flux** | AI-integrated workflows | Camera images + GenAI | Low-code camera → AI analysis → notification pipeline |
 
-**Selection guide**:
+**Selection guide (only when wired LAN is unavailable)**:
 - Prototype/validation: **Harvest** (instant visualization)
 - Sensor data → AWS: **Funnel** (config only, no code)
 - Camera images → AI: **Flux** (low-code, GenAI integrated)
 - Custom integration: **Beam** (flexible protocol conversion)
+
+**Recommended paths when wired LAN is available**:
+- Image data: Pi → NFS → ONTAP → FPolicy → Lambda → Bedrock
+- Sensor data: Pi → NFS → ONTAP → SnapMirror → FSxN → S3 AP → Athena/SageMaker
+- Remote management: SORACOM Napter (SSH access only, not for data transfer)
 
 ### 5.5 Security Architecture Considerations
 
@@ -336,22 +351,21 @@ Constraints verified in parent project (fsxn-lakehouse-integrations):
 
 | Item | Estimated Cost | Assumptions |
 |------|---------------|-------------|
-| SORACOM Air (plan-D) | ¥300-500/month | Base fee + data (~1GB/month) |
-| SORACOM Flux | ¥0-1,000/month | Within free tier or pay-per-use |
+| SORACOM Air (plan-D) | ¥300-500/month | Option: fallback only when wired LAN unavailable |
 | S3 Storage | $1-3/month | ~30GB/month (image archive) |
 | Bedrock (Claude Vision) | $5-20/month | ~2,880 calls/day × 30 days, input token billing |
-| Kinesis Firehose | $1-5/month | Low throughput |
+| Lambda (FPolicy trigger) | $0-2/month | FPolicy event processing |
 | Athena | $1-5/month | Several GB/month scanned |
-| **Total** | **~¥2,000-5,000/month** | PoC scale, 1 device |
+| **Total** | **~¥1,500-4,000/month** | PoC scale, 1 device, wired LAN environment |
 
-> **Note**: Above is a PoC-scale estimate. Production environments scale with device count, capture frequency, and retention period. Use AWS Pricing Calculator for accurate estimates.
+> **Note**: Above is a PoC-scale estimate. In wired LAN environments, cellular communication costs are not incurred, so SORACOM fees do not apply. Production environments scale with device count, capture frequency, and retention period. Use AWS Pricing Calculator for accurate estimates.
 
 ### 5.7 Prerequisites (Required for PoC Start)
 
 | Category | Required | Notes |
 |----------|----------|-------|
 | **AWS** | AWS account, IAM user/role | Bedrock model access enablement required |
-| **SORACOM** | SORACOM account, IoT SIM (plan-D) | Japan coverage |
+| **SORACOM** | SORACOM account, IoT SIM (plan-D) | Option: only for sites without wired LAN |
 | **Hardware** | Raspberry Pi 5 (16GB), camera module, NVMe SSD | microSD works but SSD recommended |
 | **ONTAP** | ONTAP 9.13.1+ (FPolicy external server, REST API) | For FSxN, S3 AP-compatible version required |
 | **Network** | LAN between Pi ↔ ONTAP, cellular for Pi | 10GbE switch recommended for large image transfers |
@@ -401,7 +415,7 @@ Pi ──Cellular──→ SORACOM ──→ AWS (Ethernet failure fallback)
 | Ethernet → Internet | Pi → AWS (S3/Bedrock) normal upload | No bandwidth constraints, minimal cost |
 | Cellular (SORACOM) | Fallback communication + remote management | Redundancy on wired failure, SORACOM Napter for remote SSH |
 
-> **Design decision**: When wired network is available at the site, prioritize wired for data transfer. Cellular is positioned for "sites without network" or "wired failure fallback." SORACOM's value extends beyond fallback to Napter (remote access), Flux (low-code AI), and device management.
+> **Design decision**: When wired network is available at the site, prioritize wired for data transfer. Cellular is positioned for "sites without network" or "wired failure fallback." SORACOM's value extends beyond fallback to Napter (remote access) and device management.
 
 #### Post-Alert Action Workflow
 
@@ -435,24 +449,25 @@ severity: critical → Immediate stop + emergency notification (phone/PagerDuty)
 
 ```
 Phase 1 (1 week): Minimal config, get it running ← "Build small, run it, validate"
-  Goal: Confirm camera → AI analysis → notification works
-  Config: Pi + camera + SORACOM Flux only (no Lambda needed)
+  Goal: Confirm camera → ONTAP storage → AI analysis → notification works
+  Config: Pi + camera + ONTAP NFS + Lambda + Bedrock
   Steps:
     1. Pi + USB camera setup, wired LAN connection
-    2. Periodic capture script (Python, 60-second intervals ← 30s is excessive)
-    3. SORACOM Flux: image upload → Claude Vision analysis → Slack notification
-    4. Run for 1 day to verify accuracy and stability
-  ONTAP: Not required (don't use at this stage)
+    2. Periodic capture script (Python, 60-second intervals)
+    3. NFS mount → write images to ONTAP volume
+    4. FPolicy config → Lambda trigger → Bedrock analysis → Slack notification
+    5. Run for 1 day to verify accuracy and stability
+  SORACOM: Not required (wired LAN environment)
   Go/No-Go: Accuracy ≥70% & stable operation → proceed to Phase 2
 
-Phase 2 (1-2 weeks): Customization + ONTAP integration
-  Goal: Improve analysis accuracy + build data accumulation foundation
-  Config: Phase 1 + Lambda (custom analysis) + ONTAP NFS
+Phase 2 (1-2 weeks): Customization + accuracy improvement
+  Goal: Improve analysis accuracy + build action workflow
+  Config: Phase 1 + Lambda (custom analysis) + action branching
   Steps:
-    1. Deploy Lambda function (prompt optimization, action branching)
-    2. Create ONTAP NFS share → local inspection image storage
-    3. FPolicy: new image arrival → auto-analysis trigger
-    4. Implement action workflow (severity-based response)
+    1. Lambda function optimization (prompt improvement, severity branching)
+    2. FPolicy filtering optimization (target extensions/paths)
+    3. Implement action workflow (severity-based response)
+    4. Two-stage AI analysis (Haiku screening + Sonnet detailed)
   Go/No-Go: Accuracy ≥80% & action integration working → proceed to Phase 3
 
 Phase 3 (2 weeks): Analytics foundation + production readiness
@@ -474,7 +489,7 @@ PoC (4 weeks)          Pilot (4-8 weeks)         Production
 1 printer              3-5 printers expanded     All printers
 Lab environment        Real operating env        24/7 operation
 Manual monitoring      Semi-automated ops        Fully automated
-Flux + manual check    Lambda + auto-actions     Auto-stop + recovery
+FPolicy + manual check Lambda + auto-actions     Auto-stop + recovery
 ```
 
 ### PoC #2 Recommended: ONTAP Telemetry Collection → Predictive Analytics
@@ -494,10 +509,11 @@ Phase 1 (1 week): Telemetry collection
     - /api/storage/volumes (capacity, utilization)
     - /api/cluster/nodes (CPU, memory)
   - Periodic execution on Raspberry Pi 5 (1-minute intervals)
-  - SORACOM Funnel → Kinesis Firehose → S3
+  - NFS write → accumulate CSV on ONTAP volume
 
 Phase 2 (1 week): Analytics foundation
-  - Glue Crawler for data catalog creation
+  - SnapMirror → FSxN sync configuration
+  - FSxN S3 AP → Glue Crawler for data catalog creation
   - Athena for ad-hoc analysis
   - CloudWatch dashboard (real-time)
 
@@ -537,7 +553,7 @@ Phase 3 (2 weeks): AI prediction
 - [FSxN S3 AP × Athena Direct Analytics (Tech ONTAP Blog)](https://community.netapp.com/t5/Tech-ONTAP-Blogs/Run-advanced-analytics-with-Amazon-Athena-directly-on-data-in-Amazon-FSx-for/m-p/466956)
 - [NetApp on AWS Outposts](https://community.netapp.com/t5/Tech-ONTAP-Blogs/NetApp-on-premises-enterprise-storage-arrays-for-AWS-Outposts/ba-p/456976)
 
-### SORACOM Official
+### SORACOM Official (Option: for cellular connectivity)
 
 - [SORACOM × AWS IoT Integration](https://soracom.io/aws/)
 - [SORACOM Flux Overview](https://developers.soracom.io/en/docs/flux/)
@@ -585,8 +601,8 @@ Phase 3 (2 weeks): AI prediction
 | 1 | AWS infrastructure deploy (CloudFormation) | ✅ Done | S3, Kinesis, Lambda, IAM, Glue |
 | 2 | Bedrock model access enablement | ✅ Done | Claude Sonnet 4.5 |
 | 3 | SNS alert email subscription | ✅ Done | Awaiting confirmation click |
-| 4 | Get SORACOM Operator ID → update CFn | 📋 Pending | Get from console, run script |
-| 5 | Create SORACOM Flux app (console) | 📋 Pending | No SIM required for setup |
+| 4 | Get SORACOM Operator ID → update CFn | 📋 Pending | Option: only needed for cellular connectivity |
+| 5 | Create SORACOM Flux app (console) | 📋 Pending | Option: only for sites without wired LAN |
 | 6 | Camera mount design → 3D print | 📋 Pending | Print after printer arrives |
 | 7 | Pre-test Bedrock prompts | 📋 Possible | Test accuracy with sample 3D print images |
 
@@ -596,9 +612,9 @@ Phase 3 (2 weeks): AI prediction
 |---|--------|----------|-----------|
 | 1 | OS flash + initial setup | 1 hour | Pi + SSD |
 | 2 | Camera connection + test capture | 30 min | Pi + camera |
-| 3 | SORACOM SIM setup | 30 min | Pi + SIM + dongle |
-| 4 | simple_capture.py verification | 15 min | Steps 1-3 complete |
-| 5 | SORACOM Flux integration test | 30 min | Step 4 + Flux configured |
+| 3 | SORACOM SIM setup | 30 min | Option: only for cellular connectivity |
+| 4 | simple_capture.py verification | 15 min | Steps 1-2 complete |
+| 5 | NFS mount + ONTAP write test | 30 min | Step 4 + ONTAP NFS configured |
 | 6 | Camera installation + framing | 1 hour | Pi + camera + printer |
 | 7 | 24-hour continuous operation test | 24 hours | Step 6 complete |
 | 8 | Go/No-Go decision → Phase 2 | — | Step 7 results |

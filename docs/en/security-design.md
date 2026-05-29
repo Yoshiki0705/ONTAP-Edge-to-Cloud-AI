@@ -11,9 +11,9 @@
 | Principle | Rationale |
 |-----------|-----------|
 | Least Privilege | Each component holds only minimum required permissions |
-| Device auth via SIM + certificates | SORACOM SIM implicit auth + additional auth as needed |
-| Mandatory encryption in transit and at rest | Protect data over cellular and on S3/ONTAP |
-| No secrets in code | Manage via environment variables / AWS Secrets Manager / SORACOM metadata |
+| Device auth via NFS/Kerberos + certificates | ONTAP NFS v4.1 Kerberos authentication as primary path; SIM-based auth for cellular connectivity |
+| Mandatory encryption in transit and at rest | Protect data over LAN/cellular and on S3/ONTAP |
+| No secrets in code | Manage via environment variables / AWS Secrets Manager |
 | Network segmentation | Separate ONTAP management plane from IoT data plane |
 
 ---
@@ -21,22 +21,21 @@
 ## 2. Authentication & Authorization Flow Overview
 
 ```
-[Raspberry Pi]                    [SORACOM]                 [AWS]
-┌─────────────┐                  ┌──────────┐             ┌─────────────────────┐
-│ SIM auth     │──cellular────→  │ Air      │             │                     │
-│ (automatic)  │                  │          │             │                     │
-│              │                  │ Beam/    │──IAM Role──→│ IoT Core / S3 /     │
-│ Device cert  │                  │ Funnel/  │  (AssumeRole)│ Kinesis / Bedrock   │
-│ (optional)   │                  │ Flux     │             │                     │
-└─────────────┘                  └──────────┘             └─────────────────────┘
+[Raspberry Pi]                    [ONTAP]                   [AWS]
+┌─────────────┐                  ┌──────────────┐          ┌─────────────────────┐
+│              │                  │              │          │                     │
+│ NFS v4.1    │──wired LAN──→   │ FPolicy ─────│──────→   │ Lambda              │
+│ + Kerberos   │  (primary)      │              │          │   ↓                 │
+│              │                  │ SnapMirror ──│──────→   │ Bedrock / Athena    │
+│              │                  │              │          │                     │
+└─────────────┘                  └──────────────┘          └─────────────────────┘
        │
-       │ NFS v4.1 + Kerberos (or dedicated VLAN)
+       │ (option: for sites without wired LAN)
        ▼
-┌─────────────┐
-│ ONTAP       │
-│ (FPolicy/   │
-│  REST API)  │
-└─────────────┘
+┌─────────────┐                  ┌──────────┐             ┌─────────────────────┐
+│ SIM auth     │──cellular────→  │ SORACOM  │──IAM Role──→│ S3 / Kinesis        │
+│ (automatic)  │                  │ Air/Beam │ (AssumeRole)│                     │
+└─────────────┘                  └──────────┘             └─────────────────────┘
 ```
 
 ---
@@ -47,7 +46,7 @@
 
 | Role Name | Trust Entity | Purpose |
 |-----------|-------------|---------|
-| `EdgeToCloud-SoracomIngestion` | SORACOM (external account) | S3/Kinesis writes from Funnel/Beam |
+| `EdgeToCloud-SoracomIngestion` | SORACOM (external account) | (Option: cellular connectivity only) S3/Kinesis writes from Funnel/Beam |
 | `EdgeToCloud-KinesisProcessor` | Lambda | Data processing from Kinesis stream |
 | `EdgeToCloud-ImageAnalyzer` | Lambda | S3 image retrieval + Bedrock invocation |
 | `EdgeToCloud-GlueETL` | Glue | S3 read/write + Data Catalog updates |
@@ -56,7 +55,7 @@
 
 ### 3.2 Policy Details
 
-#### EdgeToCloud-SoracomIngestion
+#### EdgeToCloud-SoracomIngestion (Option: cellular connectivity only)
 
 Role used by SORACOM Funnel/Beam via AssumeRole:
 
@@ -248,7 +247,7 @@ sudo ufw allow out to <ONTAP_DATA_LIF_IP> port 111 proto tcp   # portmapper
 # ONTAP REST API (VLAN 30, telemetry collection)
 sudo ufw allow out to <ONTAP_DATA_LIF_IP> port 443 proto tcp   # HTTPS
 
-# SORACOM (cellular interface)
+# SORACOM (cellular interface) — Option: cellular connectivity only
 sudo ufw allow out on usb0 to any port 443 proto tcp   # HTTPS (Beam/Funnel)
 sudo ufw allow out on usb0 to any port 8883 proto tcp  # MQTTS (IoT Core)
 
@@ -304,9 +303,9 @@ sudo ufw enable
 
 | Layer | Method | Details |
 |-------|--------|---------|
-| **In transit (Pi → SORACOM)** | TLS 1.2+ | SORACOM Beam terminates TLS. Device can send plain HTTP; Beam encrypts |
-| **In transit (SORACOM → AWS)** | TLS 1.2+ | SORACOM → AWS always uses TLS |
-| **In transit (Pi → ONTAP)** | NFS v4.1 + Kerberos (recommended) or dedicated VLAN | PoC: dedicated VLAN acceptable. Production: Kerberos required |
+| **In transit (Pi → ONTAP)** | NFS v4.1 + Kerberos (recommended) or dedicated VLAN | Primary path. PoC: dedicated VLAN acceptable. Production: Kerberos required |
+| **In transit (Pi → SORACOM)** | TLS 1.2+ | Option: cellular connectivity only. SORACOM Beam terminates TLS |
+| **In transit (SORACOM → AWS)** | TLS 1.2+ | Option: cellular connectivity only. SORACOM → AWS always uses TLS |
 | **At rest (S3)** | SSE-KMS (AWS managed key) | Enforced via bucket default encryption |
 | **At rest (ONTAP)** | NVE (NetApp Volume Encryption) | AES-256, enabled per volume |
 | **At rest (Kinesis)** | SSE-KMS | Enabled at stream creation |
@@ -356,11 +355,11 @@ security login role create -vserver svm-iot \
 |--------|-----------------|----------|
 | ONTAP REST API password | Pi: environment variable (systemd EnvironmentFile) | Every 90 days |
 | SORACOM API Key/Token | Not used (SIM auth only) | — |
-| AWS credentials | Not used (SORACOM AssumeRole) | — |
+| AWS credentials | Not used (FPolicy→Lambda handled by ONTAP side; cellular uses SORACOM AssumeRole) | — |
 | FPolicy SSL certificate | Pi: /etc/fpolicy/certs/ (600 permission) | Annually |
 | SSH key (Pi admin) | Administrator's local machine | Annually |
 
-> **Important**: Never place AWS Access Key / Secret Key on Pi. All AWS access goes through SORACOM's AssumeRole mechanism.
+> **Important**: Never place AWS Access Key / Secret Key on Pi. AWS access goes through FPolicy → Lambda (via ONTAP) or through SORACOM's AssumeRole mechanism when using cellular connectivity.
 
 ---
 

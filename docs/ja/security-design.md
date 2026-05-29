@@ -11,9 +11,9 @@
 | 方針 | 理由 |
 |------|------|
 | 最小権限の原則 (Least Privilege) | 各コンポーネントは必要最小限の権限のみ保持 |
-| デバイス認証は SIM ベース + 証明書 | SORACOM SIM による暗黙認証 + 必要に応じて追加認証 |
-| 転送中・保存時の暗号化を必須とする | セルラー回線経由のデータ保護、S3/ONTAP 上のデータ保護 |
-| シークレットはコードに含めない | 環境変数 / AWS Secrets Manager / SORACOM メタデータで管理 |
+| デバイス認証は NFS/Kerberos + 証明書 | ONTAP NFS v4.1 Kerberos による認証を主経路とし、セルラー接続時は SIM ベース認証 |
+| 転送中・保存時の暗号化を必須とする | LAN/セルラー回線経由のデータ保護、S3/ONTAP 上のデータ保護 |
+| シークレットはコードに含めない | 環境変数 / AWS Secrets Manager で管理 |
 | ネットワークセグメンテーション | ONTAP管理プレーンとIoTデータプレーンを分離 |
 
 ---
@@ -21,22 +21,21 @@
 ## 2. 認証・認可フロー全体像
 
 ```
-[Raspberry Pi]                    [SORACOM]                 [AWS]
-┌─────────────┐                  ┌──────────┐             ┌─────────────────────┐
-│ SIM認証      │──セルラー接続──→│ Air      │             │                     │
-│ (自動)       │                  │          │             │                     │
-│              │                  │ Beam/    │──IAM Role──→│ IoT Core / S3 /     │
-│ デバイス証明書│                  │ Funnel/  │  (AssumeRole)│ Kinesis / Bedrock   │
-│ (オプション)  │                  │ Flux     │             │                     │
-└─────────────┘                  └──────────┘             └─────────────────────┘
+[Raspberry Pi]                    [ONTAP]                   [AWS]
+┌─────────────┐                  ┌──────────────┐          ┌─────────────────────┐
+│              │                  │              │          │                     │
+│ NFS v4.1    │──有線LAN────→    │ FPolicy ─────│──────→   │ Lambda              │
+│ + Kerberos   │  (主経路)        │              │          │   ↓                 │
+│              │                  │ SnapMirror ──│──────→   │ Bedrock / Athena    │
+│              │                  │              │          │                     │
+└─────────────┘                  └──────────────┘          └─────────────────────┘
        │
-       │ NFS v4.1 + Kerberos (or 専用VLAN)
+       │ (オプション: 有線LANがない場合)
        ▼
-┌─────────────┐
-│ ONTAP       │
-│ (FPolicy/   │
-│  REST API)  │
-└─────────────┘
+┌─────────────┐                  ┌──────────┐             ┌─────────────────────┐
+│ SIM認証      │──セルラー接続──→│ SORACOM  │──IAM Role──→│ S3 / Kinesis        │
+│ (自動)       │                  │ Air/Beam │ (AssumeRole)│                     │
+└─────────────┘                  └──────────┘             └─────────────────────┘
 ```
 
 ---
@@ -47,7 +46,7 @@
 
 | ロール名 | 信頼エンティティ | 用途 |
 |---------|----------------|------|
-| `EdgeToCloud-SoracomIngestion` | SORACOM (外部アカウント) | Funnel/Beam からの S3/Kinesis 書き込み |
+| `EdgeToCloud-SoracomIngestion` | SORACOM (外部アカウント) | (オプション: セルラー接続時のみ) Funnel/Beam からの S3/Kinesis 書き込み |
 | `EdgeToCloud-KinesisProcessor` | Lambda | Kinesis ストリームからのデータ処理 |
 | `EdgeToCloud-ImageAnalyzer` | Lambda | S3 画像取得 + Bedrock 呼び出し |
 | `EdgeToCloud-GlueETL` | Glue | S3 読み書き + Data Catalog 更新 |
@@ -56,7 +55,7 @@
 
 ### 3.2 ポリシー詳細
 
-#### EdgeToCloud-SoracomIngestion
+#### EdgeToCloud-SoracomIngestion (オプション: セルラー接続時のみ)
 
 SORACOM Funnel/Beam が AssumeRole で使用するロール:
 
@@ -248,7 +247,7 @@ sudo ufw allow out to <ONTAP_DATA_LIF_IP> port 111 proto tcp   # portmapper
 # ONTAP REST API (VLAN 30、テレメトリ収集用)
 sudo ufw allow out to <ONTAP_DATA_LIF_IP> port 443 proto tcp   # HTTPS
 
-# SORACOM (セルラーインターフェース)
+# SORACOM (セルラーインターフェース) — オプション: セルラー接続時のみ
 sudo ufw allow out on usb0 to any port 443 proto tcp   # HTTPS (Beam/Funnel)
 sudo ufw allow out on usb0 to any port 8883 proto tcp  # MQTTS (IoT Core)
 
@@ -304,9 +303,9 @@ sudo ufw enable
 
 | レイヤー | 方式 | 詳細 |
 |---------|------|------|
-| **転送中 (Pi → SORACOM)** | TLS 1.2+ | SORACOM Beam が TLS 終端。デバイス側は平文 HTTP でも Beam が暗号化 |
-| **転送中 (SORACOM → AWS)** | TLS 1.2+ | SORACOM → AWS 間は常に TLS |
-| **転送中 (Pi → ONTAP)** | NFS v4.1 + Kerberos (推奨) or 専用VLAN | PoC では専用VLAN で代替可。本番は Kerberos 必須 |
+| **転送中 (Pi → ONTAP)** | NFS v4.1 + Kerberos (推奨) or 専用VLAN | 主経路。PoC では専用VLAN で代替可。本番は Kerberos 必須 |
+| **転送中 (Pi → SORACOM)** | TLS 1.2+ | オプション: セルラー接続時のみ。SORACOM Beam が TLS 終端 |
+| **転送中 (SORACOM → AWS)** | TLS 1.2+ | オプション: セルラー接続時のみ。SORACOM → AWS 間は常に TLS |
 | **保存時 (S3)** | SSE-KMS (AWS managed key) | バケットデフォルト暗号化で強制 |
 | **保存時 (ONTAP)** | NVE (NetApp Volume Encryption) | AES-256、ボリューム単位で有効化 |
 | **保存時 (Kinesis)** | SSE-KMS | ストリーム作成時に有効化 |
@@ -356,11 +355,11 @@ security login role create -vserver svm-iot \
 |------------|---------|--------------|
 | ONTAP REST API パスワード | Pi: 環境変数 (systemd EnvironmentFile) | 90日ごと |
 | SORACOM API Key/Token | 使用しない (SIM認証のみ) | — |
-| AWS 認証情報 | 使用しない (SORACOM が AssumeRole) | — |
+| AWS 認証情報 | 使用しない (FPolicy→Lambda は ONTAP 側で処理、セルラー時は SORACOM AssumeRole) | — |
 | FPolicy SSL 証明書 | Pi: /etc/fpolicy/certs/ (600 permission) | 1年ごと |
 | SSH 鍵 (Pi 管理用) | 管理者のローカルマシン | 1年ごと |
 
-> **重要**: Pi 上に AWS Access Key / Secret Key を配置しない。すべての AWS アクセスは SORACOM 経由の AssumeRole で行う。
+> **重要**: Pi 上に AWS Access Key / Secret Key を配置しない。AWS アクセスは FPolicy → Lambda（ONTAP 経由）で行うか、セルラー接続時は SORACOM 経由の AssumeRole で行う。
 
 ---
 

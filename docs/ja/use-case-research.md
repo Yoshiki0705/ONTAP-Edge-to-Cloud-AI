@@ -13,7 +13,7 @@
 **主要な発見:**
 
 1. **ONTAP の多層的活用**: FPolicy によるイベント駆動連携、SnapMirror によるエッジ→クラウド同期、FlexCache による低遅延キャッシュ、ARP/AI によるセキュリティ、S3 Access Points による AWS サービス直接連携の5つの軸で活用可能
-2. **SORACOM Flux の登場**: 2024年にリリースされた低コード IoT アプリビルダーにより、カメラ画像 × 生成AI の組み合わせが大幅に簡素化
+2. **FPolicy イベント駆動パイプライン**: エッジデバイスが NFS/SMB で ONTAP に書き込むだけで、FPolicy が Lambda をトリガーし Bedrock 分析を自動実行。デバイス側にクラウド連携コードが不要
 3. **FSx for ONTAP S3 AP の戦略的位置づけ**: エッジで収集したデータの最終格納先として FSxN を使い、S3 AP 経由で Athena/Glue/Bedrock/SageMaker に直接接続するパターンが最も統合的
 4. **機材構成の親和性**: Raspberry Pi 5 + カメラ + 3Dプリンター + ONTAP エントリーストレージの組み合わせで、製造業向け外観検査・予知保全の PoC が即座に構築可能
 
@@ -21,59 +21,67 @@
 
 ## 2. アーキテクチャパターン一覧
 
-### パターン A: エッジ画像収集 → クラウドAI分析
+### パターン A: エッジ画像収集 → ONTAP → FPolicy → クラウドAI分析
 
 ```
-[エッジ]                          [集約]                    [クラウド]
-Raspberry Pi 5                   SORACOM                   AWS
-┌─────────────────┐              ┌──────────┐             ┌─────────────────────────┐
-│ カメラモジュール  │──画像取得──→│ Beam     │──HTTPS──→  │ S3 / FSxN              │
-│ (NoIR V2/BRIO)  │              │ Funnel   │             │   ↓                     │
-│                  │              │ Flux     │             │ Bedrock (Claude Vision) │
-│ 前処理:          │              └──────────┘             │ Rekognition             │
-│  - リサイズ      │                                       │   ↓                     │
-│  - JPEG圧縮     │                                       │ DynamoDB (結果保存)     │
-│  - タイムスタンプ │                                       │ SNS (アラート)          │
-└─────────────────┘                                       └─────────────────────────┘
+[エッジ]                          [ONTAP (データ集約)]       [クラウド]
+Raspberry Pi 5                   オンプレミス ONTAP         AWS
+┌─────────────────┐              ┌──────────────────┐     ┌─────────────────────────┐
+│ カメラモジュール  │──NFS書込──→ │ NFS ボリューム    │     │                         │
+│ (NoIR V2/BRIO)  │              │   ↓              │     │ Lambda (イベント処理)    │
+│                  │              │ FPolicy (検知)   │──→  │   ↓                     │
+│ 前処理:          │              │   ↓              │     │ Bedrock (Claude Vision) │
+│  - リサイズ      │              │ Lambda トリガー   │     │ Rekognition             │
+│  - JPEG圧縮     │              └──────────────────┘     │   ↓                     │
+│  - タイムスタンプ │                                       │ DynamoDB (結果保存)     │
+└─────────────────┘                                       │ SNS (アラート)          │
+                                                          └─────────────────────────┘
 ```
 
 **適用ユースケース**: 外観検査、3Dプリント品質監視、在庫画像管理、安全装備確認
 
-### パターン B: センサーデータ → リアルタイム分析 + 予測
+### パターン B: センサーデータ → ONTAP → SnapMirror → クラウド分析
 
 ```
-[エッジ]                          [集約]                    [クラウド]
-Raspberry Pi 5                   SORACOM                   AWS
-┌─────────────────┐              ┌──────────┐             ┌─────────────────────────┐
-│ センサー群       │──JSON──→    │ Funnel   │──Kinesis──→│ Kinesis Data Streams    │
-│  - 温湿度        │              │          │  Firehose   │   ↓                     │
-│  - 振動          │              └──────────┘             │ S3 Data Lake / FSxN     │
-│  - 電流          │                                       │   ↓                     │
-│  - 圧力          │                                       │ Glue ETL → Athena       │
-│                  │                                       │ SageMaker (予測モデル)  │
-│ 前処理:          │                                       │ CloudWatch (アラート)   │
-│  - 集約(1分平均) │                                       │ QuickSight (BI)         │
-│  - 異常値フィルタ │                                       └─────────────────────────┘
+[エッジ]                          [ONTAP (データ集約)]       [クラウド]
+Raspberry Pi 5                   オンプレミス ONTAP         AWS (FSx for ONTAP)
+┌─────────────────┐              ┌──────────────────┐     ┌─────────────────────────┐
+│ センサー群       │──NFS書込──→ │ NFS ボリューム    │     │ FSxN Volume             │
+│  - 温湿度        │  (CSV/JSON)  │   ↓              │     │   ↓ S3 Access Point     │
+│  - 振動          │              │ SnapMirror ──────│──→  │ Athena (SQL分析)         │
+│  - 電流          │              │ (差分同期)        │     │ Glue ETL                │
+│  - 圧力          │              └──────────────────┘     │ SageMaker (予測モデル)  │
+│                  │                                       │ CloudWatch (アラート)   │
+│ 前処理:          │                                       │ QuickSight (BI)         │
+│  - 集約(1分平均) │                                       └─────────────────────────┘
+│  - 異常値フィルタ │
 └─────────────────┘
 ```
 
 **適用ユースケース**: 設備予知保全、環境モニタリング、空調最適化
 
-### パターン C: ONTAP イベント駆動 → エッジ通知 + クラウド処理
+### パターン C: ONTAP イベント駆動 → クラウド処理
 
 ```
-[オンプレミス ONTAP]              [エッジ]                  [クラウド]
-ONTAP (エントリー/ミッドレンジ)   Raspberry Pi 5            AWS
-┌─────────────────┐              ┌──────────┐             ┌─────────────────────────┐
-│ FPolicy         │──通知──→      │ FPolicy  │──SORACOM──→ │ Lambda (イベント処理)     │
-│  - ファイル作成   │              │ Server   │             │   ↓                     │
-│  - ファイル変更   │              │ (Python) │             │ Step Functions          │
-│  - ファイル削除   │              │          │             │   ├── Glue (ETL)        │
-│                 │              └──────────┘             │   ├── Bedrock (分析)    │
-│ REST API        │──ポーリング→.  │ テレメトリ│──SORACOM──→  │   └── SNS (通知)        │
-│  - パフォーマンス │               │ 収集     │             │                         │
-│  - 容量          │              └──────────┘             │ FSxN (SnapMirror先)     │
-│  - 健全性        │                                       └─────────────────────────┘
+[オンプレミス ONTAP]              [クラウド]
+ONTAP (エントリー/ミッドレンジ)   AWS
+┌─────────────────┐              ┌─────────────────────────┐
+│ FPolicy         │──Lambda──→   │ Lambda (イベント処理)     │
+│  - ファイル作成   │  トリガー     │   ↓                     │
+│  - ファイル変更   │              │ Step Functions          │
+│  - ファイル削除   │              │   ├── Glue (ETL)        │
+│                 │              │   ├── Bedrock (分析)    │
+│ REST API        │              │   └── SNS (通知)        │
+│  - パフォーマンス │              │                         │
+│  - 容量          │              │ FSxN (SnapMirror先)     │
+│  - 健全性        │              └─────────────────────────┘
+└─────────────────┘
+       ▲
+       │ NFS/SMB 書き込み
+┌─────────────────┐
+│ Raspberry Pi 5  │
+│ (センサー/カメラ) │
+│ テレメトリ収集    │
 └─────────────────┘
 ```
 
@@ -112,11 +120,11 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 |------|------|
 | **概要** | FDM 3Dプリンターの印刷中にRaspberry Pi + カメラで定期撮影し、Bedrock Claude Vision で品質異常を検出 |
 | **エッジ機材** | Raspberry Pi 5 (16GB) + Logitech BRIO 4K（照明環境下での高解像度撮影に適する。NoIR カメラは暗所/近赤外用途向き） |
-| **データフロー** | Pi → SORACOM Flux → S3 → Bedrock Claude Vision → SNS通知 |
+| **データフロー** | Pi → NFS → ONTAP → FPolicy → Lambda → Bedrock Claude Vision → SNS通知 |
 | **ONTAP連携** | 印刷用3Dモデル(STL/3MF)をONTAP NFS共有に保存、FPolicyで新規ファイル検知→自動印刷キュー投入 |
 | **AI活用** | Claude Vision: 糸引き、層間剥離、ノズル詰まりの視覚的検出 |
 | **ビジネス価値** | 無人印刷時の失敗早期検知、フィラメント浪費削減、印刷成功率向上 |
-| **帯域見積** | 30秒間隔撮影 × 1080p JPEG (約300KB/枚) = 約600KB/分 = 約36MB/時。セルラー転送コスト: 約¥50-100/日 (SORACOM plan-D) |
+| **帯域見積** | 30秒間隔撮影 × 1080p JPEG (約300KB/枚) = 約600KB/分 = 約36MB/時。有線LAN経由では帯域制約なし。セルラー利用時: 約¥50-100/日 (SORACOM plan-D) |
 | **成功指標** | 検出精度 ≥80%、キャプチャ→アラート ≤60秒、誤検知率 ≤10% |
 
 #### UC-M2: 設備振動モニタリング + 予知保全
@@ -125,7 +133,7 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 |------|------|
 | **概要** | ONTAPストレージのディスクシェルフ振動や設備の振動をセンサーで収集し、異常パターンを学習 |
 | **エッジ機材** | Raspberry Pi 5 + ADXL345加速度センサー + SORACOM SIM |
-| **データフロー** | Pi → SORACOM Funnel → Kinesis Firehose → S3 → SageMaker |
+| **データフロー** | Pi → NFS → ONTAP → SnapMirror → FSxN → S3 AP → SageMaker |
 | **ONTAP連携** | ONTAP REST API でディスクIOPS/レイテンシを同時収集、相関分析 |
 | **AI活用** | SageMaker: 時系列異常検知モデル (Random Cut Forest)、Bedrock: 根本原因診断レポート生成 |
 | **ビジネス価値** | 計画外ダウンタイム削減、部品交換の最適タイミング予測 |
@@ -136,7 +144,7 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 |------|------|
 | **概要** | 製造ラインの完成品をカメラで撮影し、傷・変色・寸法異常を自動検出 |
 | **エッジ機材** | Raspberry Pi 5 + Logitech BRIO 4K (高解像度) |
-| **データフロー** | Pi → SORACOM Beam → Lambda → Rekognition Custom Labels / Bedrock |
+| **データフロー** | Pi → NFS → ONTAP → FPolicy → Lambda → Rekognition Custom Labels / Bedrock |
 | **ONTAP連携** | 検査画像をONTAPに保存（NFS）、SnapMirrorでFSxNに同期、S3 APでAthena分析 |
 | **AI活用** | Rekognition Custom Labels: 欠陥分類、Bedrock: 検査レポート自動生成 |
 | **ビジネス価値** | 検査工程の自動化、人的ミス削減、トレーサビリティ確保 |
@@ -149,7 +157,7 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 |------|------|
 | **概要** | 倉庫内の棚をカメラで定期撮影し、在庫数量・配置をAIで自動認識 |
 | **エッジ機材** | Raspberry Pi 5 + Logitech BRIO 4K |
-| **データフロー** | Pi → SORACOM Flux (AI画像分析) → S3 → Bedrock Claude Vision |
+| **データフロー** | Pi → NFS → ONTAP → FPolicy → Lambda → Bedrock Claude Vision |
 | **ONTAP連携** | 在庫マスターデータをONTAP NFS上で管理、FlexCacheでエッジ拠点に配信 |
 | **AI活用** | Claude Vision: 棚の在庫数カウント、欠品検知、配置異常検出 |
 | **ビジネス価値** | 棚卸し工数削減、リアルタイム在庫可視化、欠品アラート |
@@ -160,7 +168,7 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 |------|------|
 | **概要** | 入出庫ゲートのカメラで荷物ラベルを読み取り、自動記録 |
 | **エッジ機材** | Raspberry Pi 5 + カメラ |
-| **データフロー** | Pi → SORACOM Beam → Lambda → Rekognition (OCR) → DynamoDB |
+| **データフロー** | Pi → NFS → ONTAP → FPolicy → Lambda → Rekognition (OCR) → DynamoDB |
 | **ONTAP連携** | 出荷伝票PDFをONTAPに保存、FPolicyで新規ファイル検知→自動OCR処理 |
 | **AI活用** | Rekognition: テキスト検出(バーコード/QR/ラベル)、Bedrock: 伝票内容の構造化 |
 | **ビジネス価値** | 手入力ミス削減、入出庫リードタイム短縮、トレーサビリティ |
@@ -173,7 +181,7 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 |------|------|
 | **概要** | 圃場の温湿度・土壌水分・照度を定期収集し、生育環境を最適化 |
 | **エッジ機材** | Raspberry Pi 5 + DHT22 + 土壌水分センサー + SORACOM SIM |
-| **データフロー** | Pi → SORACOM Harvest (可視化) + Funnel → Kinesis → S3 → Athena |
+| **データフロー** | Pi → NFS → ONTAP → SnapMirror → FSxN → S3 AP → Athena |
 | **ONTAP連携** | 過去の気象データ・収穫データをONTAPに蓄積、SnapMirrorでFSxNに同期しAthena分析 |
 | **AI活用** | SageMaker: 収穫量予測モデル、Bedrock: 栽培アドバイス生成 |
 | **ビジネス価値** | 収穫量最適化、水・肥料の効率化、異常気象への早期対応 |
@@ -184,7 +192,7 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 |------|------|
 | **概要** | 定点カメラで作物の生育状況を撮影し、病害虫・生育不良を早期検出 |
 | **エッジ機材** | Raspberry Pi 5 + NoIR カメラ V2 (近赤外線で植生指数計測) |
-| **データフロー** | Pi → SORACOM Flux → S3 → Bedrock Claude Vision |
+| **データフロー** | Pi → NFS → ONTAP → FPolicy → Lambda → Bedrock Claude Vision |
 | **ONTAP連携** | 時系列画像アーカイブをONTAPに保存、年次比較分析に活用 |
 | **AI活用** | Claude Vision: 病害虫検出・生育ステージ判定、NDVI算出 |
 | **ビジネス価値** | 病害虫の早期発見、農薬使用量最適化、収穫タイミング予測 |
@@ -197,7 +205,7 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 |------|------|
 | **概要** | ビル各フロアの温湿度・電力消費をリアルタイム収集し、空調制御を最適化 |
 | **エッジ機材** | Raspberry Pi 5 + 温湿度センサー + CT電流センサー + SORACOM SIM |
-| **データフロー** | Pi → SORACOM Funnel → Kinesis → S3 → Athena + QuickSight |
+| **データフロー** | Pi → NFS → ONTAP → SnapMirror → FSxN → S3 AP → Athena + QuickSight |
 | **ONTAP連携** | BMS(ビル管理システム)のログをONTAPに集約、長期トレンド分析 |
 | **AI活用** | SageMaker: 電力需要予測、Bedrock: 省エネレポート自動生成 |
 | **ビジネス価値** | 電力コスト削減(10-30%)、快適性維持、カーボンフットプリント可視化 |
@@ -208,7 +216,7 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 |------|------|
 | **概要** | 空調機器・エレベーター等の動作音をマイクで収集し、異常音を検知 |
 | **エッジ機材** | Raspberry Pi 5 + USBマイク |
-| **データフロー** | Pi (エッジ推論: 異常スコア算出) → SORACOM → S3 → SageMaker |
+| **データフロー** | Pi (エッジ推論: 異常スコア算出) → NFS → ONTAP → SnapMirror → FSxN → S3 AP → SageMaker |
 | **ONTAP連携** | 音声データアーカイブをONTAPに保存、正常/異常パターンの学習データとして活用 |
 | **AI活用** | エッジ: TensorFlow Lite (異常スコア)、クラウド: SageMaker (モデル再学習) |
 | **ビジネス価値** | 設備故障の予兆検知、保守コスト削減、テナント満足度向上 |
@@ -250,7 +258,7 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 | フィルタリング | 拡張子・パス・操作種別で通知対象を絞り込み |
 | 外部サーバー連携 | Raspberry PiをFPolicyサーバーとして動作させ、軽量な前処理を実行 |
 
-**活用シナリオ**: 検査装置がONTAP NFS共有に画像を保存 → FPolicyがRaspberry Piに通知 → PiがSORACOM経由でS3にアップロード → Bedrock分析。
+**活用シナリオ**: 検査装置がONTAP NFS共有に画像を保存 → FPolicyがファイル作成を検知 → Lambda をトリガー → Bedrock分析。
 
 > **注意**: FPolicy は対象ファイル操作にレイテンシを追加する（同期モードで数ms〜数十ms）。高頻度書き込み環境では非同期モードの使用、またはフィルタリングによる通知対象の絞り込みが必要。
 
@@ -307,7 +315,9 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 | ストレージ (NVMe SSD 128-256GB) | 長期データ保存には不十分 | ONTAPへの定期転送、ローカルは一時バッファ |
 | 電源 (27W) | UPS不要だが停電時のデータ保護必要 | ジャーナリングFS + 定期同期 |
 
-### 5.4 SORACOM サービス選択基準
+### 5.4 エッジ接続オプション（有線LANがない場合）
+
+> **注意**: 本アーキテクチャの主経路は Pi → NFS/SMB → ONTAP（有線LAN）です。以下の SORACOM サービスは、有線LANが利用できない現場でのフォールバック接続オプションとして位置づけます。
 
 | サービス | 用途 | プロトコル | 特徴 |
 |----------|------|-----------|------|
@@ -316,11 +326,16 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 | **Harvest** | データ蓄積・可視化 | HTTP/UDP | SORACOM上でデータ保存・グラフ表示、プロトタイプに最適 |
 | **Flux** | AI統合ワークフロー | カメラ画像 + GenAI | 低コードでカメラ→AI分析→通知のパイプライン構築 |
 
-**選択指針**:
+**選択指針（有線LANがない場合のみ）**:
 - プロトタイプ/検証: **Harvest** (即座に可視化)
 - センサーデータ→AWS: **Funnel** (設定のみ、コード不要)
 - カメラ画像→AI: **Flux** (低コード、GenAI統合)
 - カスタム連携: **Beam** (柔軟なプロトコル変換)
+
+**有線LANがある場合の推奨経路**:
+- 画像データ: Pi → NFS → ONTAP → FPolicy → Lambda → Bedrock
+- センサーデータ: Pi → NFS → ONTAP → SnapMirror → FSxN → S3 AP → Athena/SageMaker
+- 遠隔管理: SORACOM Napter（SSH アクセス用、データ転送には使用しない）
 
 ### 5.5 セキュリティアーキテクチャ考慮事項
 
@@ -336,22 +351,21 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 
 | 項目 | 概算コスト | 前提条件 |
 |------|-----------|----------|
-| SORACOM Air (plan-D) | ¥300-500/月 | 基本料 + データ通信 (~1GB/月) |
-| SORACOM Flux | ¥0-1,000/月 | 無料枠内 or 従量課金 |
+| SORACOM Air (plan-D) | ¥300-500/月 | オプション: 有線LANがない場合のフォールバック |
 | S3 ストレージ | $1-3/月 | ~30GB/月 (画像アーカイブ) |
 | Bedrock (Claude Vision) | $5-20/月 | ~2,880回/日 × 30日、入力トークン課金 |
-| Kinesis Firehose | $1-5/月 | 低スループット |
+| Lambda (FPolicy トリガー) | $0-2/月 | FPolicy イベント処理 |
 | Athena | $1-5/月 | 数GB/月のスキャン |
-| **合計** | **約 ¥2,000-5,000/月** | PoC規模、1デバイス |
+| **合計** | **約 ¥1,500-4,000/月** | PoC規模、1デバイス、有線LAN環境 |
 
-> **注意**: 上記は PoC 規模の概算。本番環境ではデバイス数・撮影頻度・保存期間に応じてスケール。正確な見積もりには AWS Pricing Calculator での試算を推奨。
+> **注意**: 上記は PoC 規模の概算。有線LAN環境ではセルラー通信費が不要のため、SORACOM 費用は発生しない。本番環境ではデバイス数・撮影頻度・保存期間に応じてスケール。正確な見積もりには AWS Pricing Calculator での試算を推奨。
 
 ### 5.7 前提条件（PoC 開始に必要なもの）
 
 | カテゴリ | 必要なもの | 備考 |
 |----------|-----------|------|
 | **AWS** | AWSアカウント、IAMユーザー/ロール | Bedrock モデルアクセスの有効化が必要 |
-| **SORACOM** | SORACOMアカウント、IoT SIM (plan-D) | 日本カバレッジ |
+| **SORACOM** | SORACOMアカウント、IoT SIM (plan-D) | オプション: 有線LANがない場合のみ |
 | **ハードウェア** | Raspberry Pi 5 (16GB)、カメラモジュール、NVMe SSD | microSD でも動作するが SSD 推奨 |
 | **ONTAP** | ONTAP 9.13.1 以上 (FPolicy外部サーバー、REST API) | FSxN の場合は S3 AP 対応バージョン |
 | **ネットワーク** | Pi ↔ ONTAP 間のLAN接続、Pi のセルラー接続 | 10GbE スイッチ推奨（大容量画像転送時） |
@@ -401,7 +415,7 @@ Pi ──Cellular──→ SORACOM ──→ AWS (Ethernet障害時のフォー�
 | Ethernet → Internet | Pi → AWS (S3/Bedrock) への通常アップロード | 帯域制約なし、コスト最小 |
 | Cellular (SORACOM) | フォールバック通信 + 遠隔管理 | 有線障害時の冗長性、SORACOM Napter による遠隔SSH |
 
-> **設計判断**: ラボ/工場内に有線ネットワークがある場合、データ転送は有線を優先する。セルラーは「現場にネットワークがない」場合、または「有線障害時のフォールバック」として位置づける。SORACOM の価値はフォールバック通信に加え、Napter（遠隔アクセス）、Flux（低コードAI連携）、デバイス管理にある。
+> **設計判断**: ラボ/工場内に有線ネットワークがある場合、データ転送は有線を優先する。セルラーは「現場にネットワークがない」場合、または「有線障害時のフォールバック」として位置づける。SORACOM の価値はフォールバック通信に加え、Napter（遠隔アクセス）とデバイス管理にある。
 
 #### アラート後のアクションワークフロー
 
@@ -435,24 +449,25 @@ severity: critical → 即時停止 + 緊急通知（電話/PagerDuty）
 
 ```
 Phase 1 (1週間): 最小構成で動かす ← "小さく作って動かす"
-  目標: カメラ→AI分析→通知が動くことを確認
-  構成: Pi + カメラ + SORACOM Flux のみ（Lambda不要）
+  目標: カメラ→ONTAP保存→AI分析→通知が動くことを確認
+  構成: Pi + カメラ + ONTAP NFS + Lambda + Bedrock
   手順:
     1. Pi + USB カメラのセットアップ、有線LAN接続
-    2. 定期撮影スクリプト (Python, 60秒間隔 ← 30秒は過剰)
-    3. SORACOM Flux: 画像アップロード → Claude Vision 分析 → Slack通知
-    4. 1日運転して精度・安定性を確認
-  ONTAP: 不要（この段階では使わない）
+    2. 定期撮影スクリプト (Python, 60秒間隔)
+    3. NFS マウント → ONTAP ボリュームに画像書き込み
+    4. FPolicy 設定 → Lambda トリガー → Bedrock 分析 → Slack通知
+    5. 1日運転して精度・安定性を確認
+  SORACOM: 不要（有線LAN環境）
   Go/No-Go: 精度70%以上 & 安定動作 → Phase 2 へ
 
-Phase 2 (1-2週間): カスタマイズ + ONTAP連携
-  目標: 分析精度向上 + データ蓄積基盤構築
-  構成: Phase 1 + Lambda (カスタム分析) + ONTAP NFS
+Phase 2 (1-2週間): カスタマイズ + 分析精度向上
+  目標: 分析精度向上 + アクションワークフロー構築
+  構成: Phase 1 + Lambda (カスタム分析) + アクション分岐
   手順:
-    1. Lambda 関数デプロイ（プロンプト最適化、アクション分岐）
-    2. ONTAP NFS 共有作成 → 検査画像のローカル保存
-    3. FPolicy: 新規画像到着 → 自動分析トリガー
-    4. アクションワークフロー実装（severity別対応）
+    1. Lambda 関数最適化（プロンプト改善、severity分岐）
+    2. FPolicy フィルタリング最適化（対象拡張子・パス）
+    3. アクションワークフロー実装（severity別対応）
+    4. 2段階AI分析（Haiku スクリーニング + Sonnet 詳細）
   Go/No-Go: 精度80%以上 & アクション連携動作 → Phase 3 へ
 
 Phase 3 (2週間): 分析基盤 + 本番準備
@@ -474,7 +489,7 @@ PoC (4週間)          Pilot (4-8週間)         Production
 1台のプリンター      3-5台に横展開           全プリンター
 ラボ環境             実運用環境              24/7運用
 手動監視             半自動運用              完全自動化
-Flux + 手動確認      Lambda + 自動アクション  自動停止 + 復旧
+FPolicy + 手動確認   Lambda + 自動アクション  自動停止 + 復旧
 ```
 
 ### PoC #2 推奨: ONTAPテレメトリ収集→予測分析
@@ -493,10 +508,11 @@ Phase 1 (1週間): テレメトリ収集
     - /api/storage/volumes (容量, 使用率)
     - /api/cluster/nodes (CPU, メモリ)
   - Raspberry Pi 5 で定期実行 (1分間隔)
-  - SORACOM Funnel → Kinesis Firehose → S3
+  - NFS 書き込み → ONTAP ボリュームに CSV 蓄積
 
 Phase 2 (1週間): 分析基盤
-  - Glue Crawler でデータカタログ作成
+  - SnapMirror → FSxN 同期設定
+  - FSxN S3 AP → Glue Crawler でデータカタログ作成
   - Athena でアドホック分析
   - CloudWatch ダッシュボード (リアルタイム)
 
@@ -536,7 +552,7 @@ Phase 3 (2週間): AI予測
 - [FSxN S3 AP × Athena 直接分析 (Tech ONTAP Blog)](https://community.netapp.com/t5/Tech-ONTAP-Blogs/Run-advanced-analytics-with-Amazon-Athena-directly-on-data-in-Amazon-FSx-for/m-p/466956)
 - [NetApp on AWS Outposts](https://community.netapp.com/t5/Tech-ONTAP-Blogs/NetApp-on-premises-enterprise-storage-arrays-for-AWS-Outposts/ba-p/456976)
 
-### SORACOM 公式
+### SORACOM 公式（オプション: セルラー接続時）
 
 - [SORACOM × AWS IoT 統合](https://soracom.io/aws/)
 - [SORACOM Flux 概要](https://developers.soracom.io/en/docs/flux/)
@@ -584,8 +600,8 @@ Phase 3 (2週間): AI予測
 | 1 | AWS インフラデプロイ (CloudFormation) | ✅ 完了 | S3, Kinesis, Lambda, IAM, Glue |
 | 2 | Bedrock モデルアクセス有効化 | ✅ 完了 | Claude Sonnet 4.5 |
 | 3 | SNS アラートメール登録 | ✅ 完了 | 確認メールのクリック待ち |
-| 4 | SORACOM Operator ID 取得 → CFn 更新 | 📋 待ち | コンソールから取得してスクリプト実行 |
-| 5 | SORACOM Flux アプリ作成（コンソール） | 📋 待ち | SIM 不要で設定可能 |
+| 4 | SORACOM Operator ID 取得 → CFn 更新 | 📋 待ち | オプション: セルラー接続時のみ必要 |
+| 5 | SORACOM Flux アプリ作成（コンソール） | 📋 待ち | オプション: 有線LANがない場合のみ |
 | 6 | カメラマウント設計 → 3Dプリントで自作 | 📋 待ち | プリンター到着後に印刷 |
 | 7 | Bedrock プロンプトの事前テスト | 📋 可能 | サンプル3Dプリント画像で精度確認 |
 
@@ -595,9 +611,9 @@ Phase 3 (2週間): AI予測
 |---|-----------|---------|------|
 | 1 | OS書き込み + 初回セットアップ | 1時間 | Pi + SSD |
 | 2 | カメラ接続 + テスト撮影 | 30分 | Pi + カメラ |
-| 3 | SORACOM SIM セットアップ | 30分 | Pi + SIM + ドングル |
-| 4 | simple_capture.py 動作確認 | 15分 | Step 1-3 完了 |
-| 5 | SORACOM Flux 連携テスト | 30分 | Step 4 + Flux設定済み |
+| 3 | SORACOM SIM セットアップ | 30分 | オプション: セルラー接続時のみ |
+| 4 | simple_capture.py 動作確認 | 15分 | Step 1-2 完了 |
+| 5 | NFS マウント + ONTAP 書き込みテスト | 30分 | Step 4 + ONTAP NFS設定済み |
 | 6 | カメラ設置 + 画角調整 | 1時間 | Pi + カメラ + プリンター |
 | 7 | 24時間連続運転テスト | 24時間 | Step 6 完了 |
 | 8 | Go/No-Go 判定 → Phase 2 移行 | — | Step 7 の結果次第 |
