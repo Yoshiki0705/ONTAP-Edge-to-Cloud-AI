@@ -41,17 +41,16 @@ Use existing ONTAP NAS as the data aggregation point. Edge devices write collect
 
 This architecture assumes ONTAP, but the core pattern (edge collection → aggregation → AI analysis) works with other storage:
 
-| Storage | What's Possible | Additional Value with ONTAP |
-|---------|----------------|---------------------------|
-| S3 direct | Edge → S3 → Athena/Bedrock | — (simplest approach) |
-| EFS | NFS mount → Lambda/Bedrock | — |
-| **ONTAP** | All of the above + below | FPolicy (event-driven), SnapMirror (incremental sync), Multi-Protocol (NFS+SMB+S3 on same data), Snapshot (data preservation), ARP/AI (security) |
+| Storage | Data Flow | Characteristics | Constraints |
+|---------|-----------|----------------|-------------|
+| **S3 direct** | Edge → S3 → Athena/Bedrock | Simplest. Easy setup. Native AWS integration | No NFS/SMB access. Integrating with existing file workflows requires extra work |
+| **EFS** | Edge → NFS → EFS → Lambda/Bedrock | NFS mountable. Good affinity with Linux devices | No SMB. No direct S3 API access. Event-driven requires Lambda + CloudWatch |
+| **ONTAP** | Edge → NFS/SMB → ONTAP → S3 AP → AWS AI | NFS + SMB + S3 on same data. FPolicy file-arrival triggers. SnapMirror incremental sync | Requires ONTAP environment. S3 AP has no conditional writes. Needs ONTAP operational knowledge |
 
-ONTAP's additional value applies when:
-- You already have ONTAP/NAS with accumulated data
-- You need both NFS and SMB access to the same data
-- You want to analyze data via S3 API without copying to cloud
-- You want file-arrival-triggered automated processing
+**Which to choose:**
+- No existing data / greenfield → **S3 direct** is simplest
+- Linux devices writing NFS / VPC-contained → **EFS**
+- Already have ONTAP/NAS with data / need NFS+SMB / want to avoid data copying → **ONTAP**
 
 ## Architecture
 
