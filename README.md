@@ -2,62 +2,95 @@
 
 # ONTAP Edge-to-Cloud AI
 
-> NetApp ONTAP × IoT × AWS AI/Analytics — ONTAP ストレージに蓄積されたデータを、エッジデバイス（Raspberry Pi、SORACOM）経由で AWS AI/分析サービスに連携するリファレンスアーキテクチャ
-
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Yoshiki0705/ontap-edge-to-cloud-ai/badge)](https://scorecard.dev/viewer/?uri=github.com/Yoshiki0705/ontap-edge-to-cloud-ai)
+> NetApp ONTAP をデータハブとして、エッジデバイスで収集した現場データを集約し、AI/分析で活用するリファレンスアーキテクチャ
 
 ## 概要
 
-ONTAP（オンプレミス FAS/AFF、ONTAP Select、または FSx for ONTAP）上のファイルデータ（検査画像、設備ログ、センサーCSV）を、IoT エッジデバイスで収集・前処理し、AWS の AI/分析サービスで活用するパイプラインです。最初の PoC として **3Dプリント品質監視** を実装しています。
+ONTAP（FAS/AFF、ONTAP Select、または FSx for ONTAP）をデータの集約先として、エッジデバイス（Raspberry Pi、カメラ、センサー等）が収集した現場データを NFS/SMB で書き込み、ONTAP の機能（FPolicy、SnapMirror、S3 Access Points）を通じて AWS AI/分析サービスに連携するパイプラインです。
 
-### ONTAP が中心にある理由
+最初の PoC として **3Dプリント品質監視** を実装しています。
 
-- **既存データ資産の活用**: 工場/拠点の ONTAP NAS に蓄積されたデータを、コピーなしで AI/分析に接続
-- **FPolicy イベント駆動**: ファイル到着をトリガーに自動分析パイプラインを起動
-- **SnapMirror 同期**: エッジ → クラウド（FSxN）のデータ同期を帯域効率よく実現
-- **S3 Access Points**: FSxN 上のデータに S3 API で直接アクセス（Athena、Bedrock、SageMaker）
-- **Multi-Protocol**: NFS（エッジデバイス）+ SMB（Windows装置）+ S3（AWS サービス）を同一データで
-
-### アーキテクチャ（2段階AI分析）
+## アーキテクチャ
 
 ```
-[Edge]                    [SORACOM]              [AWS Cloud]
-Raspberry Pi 5            Flux / Funnel         ┌─────────────────────────────┐
-┌──────────────┐          ┌─────────┐           │  S3 Data Lake               │
-│ USB Camera   │──60s間隔→ │ Cellular│──HTTPS──→ │    ↓                        │
-│ (1080p JPEG) │          │ or WiFi │           │  Lambda (2段階分析)           │
-└──────────────┘          └─────────┘           │    ├─ Haiku: スクリーニング    │
-                                                │    └─ Sonnet: 詳細分析(異常時) │
-[ONTAP Storage]                                 │    ↓                         │
-┌──────────────┐                                │  SNS → Slack/Email 通知      │
-│ FAS/AFF      │──SnapMirror──→ FSx for ONTAP   │    ↓                         │
-│ FPolicy      │                  ↓ S3 AP       │  Athena (SQL分析)            │
-│ REST API     │                  Bedrock/SM    │  QuickSight (BI)            │
-└──────────────┘                                └─────────────────────────────┘
+[エッジデバイス]                  [ONTAP データハブ]                [AI / 分析]
+                                 FAS/AFF | ONTAP Select | FSxN
+┌────────────────┐               ┌────────────────────┐          ┌──────────────────┐
+│ Raspberry Pi 5 │──NFS─────────→│                    │          │ AWS              │
+│  カメラ         │               │  検査画像           │─S3 AP──→│  Bedrock (GenAI) │
+│  センサー       │               │  センサーCSV        │          │  SageMaker (ML)  │
+├────────────────┤               │  設備ログ           │─SnapMirror→ FSxN ─S3 AP──→│
+│ 3Dプリンター    │──SMB─────────→│  3Dモデル           │          │  Athena (SQL)    │
+├────────────────┤               │                    │          │  Glue (ETL)      │
+│ USB カメラ     │──NFS─────────→│  FPolicy (イベント)  │          │  QuickSight (BI) │
+└────────────────┘               │  REST API (テレメトリ)│          ├──────────────────┤
+                                 │  ARP/AI (保護)      │          │ ローカル AI       │
+[エッジ接続オプション]             │  Snapshot (保全)    │          │  AIDE GPUサーバー │
+├─ 有線 LAN (10GbE)              └────────────────────┘          │  Pi エッジ推論    │
+├─ Wi-Fi                                                         └──────────────────┘
+├─ SORACOM セルラー (オプション)
+└─ SORACOM S+ Camera (オプション)
 ```
 
-### コスト最適化
+### データフロー
 
-| 方式 | 月間コスト | 説明 |
-|------|-----------|------|
-| 単一モデル (Sonnet) | ~$259/月 | 全画像を高精度モデルで分析 |
-| **2段階分析 (採用)** | **~$40/月** | Haiku でスクリーニング、異常疑いのみ Sonnet |
+1. **エッジ → ONTAP**: デバイスが NFS/SMB で ONTAP に直接書き込み（LAN 経由）
+2. **ONTAP → AI/分析**: FPolicy イベント駆動、SnapMirror 同期、S3 AP 経由で AWS サービスに接続
+3. **AI 結果 → ONTAP**: 推論結果を ONTAP に書き戻し、エッジデバイスが参照
 
-### 現在のステータス
+### ONTAP がデータハブである理由
+
+| 機能 | 役割 |
+|------|------|
+| **Multi-Protocol** | NFS (Linux/Pi) + SMB (Windows/プリンター) + S3 (AWS) を同一データで |
+| **FPolicy** | ファイル到着をトリガーに自動分析パイプラインを起動 |
+| **SnapMirror** | エッジ ONTAP → クラウド FSxN への帯域効率の良い同期 |
+| **S3 Access Points** | ONTAP/FSxN 上のデータに S3 API で直接アクセス（データコピー不要） |
+| **Snapshot** | 任意時点のデータセットを固定（AI 学習データ、監査） |
+| **ARP/AI** | IoT デバイス侵害時のランサムウェア検知・自動保護 |
+| **FlexCache** | クラウドの AI 結果をエッジで低遅延参照 |
+
+### エッジデバイス（選択肢）
+
+| デバイス | 接続 | 用途 |
+|---------|------|------|
+| Raspberry Pi 5 (16GB) | 有線 LAN (NFS) | カメラ撮影、センサー収集、エッジ推論 |
+| USB カメラ (4K) | Pi 経由 | 外観検査、品質監視 |
+| CSI カメラ (NoIR V2) | Pi 経由 | 暗所撮影、近赤外線 |
+| 3D プリンター | 有線 LAN (SMB) | 印刷データ保存、ステータス連携 |
+| SORACOM S+ Camera | セルラー (オプション) | 有線LANがない現場のカメラ |
+| SORACOM Air + Pi | セルラー (オプション) | 有線LANがない現場の接続 |
+| 産業用センサー | Pi GPIO / I2C / SPI | 温湿度、振動、電流、圧力 |
+
+### ONTAP プラットフォーム（選択肢）
+
+| プラットフォーム | 配置 | 特徴 |
+|----------------|------|------|
+| FAS/AFF | オンプレミス | ハードウェアアプライアンス。エントリーからハイエンドまで |
+| ONTAP Select | オンプレミス / VM | ソフトウェア定義。汎用サーバーや VM 上で動作 |
+| FSx for ONTAP | AWS クラウド | フルマネージド。S3 AP、SnapMirror 先として |
+
+### AI/分析（選択肢）
+
+| サービス | 配置 | 用途 |
+|---------|------|------|
+| Amazon Bedrock | クラウド | 画像AI (Claude Vision)、レポート生成 |
+| Amazon SageMaker | クラウド | カスタム ML モデル（予知保全、異常検知） |
+| Amazon Athena | クラウド | SQL 分析（S3 AP 経由で ONTAP データを直接クエリ） |
+| AWS Glue | クラウド | ETL、データカタログ |
+| AIDE GPU サーバー | ローカル | オンプレミス AI 推論（大規模モデル） |
+| Pi エッジ推論 | エッジ | TensorFlow Lite / ONNX Runtime（軽量モデル） |
+
+## 現在のステータス
 
 | コンポーネント | ステータス | 備考 |
 |--------------|-----------|------|
 | AWS インフラ (CFn) | ✅ デプロイ済 | S3, Kinesis, Lambda, IAM, Glue, SNS |
-| Lambda (2段階分析) | ✅ デプロイ済 | Haiku + Sonnet, プロンプト精度100% |
+| Lambda (2段階AI分析) | ✅ デプロイ済 | Haiku スクリーニング + Sonnet 詳細分析 |
 | ONTAP テレメトリ収集 | ✅ 実装済 | REST API ポーリング (モックE2Eテスト済) |
-| CloudWatch 監視 | ✅ 設定済 | ダッシュボード + アラーム×3 + 予算 |
-| エッジコード | ✅ 実装済 | Pi到着後にテスト |
-| SORACOM 連携 | 📋 設定待ち | SIM到着後に設定 |
-| 実機テスト | 📋 ハードウェア待ち | Pi + カメラ到着後 |
-
-### 関連プロジェクト
-
-- [fsxn-lakehouse-integrations](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations) — FSx for ONTAP S3 Access Points × Lakehouse 統合（親プロジェクト）
+| エッジカメラコード | ✅ 実装済 | Pi到着後にテスト |
+| 設計ドキュメント | ✅ 完成 | 日英同期 8ドキュメント |
+| 実機テスト | 📋 ハードウェア待ち | Pi + カメラ + ONTAP 到着後 |
 
 ## クイックスタート
 
@@ -66,7 +99,7 @@ Raspberry Pi 5            Flux / Funnel         ┌─────────�
 - AWS CLI v2 + 認証設定済み
 - Python 3.12+
 - Bedrock モデルアクセス有効化（Claude Haiku 4.5 / Sonnet 4.5）
-- （オプション）ONTAP 9.13.1+ (FPolicy, REST API)
+- ONTAP 9.13.1+（FPolicy、REST API、S3 AP）
 
 ### AWS インフラデプロイ
 
@@ -74,9 +107,7 @@ Raspberry Pi 5            Flux / Funnel         ┌─────────�
 aws cloudformation deploy \
   --template-file cloud/ingestion/template.yaml \
   --stack-name edge-to-cloud-ai-poc \
-  --parameter-overrides \
-    Environment=poc \
-    SoracomOperatorId=<YOUR_OPERATOR_ID> \
+  --parameter-overrides Environment=poc \
   --capabilities CAPABILITY_NAMED_IAM \
   --region ap-northeast-1
 ```
@@ -85,8 +116,6 @@ aws cloudformation deploy \
 
 ```bash
 # Raspberry Pi 初回セットアップ → edge/raspberry-pi/SETUP.md
-
-# Phase 1: 最小構成で動作確認
 cd edge/raspberry-pi/camera
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
@@ -98,20 +127,15 @@ python simple_capture.py --loop
 ```
 edge/                          エッジデバイスコード
   raspberry-pi/
-    camera/                    カメラキャプチャシステム
-      simple_capture.py        Phase 1: 最小スクリプト (Flux用)
-      main.py                  Phase 2+: フル機能版 (バッファ、ヘルス監視)
-    sensors/
-      ontap_telemetry.py       ONTAP REST API テレメトリ収集
+    camera/                    カメラキャプチャ → ONTAP NFS 書き込み
+    sensors/                   ONTAP REST API テレメトリ収集
     SETUP.md                   初回セットアップ Playbook
-  soracom/                     SORACOM 設定ガイド
+  soracom/                     SORACOM 設定ガイド (オプション)
 cloud/                         AWS クラウドインフラ
-  ingestion/template.yaml      CloudFormation (S3, Kinesis, IAM, Glue)
-  ai/image_analyzer/           Lambda: 2段階画像分析
-  ai/feedback_recorder/        Lambda: AI精度フィードバック記録
-  processing/glue_etl_job.py   Glue ETL ジョブ
+  ingestion/template.yaml      CloudFormation
+  ai/                          Lambda (画像分析、フィードバック記録)
+  processing/                  Glue ETL
 docs/                          設計ドキュメント (日英同期)
-  ja/, en/                     各言語版
 tests/                         テスト (20テスト全パス)
 ```
 
@@ -126,7 +150,10 @@ tests/                         テスト (20テスト全パス)
 | ビジネスストーリー | [docs/ja/business-story.md](docs/ja/business-story.md) | [docs/en/business-story.md](docs/en/business-story.md) |
 | PoC提案テンプレート | [docs/ja/poc-proposal-template.md](docs/ja/poc-proposal-template.md) | [docs/en/poc-proposal-template.md](docs/en/poc-proposal-template.md) |
 | FAQ | [docs/ja/faq.md](docs/ja/faq.md) | [docs/en/faq.md](docs/en/faq.md) |
-| SORACOM 設定 | [edge/soracom/README_ja.md](edge/soracom/README_ja.md) | [edge/soracom/README.md](edge/soracom/README.md) |
+
+## 関連プロジェクト
+
+- [fsxn-lakehouse-integrations](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations) — FSx for ONTAP S3 Access Points × Lakehouse 統合（親プロジェクト）
 
 ## ライセンス
 
