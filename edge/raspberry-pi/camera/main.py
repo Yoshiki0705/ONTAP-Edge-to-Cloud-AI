@@ -1,6 +1,7 @@
 """Edge camera capture service - main entry point.
 
-Periodically captures images from camera and uploads via SORACOM.
+Periodically captures images from camera and saves to ONTAP NFS.
+Optionally uploads via SORACOM cellular as fallback when wired LAN is unavailable.
 Designed to run as a systemd service on Raspberry Pi 5.
 
 Usage:

@@ -1,6 +1,7 @@
-"""Upload module for sending captured images to SORACOM/AWS.
+"""Upload module for cellular fallback (SORACOM).
 
-Handles image upload via SORACOM unified endpoint with retry logic.
+Used when wired LAN to ONTAP is unavailable. Primary path is NFS write to ONTAP.
+This module handles image upload via SORACOM unified endpoint with retry logic.
 Falls back to local buffer when network is unavailable.
 """
 

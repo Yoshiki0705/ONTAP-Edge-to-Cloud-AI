@@ -1,9 +1,8 @@
 """Device health monitoring and heartbeat reporting.
 
-Periodically sends system health metrics to the cloud for monitoring.
-Enables detection of device failures, camera issues, and connectivity problems.
-
-Health data is sent via SORACOM to CloudWatch Custom Metrics or S3.
+Periodically sends system health metrics for monitoring.
+Primary: writes to ONTAP NFS (alongside telemetry data).
+Fallback: sends via SORACOM cellular when wired LAN is unavailable.
 """
 
 import logging
