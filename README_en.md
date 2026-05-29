@@ -2,7 +2,7 @@
 
 # ONTAP Edge-to-Cloud AI
 
-> Reference architecture for leveraging factory/site NAS data with edge devices and AI
+**TL;DR**: Building a system to connect underutilized inspection images and sensor data on NAS to AI analytics — without copying data. Raspberry Pi collects data, writes to ONTAP, and connects directly to Bedrock/Athena via S3 Access Points.
 
 > **Disclaimer**: This is a personal technical exploration project and does not represent official views or recommendations of any organization. It does not recommend purchasing any specific product.
 
@@ -106,6 +106,13 @@ The first PoC is **3D print quality monitoring** (visually compelling, failures 
 - **AI accuracy tested with synthetic data only**: Prompt testing used public and synthetic images (9/9 correct). Real-environment accuracy (lighting, camera angle, filament color) is unverified.
 - **ONTAP integration is design-only**: FPolicy, SnapMirror, S3 AP integration code is implemented but untested against real ONTAP (mock tests only).
 - **Single-device configuration**: Multi-device concurrent operation and scale-out are untested.
+
+## What I've Learned So Far
+
+- **Two-stage AI analysis cuts cost by 85%**: Analyzing all images with the high-accuracy model costs ~$259/month. Screening with Haiku and routing only suspected anomalies to Sonnet brings it to ~$40/month. This pattern applies to other AI pipelines.
+- **Prompts alone achieve practical accuracy for industrial image judgment**: Without custom model training, Claude Vision prompts correctly identified 3D print defects in 9/9 test cases. Real-environment validation is pending.
+- **FSxN S3 Access Points constraints**: No conditional writes, no event notifications. Direct Iceberg/Delta Lake writes aren't possible. FPolicy-based complementary design is needed.
+- **ONTAP REST API works well for IoT telemetry collection**: Performance metrics, capacity, and health can be collected at 1-minute intervals. Polling-based but sufficient for PoC.
 
 ## Current Status
 
