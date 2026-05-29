@@ -1,8 +1,9 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
   Edge-to-Cloud AI - Ingestion Layer
-  S3 data lake, Kinesis stream, Lambda processors, and IAM roles
-  for IoT data ingestion from SORACOM edge devices.
+  S3 data lake, Kinesis stream, Lambda processors, and IAM roles.
+  ONTAP writes trigger Lambda via FPolicy (configured on ONTAP side).
+  SORACOM connectivity is optional (for sites without wired LAN).
 
 Parameters:
   Environment:
@@ -13,7 +14,8 @@ Parameters:
 
   SoracomOperatorId:
     Type: String
-    Description: SORACOM Operator ID for ExternalId in trust policy
+    Description: SORACOM Operator ID for ExternalId (optional - only for cellular connectivity)
+    Default: ""
     NoEcho: true
 
   AlertEmail:
@@ -151,8 +153,11 @@ Resources:
   # ============================================================
   # IAM Roles
   # ============================================================
+
+  # Optional: Only needed for SORACOM cellular connectivity
   SoracomIngestionRole:
     Type: AWS::IAM::Role
+    Condition: HasSoracomOperatorId
     Properties:
       RoleName: !Sub "EdgeToCloud-SoracomIngestion-${Environment}"
       AssumeRolePolicyDocument:
@@ -310,6 +315,7 @@ Resources:
 
 Conditions:
   HasAlertEmail: !Not [!Equals [!Ref AlertEmail, ""]]
+  HasSoracomOperatorId: !Not [!Equals [!Ref SoracomOperatorId, ""]]
 
 Outputs:
   DataLakeBucketName:
@@ -327,7 +333,8 @@ Outputs:
     Value: !GetAtt IngestionStream.Arn
 
   SoracomIngestionRoleArn:
-    Description: IAM role ARN for SORACOM Funnel/Beam
+    Description: IAM role ARN for SORACOM Funnel/Beam (optional - cellular only)
+    Condition: HasSoracomOperatorId
     Value: !GetAtt SoracomIngestionRole.Arn
     Export:
       Name: !Sub "${AWS::StackName}-SoracomRoleArn"
