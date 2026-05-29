@@ -1,6 +1,6 @@
-# PoC Proposal Template: Edge-to-Cloud AI
+# PoC Planning Template: Edge-to-Cloud AI
 
-> Template for partners/SIs to propose to customers. Customize with customer name and industry.
+> Planning template for conducting a PoC with this architecture. Customize for internal validation or customer proposals.
 
 ---
 
@@ -8,7 +8,7 @@
 
 | Item | Content |
 |------|---------|
-| **Proposal Name** | [Customer] Field Data AI Utilization PoC |
+| **Proposal Name** | [Project] Field Data AI Utilization PoC |
 | **Target Challenge** | [e.g., Manual inspection dependency, reactive equipment maintenance, dormant data] |
 | **Proposal** | Collect field data via edge devices (Raspberry Pi + SORACOM), analyze with AWS AI services |
 | **Duration** | 4 weeks |
@@ -102,8 +102,8 @@
 | **Business Sponsor** | [Customer] | Go/No-Go decision, budget approval |
 | **Field Operator** | [Customer] | Installation site, operational feedback |
 | **IT Administrator** | [Customer] | Network, AWS account, security approval |
-| **Implementation Lead** | [Partner] | Architecture design, implementation, testing |
-| **AWS SA** | [AWS] | Technical guidance, best practice advice |
+| **Implementation Lead** | [Owner] | Architecture design, implementation, testing |
+| **Technical Support** | [As needed] | Best practice advice |
 
 ---
 
@@ -143,10 +143,8 @@ Week 4: Evaluation and Reporting
 | Raspberry Pi 5 kit | ~¥15,000 | — | Pi + camera + SSD + power |
 | SORACOM SIM | ~¥500 | ~¥500 | plan-D base + data |
 | AWS (PoC scale) | — | ~¥5,000 | S3 + Lambda + Bedrock + Kinesis |
-| Implementation | [partner quote] | — | Design, build, test |
+| Implementation | [estimate] | — | Design, build, test |
 | **Total** | **~¥15,500 + impl** | **~¥5,500/month** | |
-
-> Production deployment adds per-device hardware cost × count + AWS pay-per-use.
 
 ---
 

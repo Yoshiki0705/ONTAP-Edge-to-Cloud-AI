@@ -215,7 +215,7 @@ ONTAP (Entry/Mid-range)                                    FSx for ONTAP
 
 ---
 
-## 4. ONTAP-Specific Value
+## 4. ONTAP Features in IoT/Edge Context
 
 ### 4.1 SnapMirror: Edge-to-Cloud Data Synchronization
 

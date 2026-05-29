@@ -108,16 +108,18 @@ Three technical conditions converged in 2024-2025, making this architecture feas
 
 ---
 
-## Competitive Differentiation
+## Architecture Pattern Comparison
 
-| Comparison | This Architecture | Pure AWS IoT | Other IoT Platforms |
-|-----------|-------------------|-------------|---------------------|
-| Existing NAS data | ✅ ONTAP S3 AP direct | ❌ Copy to S3 required | ❌ Proprietary storage |
-| Edge→Cloud comms | SORACOM (SIM auth, private network) | IoT Core (certificate mgmt) | Proprietary protocol |
-| AI analysis | Bedrock (latest models, pay-per-use) | Same | Proprietary AI or limited models |
-| Data protection | ONTAP Snapshot + ARP/AI | S3 Versioning | Vendor-dependent |
-| Operating cost | ~$40-55/month (PoC) | Comparable | Higher fixed monthly fees |
-| Scalability | ✅ Same architecture for multiple use cases | ✅ | △ Vendor lock-in |
+Comparing this project's approach with other approaches (no single "right answer" — choose based on requirements):
+
+| Aspect | ONTAP-centric (this project) | Direct S3 Upload | IoT Platform |
+|--------|------------------------------|-----------------|--------------|
+| Existing NAS data | Usable as-is | Copy to S3 required | Platform-dependent |
+| Edge connectivity | NFS/SMB (LAN) | HTTPS/MQTT | Platform SDK |
+| Best suited for | Existing NAS with accumulated data | Greenfield, no existing data | Managed operations priority |
+| Constraints | Requires ONTAP | File workflow integration needed separately | Potential vendor lock-in |
+
+> **Note**: This project is designed for the "existing ONTAP with accumulated data" scenario. For greenfield deployments, direct S3 upload may be simpler.
 
 ---
 
