@@ -171,4 +171,3 @@ Week 4: Evaluation and Reporting
 | Security design | Markdown | IAM, encryption, network design |
 | Operations design | Markdown | SLI/SLO, runbook, escalation |
 | Bedrock prompt | Python | Tested prompt (100% accuracy) |
-| Business story | Markdown | ROI estimate, competitive comparison, engagement steps |

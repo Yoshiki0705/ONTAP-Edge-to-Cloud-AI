@@ -171,4 +171,3 @@ Week 4: 評価・報告
 | セキュリティ設計書 | Markdown | IAM、暗号化、ネットワーク設計 |
 | 運用設計書 | Markdown | SLI/SLO、Runbook、エスカレーション |
 | Bedrock プロンプト | Python | テスト済みプロンプト (精度 100%) |
-| ビジネスストーリー | Markdown | ROI 試算、競合比較、提案ステップ |

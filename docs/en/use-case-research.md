@@ -12,7 +12,7 @@ This research systematically organizes use cases for collecting data accumulated
 
 **Key Findings:**
 
-1. **Multi-layered ONTAP value**: Differentiation across five axes — FPolicy event-driven integration, SnapMirror edge-to-cloud sync, FlexCache low-latency caching, ARP/AI security, and S3 Access Points for direct AWS service connectivity
+1. **Multi-layered ONTAP utilization**: Five axes of application — FPolicy event-driven integration, SnapMirror edge-to-cloud sync, FlexCache low-latency caching, ARP/AI security, and S3 Access Points for direct AWS service connectivity
 2. **SORACOM Flux**: Released in 2024, this low-code IoT app builder significantly simplifies camera image × generative AI combinations
 3. **FSx for ONTAP S3 AP strategic positioning**: Using FSxN as the final storage destination for edge-collected data, with S3 AP providing direct connectivity to Athena/Glue/Bedrock/SageMaker, represents the most integrated pattern
 4. **Hardware configuration affinity**: The combination of Raspberry Pi 5 + camera + 3D printer + ONTAP entry-level storage enables immediate PoC construction for manufacturing visual inspection and predictive maintenance
@@ -363,7 +363,7 @@ Constraints verified in parent project (fsxn-lakehouse-integrations):
 
 ### Evaluation Matrix
 
-| # | PoC Candidate | Feasibility | Impact | Hardware Availability | ONTAP Differentiation | Total Score |
+| # | PoC Candidate | Feasibility | Impact | Hardware Availability | ONTAP Utilization | Total Score |
 |---|--------------|-------------|--------|---------------|----------------------|-------------|
 | 1 | 3D Print Quality Monitoring | ★★★★★ | ★★★★ | ★★★★★ | ★★★ | **22/25** |
 | 2 | ONTAP Telemetry Collection → Predictive Analytics | ★★★★ | ★★★★ | ★★★★ | ★★★★★ | **21/25** |
@@ -481,8 +481,8 @@ Flux + manual check    Lambda + auto-actions     Auto-stop + recovery
 
 **Selection rationale**:
 1. ONTAP REST API immediately available (no additional equipment needed)
-2. Clear differentiation as storage specialists
-3. Direct value proposition to NetApp customers
+2. ONTAP REST API immediately available (no additional equipment needed), leverages storage operations expertise
+3. Applicable to existing ONTAP customer environments
 4. Aligned with AIOps/predictive maintenance trends
 
 **Implementation steps**:
