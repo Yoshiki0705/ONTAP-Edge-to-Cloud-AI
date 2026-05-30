@@ -21,13 +21,19 @@ At factories and field sites, IoT devices (cameras, sensors, control PCs, etc.) 
 - Individual device data is visible, but the big picture (correlation, trends) is not
 - Want to use AI for analysis, but data is too scattered to build a pipeline
 
+Additionally, on the edge/on-premises side:
+- Analysis infrastructure and tools for cross-organizational data utilization are insufficient or nonexistent
+- Governance mechanisms (access control, data catalog, lineage) for cross-organizational data use need to be built from scratch
+- Building analysis infrastructure itself takes time and cost, preventing teams from starting data utilization
+
 ## This Project's Approach
 
-Aggregate scattered IoT data into ONTAP, then enable cross-organizational data utilization via AWS AI/analytics services.
+Aggregate scattered IoT data into ONTAP, then leverage cloud/SaaS tools and services to enable cross-organizational data analysis and AI utilization.
 
 **Key points:**
 - Edge devices simply write to ONTAP via NFS/SMB (device-side implementation stays simple)
 - ONTAP becomes the data aggregation point, eliminating silos
+- **Delegate analysis, AI, and governance to cloud services** (instead of building on-prem analysis infrastructure, use AWS Athena/Bedrock/Glue etc. to start data utilization immediately)
 - S3 Access Points provide direct AWS service access to aggregated data (no data copying)
 - SnapMirror for inter-site and edge→cloud data synchronization
 - FPolicy triggers automated analysis on file arrival
@@ -98,7 +104,7 @@ This architecture assumes ONTAP, but the core pattern (edge collection → aggre
 
 ## Motivation
 
-As an SA/SE visiting customer sites, I repeatedly heard "IoT device and sensor data is scattered per site and per device — we can't analyze it across the organization." The data is being generated, but silos prevent utilization.
+As an SA/SE visiting customer sites, I repeatedly heard "IoT device and sensor data is scattered per site and per device — we can't analyze it across the organization." The data is being generated, but silos prevent utilization. Additionally, the on-premises side lacks analysis infrastructure and governance tools, making "needing to build tools first" a barrier to getting started.
 
 With the following technologies maturing in 2024-2025, I believe "aggregation → cross-analysis" became achievable at low cost, and started this validation:
 
