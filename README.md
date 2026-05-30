@@ -63,23 +63,25 @@
 ## アーキテクチャ
 
 ```
-[エッジデバイス]                  [ONTAP (データ集約)]              [AI / 分析]
-                                 FAS/AFF | ONTAP Select | FSx for ONTAP
-┌────────────────┐               ┌────────────────────┐          ┌──────────────────┐
-│ Raspberry Pi 5 │──NFS─────────→│                    │          │ AWS              │
-│  カメラ         │               │  検査画像           │─S3 AP──→│  Bedrock (GenAI) │
-│  センサー       │               │  センサーCSV        │          │  SageMaker (ML)  │
-├────────────────┤               │  設備ログ           │─SnapMirror→ FSx for ONTAP ─S3 AP──→│
-│ 3Dプリンター    │──SMB─────────→│  3Dモデル           │          │  Athena (SQL)    │
-├────────────────┤               │                    │          │  Glue (ETL)      │
-│ USB カメラ     │──NFS─────────→│  FPolicy (イベント)  │          │  QuickSight (BI) │
-└────────────────┘               │  REST API (テレメトリ)│          ├──────────────────┤
-                                 │  ARP/AI (保護)      │          │ ローカル AI       │
-[接続オプション]                    │  Snapshot (保全)    │          │  GPU サーバー     │
-├─ 有線 LAN (10GbE)              └────────────────────┘          │  Pi エッジ推論    │
-├─ Wi-Fi                                                         └──────────────────┘
-├─ SORACOM セルラー (オプション)
-└─ SORACOM S+ Camera (オプション)
+[Edge Devices]              [ONTAP (Aggregation)]           [AI / Analytics]
+                            FAS/AFF | ONTAP Select | FSx for ONTAP
++------------------+        +----------------------+        +---------------------+
+| Raspberry Pi 5   |--NFS-->|                      |        | AWS                 |
+|   Camera         |        |  Inspection images   |--S3 AP>|   Bedrock (GenAI)   |
+|   Sensors        |        |  Sensor CSV          |        |   SageMaker (ML)    |
++------------------+        |  Equipment logs      |--SM--->|   Athena (SQL)      |
+| 3D Printer       |--SMB-->|  3D models           |        |   Glue (ETL)        |
++------------------+        |                      |        |   QuickSight (BI)   |
+| USB Camera       |--NFS-->|  FPolicy (events)    |        +---------------------+
++------------------+        |  REST API (telemetry)|        | Local AI            |
+                            |  ARP/AI (protection) |        |   GPU Server        |
+[Connectivity]              |  Snapshot (preserve) |        |   Pi Edge Inference |
+|- Wired LAN (10GbE)        +----------------------+        +---------------------+
+|- Wi-Fi
+|- SORACOM Cellular (option)
+|- SORACOM S+ Camera (option)
+
+SM = SnapMirror --> FSx for ONTAP --> S3 AP
 ```
 
 ### エッジデバイス（選択肢）

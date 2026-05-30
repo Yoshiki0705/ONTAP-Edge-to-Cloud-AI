@@ -63,23 +63,25 @@ This architecture assumes ONTAP, but the core pattern (edge collection → aggre
 ## Architecture
 
 ```
-[Edge Devices]                   [ONTAP (Data Aggregation)]       [AI / Analytics]
-                                 FAS/AFF | ONTAP Select | FSx for ONTAP
-┌────────────────┐               ┌────────────────────┐          ┌──────────────────┐
-│ Raspberry Pi 5 │──NFS─────────→│                    │          │ AWS              │
-│  Camera        │               │  Inspection images  │─S3 AP──→│  Bedrock (GenAI) │
-│  Sensors       │               │  Sensor CSV         │          │  SageMaker (ML)  │
-├────────────────┤               │  Equipment logs     │─SnapMirror→ FSx for ONTAP ─S3 AP──→│
-│ 3D Printer     │──SMB─────────→│  3D models          │          │  Athena (SQL)    │
-├────────────────┤               │                    │          │  Glue (ETL)      │
-│ USB Camera     │──NFS─────────→│  FPolicy (events)   │          │  QuickSight (BI) │
-└────────────────┘               │  REST API (telemetry)│          ├──────────────────┤
-                                 │  ARP/AI (protection) │          │ Local AI         │
-[Connectivity Options]           │  Snapshot (preserve) │          │  GPU Server      │
-├─ Wired LAN (10GbE)            └────────────────────┘          │  Pi Edge Infer.  │
-├─ Wi-Fi                                                         └──────────────────┘
-├─ SORACOM Cellular (option)
-└─ SORACOM S+ Camera (option)
+[Edge Devices]              [ONTAP (Aggregation)]           [AI / Analytics]
+                            FAS/AFF | ONTAP Select | FSx for ONTAP
++------------------+        +----------------------+        +---------------------+
+| Raspberry Pi 5   |--NFS-->|                      |        | AWS                 |
+|   Camera         |        |  Inspection images   |--S3 AP>|   Bedrock (GenAI)   |
+|   Sensors        |        |  Sensor CSV          |        |   SageMaker (ML)    |
++------------------+        |  Equipment logs      |--SM--->|   Athena (SQL)      |
+| 3D Printer       |--SMB-->|  3D models           |        |   Glue (ETL)        |
++------------------+        |                      |        |   QuickSight (BI)   |
+| USB Camera       |--NFS-->|  FPolicy (events)    |        +---------------------+
++------------------+        |  REST API (telemetry)|        | Local AI            |
+                            |  ARP/AI (protection) |        |   GPU Server        |
+[Connectivity]              |  Snapshot (preserve) |        |   Pi Edge Inference |
+|- Wired LAN (10GbE)        +----------------------+        +---------------------+
+|- Wi-Fi
+|- SORACOM Cellular (option)
+|- SORACOM S+ Camera (option)
+
+SM = SnapMirror --> FSx for ONTAP --> S3 AP
 ```
 
 ### Edge Devices (Options)
