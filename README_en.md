@@ -146,7 +146,7 @@ The first PoC is **3D print quality monitoring** (visually compelling, failures 
 - AWS CLI v2 + credentials configured
 - Python 3.12+
 - Bedrock model access enabled
-- ONTAP 9.13.1+ (FPolicy, REST API, S3 AP)
+- ONTAP 9.13.1+ (FPolicy, REST API). **9.17.1+** required for S3 Access Points
 
 ### Deploy
 

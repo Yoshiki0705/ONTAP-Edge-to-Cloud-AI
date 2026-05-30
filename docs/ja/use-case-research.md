@@ -289,12 +289,20 @@ ONTAP                                               FSx for ONTAP
 
 親プロジェクト（fsxn-lakehouse-integrations）で検証済みの制約:
 
+📋 **[FSx for ONTAP S3 AP 互換性マトリクス（完全版）](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/docs/en/compatibility-matrix.md)** — AWS サポート確認済み (2026年5月)
+
 | 制約 | 影響 | 回避策 |
 |------|------|--------|
-| 条件付き書き込み非対応 | Iceberg/Delta Lake の直接書き込み不可 | S3バケット経由で書き込み、FSx for ONTAPは読み取り専用で利用 |
-| イベント通知非対応 | S3イベントトリガーのLambda起動不可 | EventBridge + ポーリング、またはFPolicy活用 |
-| ListObjectsV2 の制限 | 大量ファイルのリスト取得にパフォーマンス影響 | Glue Crawler のパーティション設計で回避 |
-| Internet network origin 必須 | VPC内からのアクセスにはNAT Gateway必要 | VPCエンドポイント経由ではなくインターネット経由 |
+| 条件付き書き込み非対応 (If-None-Match) | Delta Lake/Iceberg/Hudi のトランザクション書き込み不可 | 読み取り専用分析、または DataSync → S3 で書き込みワークロード対応 |
+| S3 イベント通知非対応 | Snowpipe 自動取り込み、Auto Loader ファイル通知モード不可 | FPolicy → Lambda、スケジュールポーリング、または REST API |
+| SnapMirror S3 非対応 | ONTAP S3 バケットから AWS S3 へのレプリケーション不可 | DataSync (NFS → S3) を検証済み同期手段として使用 |
+| ListObjectsV2 高レイテンシ | 小ディレクトリでネイティブ S3 比 30-80倍遅い | ファイルリスト事前生成、大きいファイルサイズ使用、結果キャッシュ |
+| SSE-FSX 暗号化のみ | SSE-S3, SSE-KMS, SSE-C 非対応 | デフォルト SSE-FSX を使用（透過的、AWS KMS 管理） |
+| オブジェクトバージョニング非対応 | S3 バージョニング利用不可 | ONTAP Snapshot でポイントインタイムリカバリ |
+| Presigned URL: 公式未サポート | 実際には動作するが保証なし | 非クリティカルパスのみ使用、IAM ベースアクセスを推奨 |
+| **ONTAP 9.17.1+ 必須** | S3 Access Points の最小バージョン | デプロイ前に FSx ファイルシステムの ONTAP バージョンを確認 |
+
+プラットフォーム別互換性（Athena, Glue, EMR, Databricks, Snowflake, Bedrock）の詳細は[完全版ドキュメント](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/docs/en/compatibility-matrix.md)を参照。
 
 ### 5.2 SORACOM セルラー通信の制約
 
@@ -366,7 +374,7 @@ ONTAP                                               FSx for ONTAP
 | **AWS** | AWSアカウント、IAMユーザー/ロール | Bedrock モデルアクセスの有効化が必要 |
 | **SORACOM** | SORACOMアカウント、IoT SIM (plan-D) | オプション: 有線LANがない場合のみ |
 | **ハードウェア** | Raspberry Pi 5 (16GB)、カメラモジュール、NVMe SSD | microSD でも動作するが SSD 推奨 |
-| **ONTAP** | ONTAP 9.13.1 以上 (FPolicy外部サーバー、REST API) | FSx for ONTAP の場合は S3 AP 対応バージョン |
+| **ONTAP** | ONTAP 9.13.1+ (FPolicy外部サーバー、REST API)。S3 AP 利用時は **9.17.1+** 必須 | FSx for ONTAP の場合は S3 AP 対応バージョンを確認 |
 | **ネットワーク** | Pi ↔ ONTAP 間のLAN接続、Pi のセルラー接続 | 10GbE スイッチ推奨（大容量画像転送時） |
 | **開発環境** | Python 3.12、Git、AWS CLI v2 | Pi 上で直接開発 or リモート開発 |
 

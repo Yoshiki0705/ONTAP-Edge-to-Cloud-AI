@@ -34,7 +34,7 @@ A: FPolicy は対象ファイル操作にレイテンシを追加します（同
 
 **Q: FSx for ONTAP S3 Access Points の制約は？**
 
-A: 条件付き書き込み非対応（Iceberg/Delta Lake 直接書き込み不可）、S3 イベント通知非対応（Lambda トリガー不可）。詳細は [use-case-research.md](use-case-research.md) のセクション5.1を参照。
+A: 条件付き書き込み非対応（Iceberg/Delta Lake 直接書き込み不可）、S3 イベント通知非対応（Lambda トリガー不可）、ListObjectsV2 が 30-80倍遅い、ONTAP 9.17.1+ 必須。詳細は [use-case-research.md](use-case-research.md) のセクション5.1 および [互換性マトリクス（完全版）](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/docs/en/compatibility-matrix.md) を参照。
 
 ## コスト
 

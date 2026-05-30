@@ -146,7 +146,7 @@ SA/SE として顧客の現場を訪問する中で、「IoT デバイスやセ�
 - AWS CLI v2 + 認証設定済み
 - Python 3.12+
 - Bedrock モデルアクセス有効化
-- ONTAP 9.13.1+（FPolicy、REST API、S3 AP）
+- ONTAP 9.13.1+（FPolicy、REST API）。S3 Access Points 利用時は **9.17.1+**
 
 ### デプロイ
 

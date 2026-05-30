@@ -287,14 +287,22 @@ ONTAP                                               FSx for ONTAP
 
 ### 5.1 FSx for ONTAP S3 Access Points Constraints
 
-Constraints verified in parent project (fsxn-lakehouse-integrations):
+Constraints verified in parent project (fsxn-lakehouse-integrations), confirmed with AWS Support (May 2026):
+
+📋 **[FSx for ONTAP S3 AP Compatibility Matrix (Full)](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/docs/en/compatibility-matrix.md)**
 
 | Constraint | Impact | Workaround |
 |-----------|--------|-----------|
-| Conditional writes not supported | Cannot write directly with Iceberg/Delta Lake | Write via S3 bucket, use FSx for ONTAP as read-only |
-| Event notifications not supported | Cannot trigger Lambda via S3 events | Use EventBridge + polling, or leverage FPolicy |
-| ListObjectsV2 limitations | Performance impact on large file listings | Mitigate with Glue Crawler partition design |
-| Internet network origin required | NAT Gateway needed for VPC access | Route via internet rather than VPC endpoint |
+| No conditional writes (If-None-Match) | Delta Lake/Iceberg/Hudi transactional writes blocked | Read-only analytics or DataSync → S3 for write workloads |
+| No S3 Event Notifications | Snowpipe auto-ingest, Auto Loader file notification mode unavailable | FPolicy → Lambda, scheduled polling, or REST API |
+| No SnapMirror S3 | Cannot replicate ONTAP S3 bucket to AWS S3 | Use DataSync (NFS → S3) as validated sync mechanism |
+| ListObjectsV2 higher latency | 30-80x slower than native S3 for small directories | Pre-generate file lists, use larger file sizes, or cache results |
+| SSE-FSX encryption only | SSE-S3, SSE-KMS, SSE-C not supported | Use default SSE-FSX (transparent, AWS KMS managed) |
+| No Object Versioning | S3 versioning not available | Use ONTAP Snapshot for point-in-time recovery |
+| Presigned URLs: Not officially supported | Works in practice but not guaranteed | Use for non-critical paths only; prefer IAM-based access |
+| **ONTAP 9.17.1+ required** | Minimum version for S3 Access Points | Verify FSx file system ONTAP version before deployment |
+
+For the full matrix including platform-specific compatibility (Athena, Glue, EMR, Databricks, Snowflake, Bedrock), see the [complete document](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/docs/en/compatibility-matrix.md).
 
 ### 5.2 SORACOM Cellular Communication Constraints
 
@@ -366,7 +374,7 @@ Constraints verified in parent project (fsxn-lakehouse-integrations):
 | **AWS** | AWS account, IAM user/role | Bedrock model access enablement required |
 | **SORACOM** | SORACOM account, IoT SIM (plan-D) | Option: only for sites without wired LAN |
 | **Hardware** | Raspberry Pi 5 (16GB), camera module, NVMe SSD | microSD works but SSD recommended |
-| **ONTAP** | ONTAP 9.13.1+ (FPolicy external server, REST API) | For FSx for ONTAP, S3 AP-compatible version required |
+| **ONTAP** | ONTAP 9.13.1+ (FPolicy external server, REST API). **9.17.1+** required for S3 AP | Verify FSx for ONTAP version before S3 AP deployment |
 | **Network** | LAN between Pi ↔ ONTAP, cellular for Pi | 10GbE switch recommended for large image transfers |
 | **Development** | Python 3.12, Git, AWS CLI v2 | Develop directly on Pi or remote |
 
