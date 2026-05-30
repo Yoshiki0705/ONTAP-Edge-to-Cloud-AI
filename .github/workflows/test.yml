@@ -12,6 +12,9 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        usecase: [3d-print-quality, ontap-telemetry-analytics]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -22,11 +25,14 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: |
-          pip install pytest requests opencv-python-headless numpy
+        run: pip install pytest requests opencv-python-headless numpy boto3
 
-      - name: Run tests
+      - name: Run shared tests
         run: pytest tests/ -v
+
+      - name: Run use-case tests (${{ matrix.usecase }})
+        run: pytest usecases/${{ matrix.usecase }}/tests/ -v
+        if: hashFiles(format('usecases/{0}/tests/*.py', matrix.usecase)) != ''
 
   lint-cfn:
     runs-on: ubuntu-latest
@@ -42,5 +48,8 @@ jobs:
       - name: Install cfn-lint
         run: pip install cfn-lint
 
-      - name: Lint CloudFormation
+      - name: Lint shared infra
         run: cfn-lint cloud/**/*.yaml
+
+      - name: Lint use-case templates
+        run: cfn-lint usecases/*/template.yaml

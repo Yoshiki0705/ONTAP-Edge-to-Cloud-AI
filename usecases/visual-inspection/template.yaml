@@ -1,0 +1,83 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Visual Inspection (Manufacturing) - Reuses 3d-print-quality Lambda
+  with a different prompt. Demonstrates code reusability.
+
+Parameters:
+  SharedStackName:
+    Type: String
+    Default: edge-to-cloud-ai-poc
+
+  BedrockScreeningModel:
+    Type: String
+    Default: jp.anthropic.claude-haiku-4-5-20251001-v1:0
+
+  BedrockDetailModel:
+    Type: String
+    Default: jp.anthropic.claude-sonnet-4-5-20250929-v1:0
+
+Resources:
+  InspectionAnalyzerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "edge-to-cloud-visual-inspection-${AWS::StackName}"
+      Runtime: python3.12
+      Handler: handler.handler
+      Role: !ImportValue
+        Fn::Sub: "${SharedStackName}-ImageAnalyzerRoleArn"
+      Timeout: 90
+      MemorySize: 256
+      Environment:
+        Variables:
+          RESULT_BUCKET: !ImportValue
+            Fn::Sub: "${SharedStackName}-BucketName"
+          ALERT_TOPIC_ARN: !ImportValue
+            Fn::Sub: "${SharedStackName}-AlertTopicArn"
+          SCREENING_MODEL_ID: !Ref BedrockScreeningModel
+          DETAIL_MODEL_ID: !Ref BedrockDetailModel
+          CONFIDENCE_THRESHOLD: "0.7"
+          TWO_STAGE_ENABLED: "true"
+      Code:
+        ZipFile: |
+          # Deploy actual code: aws lambda update-function-code
+          def handler(event, context):
+              return {"statusCode": 501, "body": "Deploy code"}
+      Tags:
+        - Key: Project
+          Value: edge-to-cloud-ai
+        - Key: UseCase
+          Value: visual-inspection
+
+  DefectRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-high-defect-rate"
+      AlarmDescription: "Defect rate > 5% - quality issue on production line"
+      Namespace: EdgeToCloud/VisualInspection
+      MetricName: DefectRate
+      Statistic: Average
+      Period: 3600
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !ImportValue
+          Fn::Sub: "${SharedStackName}-AlertTopicArn"
+
+  DefectAnalysisQuery:
+    Type: AWS::Athena::NamedQuery
+    Properties:
+      Database: edge_to_cloud_ai
+      Name: visual-inspection-defect-summary
+      Description: "Defect type distribution and trend"
+      QueryString: |
+        SELECT
+          date_format(from_iso8601_timestamp(timestamp), '%Y-%m-%d') AS date,
+          json_extract_scalar(payload, '$.result.defects[0].type') AS defect_type,
+          count(*) AS count
+        FROM processed_image_analysis
+        WHERE json_extract_scalar(payload, '$.result.status') = 'fail'
+        GROUP BY 1, 2
+        ORDER BY 1 DESC, 3 DESC
+        LIMIT 100

@@ -97,6 +97,34 @@ Resources:
           Fn::Sub: "${SharedStackName}-AlertTopicArn"
 
   # ============================================================
+  # EventBridge: Scheduled analysis (alternative to Pi-triggered)
+  # ============================================================
+  ScheduledAnalysisRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "${AWS::StackName}-scheduled-check"
+      Description: "Periodic check for new images in S3 (fallback when FPolicy/Pi invoke unavailable)"
+      ScheduleExpression: "rate(5 minutes)"
+      State: DISABLED
+      Targets:
+        - Id: ImageAnalyzerTarget
+          Arn: !GetAtt ImageAnalyzerFunction.Arn
+          Input: !Sub |
+            {
+              "source": "scheduled",
+              "bucket": "${SharedStackName}-bucket",
+              "prefix": "raw/image_capture/"
+            }
+
+  ScheduledAnalysisPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ImageAnalyzerFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt ScheduledAnalysisRule.Arn
+
+  # ============================================================
   # Athena: Named Queries
   # ============================================================
   QualitySummaryQuery:

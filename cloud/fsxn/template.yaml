@@ -1,0 +1,183 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  FSx for ONTAP infrastructure for edge-to-cloud data sync.
+  Creates VPC, FSx for ONTAP file system, and S3 Access Point.
+  NOTE: FSx for ONTAP costs ~$500+/month. Deploy only when needed.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: poc
+    AllowedValues: [poc, production]
+
+  VpcCidr:
+    Type: String
+    Default: "10.0.0.0/16"
+
+  SubnetCidr1:
+    Type: String
+    Default: "10.0.1.0/24"
+
+  SubnetCidr2:
+    Type: String
+    Default: "10.0.2.0/24"
+
+  FSxStorageCapacity:
+    Type: Number
+    Default: 1024
+    Description: Storage capacity in GiB (minimum 1024)
+
+  FSxThroughputCapacity:
+    Type: Number
+    Default: 128
+    AllowedValues: [128, 256, 512, 1024, 2048]
+    Description: Throughput capacity in MBps
+
+Resources:
+  # ============================================================
+  # VPC and Networking
+  # ============================================================
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub "edge-to-cloud-fsxn-${Environment}"
+
+  Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref SubnetCidr1
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: !Sub "edge-to-cloud-fsxn-subnet1-${Environment}"
+
+  Subnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref SubnetCidr2
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: !Sub "edge-to-cloud-fsxn-subnet2-${Environment}"
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  InternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref InternetGateway
+
+  SubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet1
+      RouteTableId: !Ref RouteTable
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: FSx for ONTAP security group
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 2049
+          ToPort: 2049
+          CidrIp: !Ref VpcCidr
+          Description: NFS
+        - IpProtocol: tcp
+          FromPort: 445
+          ToPort: 445
+          CidrIp: !Ref VpcCidr
+          Description: SMB
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref VpcCidr
+          Description: ONTAP REST API
+        - IpProtocol: tcp
+          FromPort: 11104
+          ToPort: 11105
+          CidrIp: "0.0.0.0/0"
+          Description: SnapMirror intercluster
+
+  # ============================================================
+  # FSx for ONTAP
+  # ============================================================
+  FSxFileSystem:
+    Type: AWS::FSx::FileSystem
+    Properties:
+      FileSystemType: ONTAP
+      StorageCapacity: !Ref FSxStorageCapacity
+      SubnetIds:
+        - !Ref Subnet1
+        - !Ref Subnet2
+      SecurityGroupIds:
+        - !Ref SecurityGroup
+      OntapConfiguration:
+        DeploymentType: MULTI_AZ_1
+        ThroughputCapacity: !Ref FSxThroughputCapacity
+        PreferredSubnetId: !Ref Subnet1
+      Tags:
+        - Key: Project
+          Value: edge-to-cloud-ai
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ============================================================
+  # SVM (Storage Virtual Machine)
+  # ============================================================
+  StorageVirtualMachine:
+    Type: AWS::FSx::StorageVirtualMachine
+    Properties:
+      FileSystemId: !Ref FSxFileSystem
+      Name: svm-edge-to-cloud
+      Tags:
+        - Key: Project
+          Value: edge-to-cloud-ai
+
+Outputs:
+  FileSystemId:
+    Description: FSx for ONTAP file system ID
+    Value: !Ref FSxFileSystem
+    Export:
+      Name: !Sub "${AWS::StackName}-FileSystemId"
+
+  SVMId:
+    Description: Storage Virtual Machine ID
+    Value: !Ref StorageVirtualMachine
+
+  VpcId:
+    Description: VPC ID
+    Value: !Ref VPC
+    Export:
+      Name: !Sub "${AWS::StackName}-VpcId"
+
+  SecurityGroupId:
+    Description: Security Group ID for FSx for ONTAP
+    Value: !Ref SecurityGroup
+
+  Subnet1Id:
+    Description: Subnet 1 ID
+    Value: !Ref Subnet1

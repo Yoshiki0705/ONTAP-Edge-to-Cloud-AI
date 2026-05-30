@@ -40,3 +40,7 @@ paths = [
   '''.*\.example$''',
   '''.*\.md$''',
 ]
+
+[[rules.allowlist]]
+description = "CloudFormation VPC CIDR defaults"
+paths = ["cloud/fsxn/template.yaml"]

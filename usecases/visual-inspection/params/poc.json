@@ -1,0 +1,14 @@
+[
+  {
+    "ParameterKey": "SharedStackName",
+    "ParameterValue": "edge-to-cloud-ai-poc"
+  },
+  {
+    "ParameterKey": "BedrockScreeningModel",
+    "ParameterValue": "jp.anthropic.claude-haiku-4-5-20251001-v1:0"
+  },
+  {
+    "ParameterKey": "BedrockDetailModel",
+    "ParameterValue": "jp.anthropic.claude-sonnet-4-5-20250929-v1:0"
+  }
+]
