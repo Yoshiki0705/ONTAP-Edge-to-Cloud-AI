@@ -175,6 +175,7 @@ aws cloudformation deploy \
 ## Related Projects
 
 - [fsxn-lakehouse-integrations](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations) — FSx for ONTAP S3 AP × Lakehouse integrations
+- [FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns) — FSx for ONTAP S3 AP serverless patterns (17 use cases)
 
 ## License
 
