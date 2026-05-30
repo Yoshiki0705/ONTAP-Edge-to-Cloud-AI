@@ -1,20 +1,20 @@
-🌐 **日本語** | [English](SETUP_en.md)
+🌐 [日本語](SETUP.md) | **English**
 
-# Raspberry Pi 初回セットアップ Playbook
+# Raspberry Pi Initial Setup Playbook
 
-> Pi が届いた日にやること。所要時間: 約1-2時間。
+> What to do on the day your Pi arrives. Estimated time: about 1-2 hours.
 
-## 前提
+## Prerequisites
 
 - Raspberry Pi 5 (16GB)
-- NVMe SSD (M.2 2280) + Geekworm X1004 拡張ボード
-- USB カメラ (Logitech BRIO 4K)
-- SORACOM IoT SIM (plan-D) + USB ドングル or HAT
-- 有線LAN ケーブル + 10GbE スイッチ接続
-- 27W USB-C 電源アダプター
-- microSD カード (OS書き込み用、初回のみ)
+- NVMe SSD (M.2 2280) + Geekworm X1004 expansion board
+- USB camera (Logitech BRIO 4K)
+- SORACOM IoT SIM (plan-D) + USB dongle or HAT
+- Ethernet cable + 10GbE switch connection
+- 27W USB-C power adapter
+- microSD card (for initial OS flashing only)
 
-## Step 1: OS 書き込み (macOS から)
+## Step 1: OS Flashing (from macOS)
 
 ```bash
 # Raspberry Pi Imager をインストール
@@ -24,18 +24,18 @@ brew install --cask raspberry-pi-imager
 # https://www.raspberrypi.com/software/
 ```
 
-1. Raspberry Pi Imager を起動
-2. OS: **Raspberry Pi OS Lite (64-bit)** を選択（デスクトップ不要）
-3. ストレージ: NVMe SSD を選択（X1004 経由で USB 接続）
-4. 設定（歯車アイコン）:
-   - ホスト名: `rpi5-001`
-   - SSH 有効化: パスワード認証 → 後で鍵認証に変更
-   - ユーザー名: `iot-operator`
-   - パスワード: 初期パスワード設定（後で無効化）
-   - Wi-Fi: 設定しない（有線LAN使用）
-   - ロケール: Asia/Tokyo, JP keyboard
+1. Launch Raspberry Pi Imager
+2. OS: Select **Raspberry Pi OS Lite (64-bit)** (no desktop needed)
+3. Storage: Select the NVMe SSD (connected via USB through X1004)
+4. Settings (gear icon):
+   - Hostname: `rpi5-001`
+   - Enable SSH: Password authentication → switch to key-based later
+   - Username: `iot-operator`
+   - Password: Set initial password (will be disabled later)
+   - Wi-Fi: Do not configure (using wired LAN)
+   - Locale: Asia/Tokyo, JP keyboard
 
-## Step 2: 初回起動 + SSH 接続
+## Step 2: First Boot + SSH Connection
 
 ```bash
 # Pi に電源投入、有線LAN接続
@@ -46,7 +46,7 @@ arp-scan --localnet | grep -i "raspberry\|dc:a6:32\|e4:5f:01\|2c:cf:67\|d8:3a:dd
 ssh iot-operator@<PI_IP>
 ```
 
-## Step 3: 基本設定
+## Step 3: Basic Configuration
 
 ```bash
 # システム更新
@@ -66,7 +66,7 @@ df -h /
 hostname
 ```
 
-## Step 4: セキュリティハードニング
+## Step 4: Security Hardening
 
 ```bash
 # SSH 鍵認証に切り替え（macOS から）
@@ -96,7 +96,7 @@ sudo apt install -y unattended-upgrades
 sudo dpkg-reconfigure -plow unattended-upgrades
 ```
 
-## Step 5: カメラ確認
+## Step 5: Camera Verification
 
 ```bash
 # USB カメラ接続確認
@@ -121,7 +121,7 @@ if ret:
 scp iot-operator@<PI_IP>:/tmp/test.jpg ~/Desktop/pi-test.jpg
 ```
 
-## Step 6: SORACOM SIM セットアップ
+## Step 6: SORACOM SIM Setup
 
 ```bash
 # USB ドングル接続確認
@@ -139,7 +139,7 @@ curl -X POST http://funnel.soracom.io \
   -d '{"test": true, "device_id": "rpi5-001"}'
 ```
 
-## Step 7: アプリケーションデプロイ
+## Step 7: Application Deployment
 
 ```bash
 # プロジェクトクローン
@@ -163,9 +163,9 @@ sudo systemctl start edge-camera
 sudo journalctl -u edge-camera -f  # ログ確認
 ```
 
-## Step 8: カメラ設置
+## Step 8: Camera Placement
 
-### 3Dプリンター監視の設置ポイント
+### Placement Tips for 3D Printer Monitoring
 
 ```
 推奨カメラ位置:
@@ -184,25 +184,25 @@ sudo journalctl -u edge-camera -f  # ログ確認
     固定: 3Dプリント製マウント or クランプ
 ```
 
-**設置チェックリスト:**
-- [ ] プリントベッド全体が画角に収まるか
-- [ ] ノズル先端が見えるか（糸引き検出に必要）
-- [ ] 照明が十分か（プリンター内蔵LED + 必要に応じて追加）
-- [ ] ケーブルが印刷物やヘッドに干渉しないか
-- [ ] 振動でカメラがブレないか（しっかり固定）
-- [ ] USB ケーブル長は足りるか（延長ケーブル検討）
+**Placement checklist:**
+- [ ] Entire print bed is within the camera's field of view
+- [ ] Nozzle tip is visible (needed for stringing detection)
+- [ ] Lighting is sufficient (printer's built-in LED + additional if needed)
+- [ ] Cables do not interfere with prints or the print head
+- [ ] Camera is firmly mounted and not affected by vibration
+- [ ] USB cable length is adequate (consider an extension cable)
 
-**カメラマウント案:**
-- 案A: 3Dプリンターで自作マウントを印刷（STLファイルを設計）
-- 案B: フレキシブルアーム + クランプ（市販品）
-- 案C: プリンターフレームに直接固定（両面テープ/ネジ）
+**Camera mount options:**
+- Option A: 3D print a custom mount (design an STL file)
+- Option B: Flexible arm + clamp (off-the-shelf)
+- Option C: Mount directly to printer frame (adhesive tape/screws)
 
-## 確認完了チェックリスト
+## Completion Checklist
 
-- [ ] SSH 鍵認証で接続できる
-- [ ] ufw が有効で必要ポートのみ開放
-- [ ] カメラで撮影できる（/tmp/test.jpg が正常）
-- [ ] SORACOM SIM で通信できる（metadata.soracom.io 応答あり）
-- [ ] simple_capture.py が動作する
-- [ ] systemd サービスが起動する
-- [ ] ログが journalctl で確認できる
+- [ ] SSH key authentication works
+- [ ] ufw is active with only required ports open
+- [ ] Camera captures successfully (/tmp/test.jpg is valid)
+- [ ] SORACOM SIM communicates (metadata.soracom.io responds)
+- [ ] simple_capture.py runs successfully
+- [ ] systemd service starts
+- [ ] Logs are visible via journalctl

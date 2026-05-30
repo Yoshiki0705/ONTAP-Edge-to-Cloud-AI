@@ -1,3 +1,5 @@
+🌐 **日本語** | [English](TESTING_en.md)
+
 # End-to-End Testing Guide
 
 > ハードウェア到着後に実行する統合テスト手順。全ステップを順番に実行し、Go/No-Go を判定する。

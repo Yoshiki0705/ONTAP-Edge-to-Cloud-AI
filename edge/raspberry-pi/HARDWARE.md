@@ -1,3 +1,5 @@
+🌐 **日本語** | [English](HARDWARE_en.md)
+
 # Hardware Setup Reference
 
 > 各ベンダー機器のセットアップ手順と参考リンク集
