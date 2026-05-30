@@ -1,0 +1,145 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  ONTAP Telemetry Analytics - Use case specific resources.
+  Prerequisite: Deploy shared infra first (cloud/ingestion/template.yaml)
+
+Parameters:
+  SharedStackName:
+    Type: String
+    Default: edge-to-cloud-ai-poc
+    Description: Name of the shared infrastructure stack
+
+Resources:
+  # ============================================================
+  # Glue: Telemetry-specific Crawler
+  # ============================================================
+  TelemetryCrawler:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Name: !Sub "${AWS::StackName}-telemetry-crawler"
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/EdgeToCloud-GlueETL-poc"
+      DatabaseName: edge_to_cloud_ai
+      Targets:
+        S3Targets:
+          - Path: !Sub
+              - "s3://${Bucket}/raw/ontap_telemetry/"
+              - Bucket: !ImportValue
+                  Fn::Sub: "${SharedStackName}-BucketName"
+          - Path: !Sub
+              - "s3://${Bucket}/processed/ontap_metrics/"
+              - Bucket: !ImportValue
+                  Fn::Sub: "${SharedStackName}-BucketName"
+      SchemaChangePolicy:
+        UpdateBehavior: UPDATE_IN_DATABASE
+        DeleteBehavior: LOG
+      Schedule:
+        ScheduleExpression: "cron(0 6 * * ? *)"
+      Tags:
+        Project: edge-to-cloud-ai
+        UseCase: ontap-telemetry
+
+  # ============================================================
+  # CloudWatch: Capacity Alarm
+  # ============================================================
+  CapacityAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-ontap-capacity-warning"
+      AlarmDescription: "ONTAP volume capacity > 80% - expansion needed"
+      Namespace: EdgeToCloud/ONTAP
+      MetricName: CapacityUsedPercent
+      Statistic: Maximum
+      Period: 3600
+      EvaluationPeriods: 1
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !ImportValue
+          Fn::Sub: "${SharedStackName}-AlertTopicArn"
+
+  LatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-ontap-latency-spike"
+      AlarmDescription: "ONTAP write latency p95 > 5ms - performance issue"
+      Namespace: EdgeToCloud/ONTAP
+      MetricName: LatencyP95
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 5000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !ImportValue
+          Fn::Sub: "${SharedStackName}-AlertTopicArn"
+
+  # ============================================================
+  # Athena: Named Queries for Telemetry Analysis
+  # ============================================================
+  CapacityTrendQuery:
+    Type: AWS::Athena::NamedQuery
+    Properties:
+      Database: edge_to_cloud_ai
+      Name: ontap-capacity-trend
+      Description: "Daily capacity trend per volume"
+      QueryString: |
+        SELECT
+          date_format(event_timestamp, '%Y-%m-%d') AS date,
+          volume_name,
+          avg(capacity_used_pct) AS avg_used_pct,
+          max(capacity_used_pct) AS max_used_pct
+        FROM processed_ontap_metrics
+        WHERE year = cast(year(current_date) as varchar)
+        GROUP BY 1, 2
+        ORDER BY 1 DESC, 2
+        LIMIT 100
+
+  LatencyAnalysisQuery:
+    Type: AWS::Athena::NamedQuery
+    Properties:
+      Database: edge_to_cloud_ai
+      Name: ontap-latency-analysis
+      Description: "Hourly latency statistics per volume"
+      QueryString: |
+        SELECT
+          date_format(event_timestamp, '%Y-%m-%d %H:00') AS hour,
+          volume_name,
+          avg(latency_read_us) AS avg_read_us,
+          avg(latency_write_us) AS avg_write_us,
+          max(latency_write_us) AS max_write_us
+        FROM processed_ontap_metrics
+        WHERE year = cast(year(current_date) as varchar)
+          AND month = lpad(cast(month(current_date) as varchar), 2, '0')
+        GROUP BY 1, 2
+        ORDER BY 1 DESC
+        LIMIT 200
+
+  IOPSTrendQuery:
+    Type: AWS::Athena::NamedQuery
+    Properties:
+      Database: edge_to_cloud_ai
+      Name: ontap-iops-trend
+      Description: "Daily IOPS trend per volume"
+      QueryString: |
+        SELECT
+          date_format(event_timestamp, '%Y-%m-%d') AS date,
+          volume_name,
+          avg(iops_total) AS avg_iops,
+          max(iops_total) AS peak_iops,
+          avg(throughput_read_mbps + throughput_write_mbps) AS avg_throughput_mbps
+        FROM processed_ontap_metrics
+        WHERE year = cast(year(current_date) as varchar)
+        GROUP BY 1, 2
+        ORDER BY 1 DESC, 2
+        LIMIT 100
+
+Outputs:
+  TelemetryCrawlerName:
+    Description: Glue Crawler for telemetry data
+    Value: !Ref TelemetryCrawler
+
+  CapacityAlarmArn:
+    Description: CloudWatch alarm for capacity warning
+    Value: !GetAtt CapacityAlarm.Arn

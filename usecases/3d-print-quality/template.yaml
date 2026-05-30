@@ -1,0 +1,145 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  3D Print Quality Monitoring - Use case specific resources.
+  Prerequisite: Deploy shared infra first (cloud/ingestion/template.yaml)
+
+Parameters:
+  SharedStackName:
+    Type: String
+    Default: edge-to-cloud-ai-poc
+    Description: Name of the shared infrastructure stack
+
+  BedrockScreeningModel:
+    Type: String
+    Default: jp.anthropic.claude-haiku-4-5-20251001-v1:0
+    Description: Bedrock model for Stage 1 screening
+
+  BedrockDetailModel:
+    Type: String
+    Default: jp.anthropic.claude-sonnet-4-5-20250929-v1:0
+    Description: Bedrock model for Stage 2 detailed analysis
+
+  ConfidenceThreshold:
+    Type: String
+    Default: "0.7"
+    Description: Minimum confidence to trigger alert
+
+Resources:
+  # ============================================================
+  # Lambda: Image Analyzer (Two-Stage)
+  # ============================================================
+  ImageAnalyzerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "edge-to-cloud-image-analyzer-${AWS::StackName}"
+      Runtime: python3.12
+      Handler: handler.handler
+      Role: !ImportValue
+        Fn::Sub: "${SharedStackName}-ImageAnalyzerRoleArn"
+      Timeout: 90
+      MemorySize: 256
+      Environment:
+        Variables:
+          RESULT_BUCKET: !ImportValue
+            Fn::Sub: "${SharedStackName}-BucketName"
+          ALERT_TOPIC_ARN: !ImportValue
+            Fn::Sub: "${SharedStackName}-AlertTopicArn"
+          SCREENING_MODEL_ID: !Ref BedrockScreeningModel
+          DETAIL_MODEL_ID: !Ref BedrockDetailModel
+          CONFIDENCE_THRESHOLD: !Ref ConfidenceThreshold
+          TWO_STAGE_ENABLED: "true"
+      Code:
+        ZipFile: |
+          # Placeholder - deploy actual code with `aws lambda update-function-code`
+          def handler(event, context):
+              return {"statusCode": 501, "body": "Deploy code with update-function-code"}
+      Tags:
+        - Key: Project
+          Value: edge-to-cloud-ai
+        - Key: UseCase
+          Value: 3d-print-quality
+
+  # ============================================================
+  # CloudWatch: Business Alarms
+  # ============================================================
+  AnomalyRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-high-anomaly-rate"
+      AlarmDescription: "Anomaly detection rate > 30% in 1 hour - possible printer issue"
+      Namespace: EdgeToCloud/PrintQuality
+      MetricName: AnomalyRate
+      Statistic: Average
+      Period: 3600
+      EvaluationPeriods: 1
+      Threshold: 30
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !ImportValue
+          Fn::Sub: "${SharedStackName}-AlertTopicArn"
+
+  DeviceDownAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-device-down"
+      AlarmDescription: "No captures for 5+ minutes - device may be down"
+      Namespace: EdgeToCloud/PrintQuality
+      MetricName: CaptureGap
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 300
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: breaching
+      AlarmActions:
+        - !ImportValue
+          Fn::Sub: "${SharedStackName}-AlertTopicArn"
+
+  # ============================================================
+  # Athena: Named Queries
+  # ============================================================
+  QualitySummaryQuery:
+    Type: AWS::Athena::NamedQuery
+    Properties:
+      Database: edge_to_cloud_ai
+      Name: print-quality-daily-summary
+      Description: "Daily print quality summary - anomaly rate and average score"
+      QueryString: |
+        SELECT
+          date_format(from_iso8601_timestamp(timestamp), '%Y-%m-%d') AS date,
+          count(*) AS total_inspections,
+          count_if(json_extract_scalar(payload, '$.result.status') = 'anomaly_detected') AS anomalies,
+          round(count_if(json_extract_scalar(payload, '$.result.status') = 'anomaly_detected') * 100.0 / count(*), 1) AS anomaly_rate_pct
+        FROM processed_image_analysis
+        WHERE year = cast(year(current_date) as varchar)
+          AND month = lpad(cast(month(current_date) as varchar), 2, '0')
+        GROUP BY 1
+        ORDER BY 1 DESC
+        LIMIT 30
+
+  WeeklyAccuracyQuery:
+    Type: AWS::Athena::NamedQuery
+    Properties:
+      Database: edge_to_cloud_ai
+      Name: print-quality-weekly-accuracy
+      Description: "Weekly AI accuracy from feedback data"
+      QueryString: |
+        SELECT
+          date_format(from_iso8601_timestamp(timestamp), '%Y-W%v') AS week,
+          count(*) AS total_feedback,
+          count_if(correct = true) AS correct_count,
+          round(count_if(correct = true) * 100.0 / count(*), 1) AS accuracy_pct
+        FROM feedback
+        GROUP BY 1
+        ORDER BY 1 DESC
+        LIMIT 12
+
+Outputs:
+  ImageAnalyzerArn:
+    Description: Lambda function ARN for image analysis
+    Value: !GetAtt ImageAnalyzerFunction.Arn
+
+  AnomalyRateAlarmArn:
+    Description: CloudWatch alarm for high anomaly rate
+    Value: !GetAtt AnomalyRateAlarm.Arn
