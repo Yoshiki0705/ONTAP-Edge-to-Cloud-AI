@@ -32,7 +32,7 @@ A: Yes. Change the Lambda prompt to apply to any image judgment — visual inspe
 
 A: FPolicy adds latency to target file operations (several ms to tens of ms in synchronous mode). For high-frequency write environments, use asynchronous mode or narrow notification targets via filtering.
 
-**Q: What are FSxN S3 Access Points constraints?**
+**Q: What are FSx for ONTAP S3 Access Points constraints?**
 
 A: No conditional writes (no direct Iceberg/Delta Lake writes), no S3 event notifications (no Lambda triggers). See [use-case-research.md](use-case-research.md) section 5.1 for details.
 

@@ -2,7 +2,7 @@
 
 Periodically polls ONTAP cluster metrics (IOPS, latency, throughput,
 capacity, node health) and writes to ONTAP NFS volume as JSON files.
-SnapMirror syncs to FSxN for cloud analytics via S3 Access Points.
+SnapMirror syncs to FSx for ONTAP for cloud analytics via S3 Access Points.
 
 Requires:
     - ONTAP 9.13.1+ with REST API enabled

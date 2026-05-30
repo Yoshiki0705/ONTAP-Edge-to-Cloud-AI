@@ -64,12 +64,12 @@ This architecture assumes ONTAP, but the core pattern (edge collection → aggre
 
 ```
 [Edge Devices]                   [ONTAP (Data Aggregation)]       [AI / Analytics]
-                                 FAS/AFF | ONTAP Select | FSxN
+                                 FAS/AFF | ONTAP Select | FSx for ONTAP
 ┌────────────────┐               ┌────────────────────┐          ┌──────────────────┐
 │ Raspberry Pi 5 │──NFS─────────→│                    │          │ AWS              │
 │  Camera        │               │  Inspection images  │─S3 AP──→│  Bedrock (GenAI) │
 │  Sensors       │               │  Sensor CSV         │          │  SageMaker (ML)  │
-├────────────────┤               │  Equipment logs     │─SnapMirror→ FSxN ─S3 AP──→│
+├────────────────┤               │  Equipment logs     │─SnapMirror→ FSx for ONTAP ─S3 AP──→│
 │ 3D Printer     │──SMB─────────→│  3D models          │          │  Athena (SQL)    │
 ├────────────────┤               │                    │          │  Glue (ETL)      │
 │ USB Camera     │──NFS─────────→│  FPolicy (events)   │          │  QuickSight (BI) │
@@ -125,7 +125,7 @@ The first PoC is **3D print quality monitoring** (visually compelling, failures 
 
 - **Two-stage AI analysis cuts cost by 85%**: Analyzing all images with the high-accuracy model costs ~$259/month. Screening with Haiku and routing only suspected anomalies to Sonnet brings it to ~$40/month. This pattern applies to other AI pipelines.
 - **Prompts alone achieve practical accuracy for industrial image judgment**: Without custom model training, Claude Vision prompts correctly identified 3D print defects in 9/9 test cases. Real-environment validation is pending.
-- **FSxN S3 Access Points constraints**: No conditional writes, no event notifications. Direct Iceberg/Delta Lake writes aren't possible. FPolicy-based complementary design is needed.
+- **FSx for ONTAP S3 Access Points constraints**: No conditional writes, no event notifications. Direct Iceberg/Delta Lake writes aren't possible. FPolicy-based complementary design is needed.
 - **ONTAP REST API works well for IoT telemetry collection**: Performance metrics, capacity, and health can be collected at 1-minute intervals. Polling-based but sufficient for PoC.
 
 ## Current Status

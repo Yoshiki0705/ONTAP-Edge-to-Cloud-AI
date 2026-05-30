@@ -14,7 +14,7 @@
 
 1. **ONTAP の多層的活用**: FPolicy によるイベント駆動連携、SnapMirror によるエッジ→クラウド同期、FlexCache による低遅延キャッシュ、ARP/AI によるセキュリティ、S3 Access Points による AWS サービス直接連携の5つの軸で活用可能
 2. **FPolicy イベント駆動パイプライン**: エッジデバイスが NFS/SMB で ONTAP に書き込むだけで、FPolicy が Lambda をトリガーし Bedrock 分析を自動実行。デバイス側にクラウド連携コードが不要
-3. **FSx for ONTAP S3 AP の活用パターン**: エッジで収集したデータの集約先として FSxN を使い、S3 AP 経由で Athena/Glue/Bedrock/SageMaker に直接接続することで、データコピーなしに横断分析が可能
+3. **FSx for ONTAP S3 AP の活用パターン**: エッジで収集したデータの集約先として FSx for ONTAP を使い、S3 AP 経由で Athena/Glue/Bedrock/SageMaker に直接接続することで、データコピーなしに横断分析が可能
 4. **PoC 構成例**: Raspberry Pi 5 + カメラ + 3Dプリンター + ONTAP の組み合わせで、データ集約 → AI 分析の一連のフローを小規模に検証可能
 
 ---
@@ -46,7 +46,7 @@ Raspberry Pi 5             On-premises
 [Edge]                     [ONTAP]                  [Cloud (AWS)]
 Raspberry Pi 5             On-premises              FSx for ONTAP
 +------------------+       +------------------+     +-------------------------+
-| Sensors          |--NFS->| NFS Volume       |     | FSxN Volume             |
+| Sensors          |--NFS->| NFS Volume       |     | FSx for ONTAP Volume             |
 |  - Temp/Humidity |       |   |              |     |   | S3 Access Point     |
 |  - Vibration     |       | SnapMirror ------|--->| Athena (SQL)            |
 |  - Current       |       | (incremental)    |     | Glue ETL                |
@@ -73,7 +73,7 @@ On-premises
 |                     |              |   +-- Bedrock (analysis) |
 | REST API            |              |   +-- SNS (notify)       |
 |  - Performance      |              |                         |
-|  - Capacity         |              | FSxN (SnapMirror dest)  |
+|  - Capacity         |              | FSx for ONTAP (SnapMirror dest)  |
 |  - Health           |              +-------------------------+
 +---------------------+
          ^
@@ -92,7 +92,7 @@ On-premises
 [On-premises]                                       [Cloud (AWS)]
 ONTAP                                               FSx for ONTAP
 +---------------------+                             +-------------------------+
-| Factory data        |                             | FSxN Volume             |
+| Factory data        |                             | FSx for ONTAP Volume             |
 |  - Inspection imgs  |--SnapMirror (async)-------->|   | S3 Access Point     |
 |  - Sensor CSV       |                             | Athena (SQL)            |
 |  - Equipment logs   |                             | Glue (ETL/catalog)      |
@@ -132,7 +132,7 @@ ONTAP                                               FSx for ONTAP
 |------|------|
 | **概要** | ONTAPストレージのディスクシェルフ振動や設備の振動をセンサーで収集し、異常パターンを学習 |
 | **エッジ機材** | Raspberry Pi 5 + ADXL345加速度センサー + SORACOM SIM |
-| **データフロー** | Pi → NFS → ONTAP → SnapMirror → FSxN → S3 AP → SageMaker |
+| **データフロー** | Pi → NFS → ONTAP → SnapMirror → FSx for ONTAP → S3 AP → SageMaker |
 | **ONTAP連携** | ONTAP REST API でディスクIOPS/レイテンシを同時収集、相関分析 |
 | **AI活用** | SageMaker: 時系列異常検知モデル (Random Cut Forest)、Bedrock: 根本原因診断レポート生成 |
 | **期待される効果** | 計画外ダウンタイム削減、部品交換の最適タイミング予測 |
@@ -144,7 +144,7 @@ ONTAP                                               FSx for ONTAP
 | **概要** | 製造ラインの完成品をカメラで撮影し、傷・変色・寸法異常を自動検出 |
 | **エッジ機材** | Raspberry Pi 5 + Logitech BRIO 4K (高解像度) |
 | **データフロー** | Pi → NFS → ONTAP → FPolicy → Lambda → Rekognition Custom Labels / Bedrock |
-| **ONTAP連携** | 検査画像をONTAPに保存（NFS）、SnapMirrorでFSxNに同期、S3 APでAthena分析 |
+| **ONTAP連携** | 検査画像をONTAPに保存（NFS）、SnapMirrorでFSx for ONTAPに同期、S3 APでAthena分析 |
 | **AI活用** | Rekognition Custom Labels: 欠陥分類、Bedrock: 検査レポート自動生成 |
 | **期待される効果** | 検査工程の自動化、人的ミス削減、トレーサビリティ確保 |
 
@@ -180,8 +180,8 @@ ONTAP                                               FSx for ONTAP
 |------|------|
 | **概要** | 圃場の温湿度・土壌水分・照度を定期収集し、生育環境を最適化 |
 | **エッジ機材** | Raspberry Pi 5 + DHT22 + 土壌水分センサー + SORACOM SIM |
-| **データフロー** | Pi → NFS → ONTAP → SnapMirror → FSxN → S3 AP → Athena |
-| **ONTAP連携** | 過去の気象データ・収穫データをONTAPに蓄積、SnapMirrorでFSxNに同期しAthena分析 |
+| **データフロー** | Pi → NFS → ONTAP → SnapMirror → FSx for ONTAP → S3 AP → Athena |
+| **ONTAP連携** | 過去の気象データ・収穫データをONTAPに蓄積、SnapMirrorでFSx for ONTAPに同期しAthena分析 |
 | **AI活用** | SageMaker: 収穫量予測モデル、Bedrock: 栽培アドバイス生成 |
 | **期待される効果** | 収穫量最適化、水・肥料の効率化、異常気象への早期対応 |
 
@@ -204,7 +204,7 @@ ONTAP                                               FSx for ONTAP
 |------|------|
 | **概要** | ビル各フロアの温湿度・電力消費をリアルタイム収集し、空調制御を最適化 |
 | **エッジ機材** | Raspberry Pi 5 + 温湿度センサー + CT電流センサー + SORACOM SIM |
-| **データフロー** | Pi → NFS → ONTAP → SnapMirror → FSxN → S3 AP → Athena + QuickSight |
+| **データフロー** | Pi → NFS → ONTAP → SnapMirror → FSx for ONTAP → S3 AP → Athena + QuickSight |
 | **ONTAP連携** | BMS(ビル管理システム)のログをONTAPに集約、長期トレンド分析 |
 | **AI活用** | SageMaker: 電力需要予測、Bedrock: 省エネレポート自動生成 |
 | **期待される効果** | 電力コスト削減(10-30%)、快適性維持、カーボンフットプリント可視化 |
@@ -215,7 +215,7 @@ ONTAP                                               FSx for ONTAP
 |------|------|
 | **概要** | 空調機器・エレベーター等の動作音をマイクで収集し、異常音を検知 |
 | **エッジ機材** | Raspberry Pi 5 + USBマイク |
-| **データフロー** | Pi (エッジ推論: 異常スコア算出) → NFS → ONTAP → SnapMirror → FSxN → S3 AP → SageMaker |
+| **データフロー** | Pi (エッジ推論: 異常スコア算出) → NFS → ONTAP → SnapMirror → FSx for ONTAP → S3 AP → SageMaker |
 | **ONTAP連携** | 音声データアーカイブをONTAPに保存、正常/異常パターンの学習データとして活用 |
 | **AI活用** | エッジ: TensorFlow Lite (異常スコア)、クラウド: SageMaker (モデル再学習) |
 | **期待される効果** | 設備故障の予兆検知、保守コスト削減、テナント満足度向上 |
@@ -230,10 +230,10 @@ ONTAP                                               FSx for ONTAP
 |------|----------------------|
 | ブロックレベル差分転送 | 帯域制約のあるエッジ拠点から効率的にデータ同期 |
 | スケジュール制御 | 夜間バッチ同期でセルラー帯域を節約 |
-| 複数宛先 | 1つのエッジONTAPから複数リージョンのFSxNに同期可能 |
+| 複数宛先 | 1つのエッジONTAPから複数リージョンのFSx for ONTAPに同期可能 |
 | Snapshot連携 | 任意時点のデータセットでAI学習データを固定 |
 
-**活用シナリオ**: 工場のONTAPで日中に蓄積された検査画像・センサーCSVを、夜間にSnapMirrorでFSxNに同期。翌朝にはAthena/SageMakerで分析可能。
+**活用シナリオ**: 工場のONTAPで日中に蓄積された検査画像・センサーCSVを、夜間にSnapMirrorでFSx for ONTAPに同期。翌朝にはAthena/SageMakerで分析可能。
 
 > **RPO目安**: スケジュール設定により RPO 1時間〜24時間で調整可能。セルラー回線経由の場合、帯域制約から RPO 8-24時間が現実的。有線接続環境では RPO 1時間以下も可能。
 
@@ -277,7 +277,7 @@ ONTAP                                               FSx for ONTAP
 |------|----------------------|
 | AI異常検知 | IoTデバイスが侵害された場合のランサムウェア拡散を即座に検知 |
 | 自動Snapshot | 攻撃検知時に自動でSnapshotを取得しデータを保護 |
-| FSxN対応 | クラウド側のFSxNでも同等の保護を提供 |
+| FSx for ONTAP対応 | クラウド側のFSx for ONTAPでも同等の保護を提供 |
 
 **活用シナリオ**: IoTデバイスが侵害されONTAP上のデータを暗号化しようとした場合、ARP/AIが異常な書き込みパターンを検知し、自動的にSnapshotを作成してデータを保護。
 
@@ -291,7 +291,7 @@ ONTAP                                               FSx for ONTAP
 
 | 制約 | 影響 | 回避策 |
 |------|------|--------|
-| 条件付き書き込み非対応 | Iceberg/Delta Lake の直接書き込み不可 | S3バケット経由で書き込み、FSxNは読み取り専用で利用 |
+| 条件付き書き込み非対応 | Iceberg/Delta Lake の直接書き込み不可 | S3バケット経由で書き込み、FSx for ONTAPは読み取り専用で利用 |
 | イベント通知非対応 | S3イベントトリガーのLambda起動不可 | EventBridge + ポーリング、またはFPolicy活用 |
 | ListObjectsV2 の制限 | 大量ファイルのリスト取得にパフォーマンス影響 | Glue Crawler のパーティション設計で回避 |
 | Internet network origin 必須 | VPC内からのアクセスにはNAT Gateway必要 | VPCエンドポイント経由ではなくインターネット経由 |
@@ -333,7 +333,7 @@ ONTAP                                               FSx for ONTAP
 
 **有線LANがある場合の推奨経路**:
 - 画像データ: Pi → NFS → ONTAP → FPolicy → Lambda → Bedrock
-- センサーデータ: Pi → NFS → ONTAP → SnapMirror → FSxN → S3 AP → Athena/SageMaker
+- センサーデータ: Pi → NFS → ONTAP → SnapMirror → FSx for ONTAP → S3 AP → Athena/SageMaker
 - 遠隔管理: SORACOM Napter（SSH アクセス用、データ転送には使用しない）
 
 ### 5.5 セキュリティアーキテクチャ考慮事項
@@ -366,7 +366,7 @@ ONTAP                                               FSx for ONTAP
 | **AWS** | AWSアカウント、IAMユーザー/ロール | Bedrock モデルアクセスの有効化が必要 |
 | **SORACOM** | SORACOMアカウント、IoT SIM (plan-D) | オプション: 有線LANがない場合のみ |
 | **ハードウェア** | Raspberry Pi 5 (16GB)、カメラモジュール、NVMe SSD | microSD でも動作するが SSD 推奨 |
-| **ONTAP** | ONTAP 9.13.1 以上 (FPolicy外部サーバー、REST API) | FSxN の場合は S3 AP 対応バージョン |
+| **ONTAP** | ONTAP 9.13.1 以上 (FPolicy外部サーバー、REST API) | FSx for ONTAP の場合は S3 AP 対応バージョン |
 | **ネットワーク** | Pi ↔ ONTAP 間のLAN接続、Pi のセルラー接続 | 10GbE スイッチ推奨（大容量画像転送時） |
 | **開発環境** | Python 3.12、Git、AWS CLI v2 | Pi 上で直接開発 or リモート開発 |
 
@@ -471,10 +471,10 @@ Phase 2 (1-2週間): カスタマイズ + 分析精度向上
 
 Phase 3 (2週間): 分析基盤 + 本番準備
   目標: データ分析 + 運用体制構築
-  構成: Phase 2 + SnapMirror → FSxN + Athena + QuickSight
+  構成: Phase 2 + SnapMirror → FSx for ONTAP + Athena + QuickSight
   手順:
-    1. SnapMirror: ONTAP → FSxN 同期設定
-    2. FSxN S3 AP → Athena 分析（印刷成功率、失敗パターン）
+    1. SnapMirror: ONTAP → FSx for ONTAP 同期設定
+    2. FSx for ONTAP S3 AP → Athena 分析（印刷成功率、失敗パターン）
     3. QuickSight ダッシュボード
     4. 運用手順書作成（デバイス交換、障害対応）
     5. 死活監視設定（Pi heartbeat → CloudWatch）
@@ -510,8 +510,8 @@ Phase 1 (1週間): テレメトリ収集
   - NFS 書き込み → ONTAP ボリュームに CSV 蓄積
 
 Phase 2 (1週間): 分析基盤
-  - SnapMirror → FSxN 同期設定
-  - FSxN S3 AP → Glue Crawler でデータカタログ作成
+  - SnapMirror → FSx for ONTAP 同期設定
+  - FSx for ONTAP S3 AP → Glue Crawler でデータカタログ作成
   - Athena でアドホック分析
   - CloudWatch ダッシュボード (リアルタイム)
 
@@ -548,7 +548,7 @@ Phase 3 (2週間): AI予測
 - [FlexCache 概要](https://www.netapp.com/data-storage/what-is-flex-cache/)
 - [SnapMirror データレプリケーション × AWS](https://www.netapp.com/blog/snapmirror-data-replication-aws/)
 - [ARP/AI for FSx for ONTAP](https://www.netapp.com/blog/fsx-ontap-autonomous-ransomware-protection)
-- [FSxN S3 AP × Athena 直接分析 (Tech ONTAP Blog)](https://community.netapp.com/t5/Tech-ONTAP-Blogs/Run-advanced-analytics-with-Amazon-Athena-directly-on-data-in-Amazon-FSx-for/m-p/466956)
+- [FSx for ONTAP S3 AP × Athena 直接分析 (Tech ONTAP Blog)](https://community.netapp.com/t5/Tech-ONTAP-Blogs/Run-advanced-analytics-with-Amazon-Athena-directly-on-data-in-Amazon-FSx-for/m-p/466956)
 - [NetApp on AWS Outposts](https://community.netapp.com/t5/Tech-ONTAP-Blogs/NetApp-on-premises-enterprise-storage-arrays-for-AWS-Outposts/ba-p/456976)
 
 ### SORACOM 公式（オプション: セルラー接続時）

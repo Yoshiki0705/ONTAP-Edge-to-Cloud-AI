@@ -64,12 +64,12 @@
 
 ```
 [エッジデバイス]                  [ONTAP (データ集約)]              [AI / 分析]
-                                 FAS/AFF | ONTAP Select | FSxN
+                                 FAS/AFF | ONTAP Select | FSx for ONTAP
 ┌────────────────┐               ┌────────────────────┐          ┌──────────────────┐
 │ Raspberry Pi 5 │──NFS─────────→│                    │          │ AWS              │
 │  カメラ         │               │  検査画像           │─S3 AP──→│  Bedrock (GenAI) │
 │  センサー       │               │  センサーCSV        │          │  SageMaker (ML)  │
-├────────────────┤               │  設備ログ           │─SnapMirror→ FSxN ─S3 AP──→│
+├────────────────┤               │  設備ログ           │─SnapMirror→ FSx for ONTAP ─S3 AP──→│
 │ 3Dプリンター    │──SMB─────────→│  3Dモデル           │          │  Athena (SQL)    │
 ├────────────────┤               │                    │          │  Glue (ETL)      │
 │ USB カメラ     │──NFS─────────→│  FPolicy (イベント)  │          │  QuickSight (BI) │
@@ -125,7 +125,7 @@ SA/SE として顧客の現場を訪問する中で、「IoT デバイスやセ�
 
 - **2段階AI分析でコスト85%削減**: 全画像を高精度モデルで分析すると月$259。Haiku でスクリーニングし異常疑いのみ Sonnet に回すと月$40。この設計パターンは他のAIパイプラインにも応用可能。
 - **プロンプトだけで産業用画像判定が実用精度に達する**: カスタムモデル学習なしで、Claude Vision のプロンプトのみで 3Dプリント欠陥を 9/9 正解。ただし実環境での検証はこれから。
-- **FSxN S3 Access Points の制約**: 条件付き書き込み非対応、イベント通知非対応。Iceberg/Delta Lake の直接書き込みはできない。FPolicy で補完する設計が必要。
+- **FSx for ONTAP S3 Access Points の制約**: 条件付き書き込み非対応、イベント通知非対応。Iceberg/Delta Lake の直接書き込みはできない。FPolicy で補完する設計が必要。
 - **ONTAP REST API は IoT テレメトリ収集に十分使える**: パフォーマンスメトリクス、容量、健全性を 1分間隔で収集可能。ポーリングベースだが PoC には十分。
 
 ## 現在のステータス

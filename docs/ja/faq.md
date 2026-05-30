@@ -32,7 +32,7 @@ A: はい。Lambda のプロンプトを変更するだけで、任意の画像�
 
 A: FPolicy は対象ファイル操作にレイテンシを追加します（同期モードで数ms〜数十ms）。高頻度書き込み環境では非同期モードの使用、またはフィルタリングで通知対象を絞ることを推奨します。
 
-**Q: FSxN S3 Access Points の制約は？**
+**Q: FSx for ONTAP S3 Access Points の制約は？**
 
 A: 条件付き書き込み非対応（Iceberg/Delta Lake 直接書き込み不可）、S3 イベント通知非対応（Lambda トリガー不可）。詳細は [use-case-research.md](use-case-research.md) のセクション5.1を参照。
 

@@ -76,8 +76,8 @@ def invoke_analysis_lambda(image_path: Path, image_bytes: bytes) -> dict | None:
     """Invoke the image analysis Lambda function.
 
     Note on S3 upload: In the full architecture, Lambda would access images
-    via FSxN S3 Access Points (ONTAP → SnapMirror → FSxN → S3 AP). However,
-    for PoC Phase 1 (before SnapMirror/FSxN is configured), Pi uploads
+    via FSx for ONTAP S3 Access Points (ONTAP → SnapMirror → FSx for ONTAP → S3 AP). However,
+    for PoC Phase 1 (before SnapMirror/FSx for ONTAP is configured), Pi uploads
     directly to S3 as a shortcut. This will be replaced by S3 AP access
     once SnapMirror is operational in Phase 3.
     """
