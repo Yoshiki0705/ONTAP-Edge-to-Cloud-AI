@@ -6,16 +6,16 @@
 
 ---
 
-## 1. エグゼクティブサマリー
+## 1. 調査概要
 
-本調査は、NetApp ONTAP（オンプレミス FAS/AFF または FSx for ONTAP）に蓄積されたデータを、IoTデバイス（Raspberry Pi 5、SORACOM セルラーゲートウェイ）を介して集約し、AWS上のAnalytics/AIサービスで活用するユースケースを体系的に整理したものである。
+ONTAP（FAS/AFF、ONTAP Select、FSx for ONTAP）に蓄積されたデータを、IoTデバイス（Raspberry Pi 5 等）で収集し、AWS の AI/分析サービスで活用するパターンを調査・整理した。
 
-**主要な発見:**
+**調査で確認したこと:**
 
 1. **ONTAP の多層的活用**: FPolicy によるイベント駆動連携、SnapMirror によるエッジ→クラウド同期、FlexCache による低遅延キャッシュ、ARP/AI によるセキュリティ、S3 Access Points による AWS サービス直接連携の5つの軸で活用可能
 2. **FPolicy イベント駆動パイプライン**: エッジデバイスが NFS/SMB で ONTAP に書き込むだけで、FPolicy が Lambda をトリガーし Bedrock 分析を自動実行。デバイス側にクラウド連携コードが不要
-3. **FSx for ONTAP S3 AP の戦略的位置づけ**: エッジで収集したデータの最終格納先として FSxN を使い、S3 AP 経由で Athena/Glue/Bedrock/SageMaker に直接接続するパターンが最も統合的
-4. **機材構成の親和性**: Raspberry Pi 5 + カメラ + 3Dプリンター + ONTAP エントリーストレージの組み合わせで、製造業向け外観検査・予知保全の PoC が即座に構築可能
+3. **FSx for ONTAP S3 AP の活用パターン**: エッジで収集したデータの最終格納先として FSxN を使い、S3 AP 経由で Athena/Glue/Bedrock/SageMaker に直接接続するパターンが最も統合的
+4. **PoC 構成例**: Raspberry Pi 5 + カメラ + 3Dプリンター + ONTAP エントリーストレージの組み合わせで、製造業向け外観検査・予知保全の PoC が即座に構築可能
 
 ---
 
@@ -24,18 +24,18 @@
 ### パターン A: エッジ画像収集 → ONTAP → FPolicy → クラウドAI分析
 
 ```
-[エッジ]                          [ONTAP (データ集約)]       [クラウド]
-Raspberry Pi 5                   オンプレミス ONTAP         AWS
-┌─────────────────┐              ┌──────────────────┐     ┌─────────────────────────┐
-│ カメラモジュール  │──NFS書込──→ │ NFS ボリューム    │     │                         │
-│ (NoIR V2/BRIO)  │              │   ↓              │     │ Lambda (イベント処理)    │
-│                  │              │ FPolicy (検知)   │──→  │   ↓                     │
-│ 前処理:          │              │   ↓              │     │ Bedrock (Claude Vision) │
-│  - リサイズ      │              │ Lambda トリガー   │     │ Rekognition             │
-│  - JPEG圧縮     │              └──────────────────┘     │   ↓                     │
-│  - タイムスタンプ │                                       │ DynamoDB (結果保存)     │
-└─────────────────┘                                       │ SNS (アラート)          │
-                                                          └─────────────────────────┘
+[Edge]                     [ONTAP]                  [Cloud (AWS)]
+Raspberry Pi 5             On-premises              
++------------------+       +------------------+     +-------------------------+
+| Camera module    |--NFS->| NFS Volume       |     |                         |
+| (NoIR V2/BRIO)  |       |   |              |     | Lambda                  |
+|                  |       | FPolicy (detect) |---->|   |                     |
+| Pre-process:     |       |   |              |     | Bedrock (Claude Vision) |
+|  - Resize        |       | Lambda trigger   |     | Rekognition             |
+|  - JPEG compress |       +------------------+     |   |                     |
+|  - Timestamp     |                                | DynamoDB (results)      |
++------------------+                                | SNS (alerts)            |
+                                                    +-------------------------+
 ```
 
 **適用ユースケース**: 外観検査、3Dプリント品質監視、在庫画像管理、安全装備確認
@@ -43,19 +43,19 @@ Raspberry Pi 5                   オンプレミス ONTAP         AWS
 ### パターン B: センサーデータ → ONTAP → SnapMirror → クラウド分析
 
 ```
-[エッジ]                          [ONTAP (データ集約)]       [クラウド]
-Raspberry Pi 5                   オンプレミス ONTAP         AWS (FSx for ONTAP)
-┌─────────────────┐              ┌──────────────────┐     ┌─────────────────────────┐
-│ センサー群       │──NFS書込──→ │ NFS ボリューム    │     │ FSxN Volume             │
-│  - 温湿度        │  (CSV/JSON)  │   ↓              │     │   ↓ S3 Access Point     │
-│  - 振動          │              │ SnapMirror ──────│──→  │ Athena (SQL分析)         │
-│  - 電流          │              │ (差分同期)        │     │ Glue ETL                │
-│  - 圧力          │              └──────────────────┘     │ SageMaker (予測モデル)  │
-│                  │                                       │ CloudWatch (アラート)   │
-│ 前処理:          │                                       │ QuickSight (BI)         │
-│  - 集約(1分平均) │                                       └─────────────────────────┘
-│  - 異常値フィルタ │
-└─────────────────┘
+[Edge]                     [ONTAP]                  [Cloud (AWS)]
+Raspberry Pi 5             On-premises              FSx for ONTAP
++------------------+       +------------------+     +-------------------------+
+| Sensors          |--NFS->| NFS Volume       |     | FSxN Volume             |
+|  - Temp/Humidity |       |   |              |     |   | S3 Access Point     |
+|  - Vibration     |       | SnapMirror ------|--->| Athena (SQL)            |
+|  - Current       |       | (incremental)    |     | Glue ETL                |
+|  - Pressure      |       +------------------+     | SageMaker (prediction)  |
+|                  |                                | CloudWatch (alerts)     |
+| Pre-process:     |                                | QuickSight (BI)         |
+|  - Aggregation   |                                +-------------------------+
+|  - Outlier filter|
++------------------+
 ```
 
 **適用ユースケース**: 設備予知保全、環境モニタリング、空調最適化
@@ -63,26 +63,25 @@ Raspberry Pi 5                   オンプレミス ONTAP         AWS (FSx for O
 ### パターン C: ONTAP イベント駆動 → クラウド処理
 
 ```
-[オンプレミス ONTAP]              [クラウド]
-ONTAP (エントリー/ミッドレンジ)   AWS
-┌─────────────────┐              ┌─────────────────────────┐
-│ FPolicy         │──Lambda──→   │ Lambda (イベント処理)     │
-│  - ファイル作成   │  トリガー     │   ↓                     │
-│  - ファイル変更   │              │ Step Functions          │
-│  - ファイル削除   │              │   ├── Glue (ETL)        │
-│                 │              │   ├── Bedrock (分析)    │
-│ REST API        │              │   └── SNS (通知)        │
-│  - パフォーマンス │              │                         │
-│  - 容量          │              │ FSxN (SnapMirror先)     │
-│  - 健全性        │              └─────────────────────────┘
-└─────────────────┘
-       ▲
-       │ NFS/SMB 書き込み
-┌─────────────────┐
-│ Raspberry Pi 5  │
-│ (センサー/カメラ) │
-│ テレメトリ収集    │
-└─────────────────┘
+[ONTAP]                              [Cloud (AWS)]
+On-premises                          
++---------------------+              +-------------------------+
+| FPolicy             |--Lambda----->| Lambda                  |
+|  - File create      |  trigger     |   |                     |
+|  - File modify      |              | Step Functions          |
+|  - File delete      |              |   +-- Glue (ETL)        |
+|                     |              |   +-- Bedrock (analysis) |
+| REST API            |              |   +-- SNS (notify)       |
+|  - Performance      |              |                         |
+|  - Capacity         |              | FSxN (SnapMirror dest)  |
+|  - Health           |              +-------------------------+
++---------------------+
+         ^
+         | NFS/SMB writes
++---------------------+
+| Raspberry Pi 5      |
+| (sensors/camera)    |
++---------------------+
 ```
 
 **適用ユースケース**: ファイル到着トリガーの自動処理、ストレージ健全性監視、データライフサイクル管理
@@ -90,17 +89,17 @@ ONTAP (エントリー/ミッドレンジ)   AWS
 ### パターン D: SnapMirror/FlexCache によるハイブリッドデータ同期
 
 ```
-[オンプレミス]                                              [クラウド]
-ONTAP (エントリー/ミッドレンジ)                             FSx for ONTAP
-┌─────────────────┐                                       ┌─────────────────────────┐
-│ 工場データ        │                                       │ FSxN Volume             │
-│  - 検査画像      │──SnapMirror (非同期)──────────────→    │   ↓ S3 Access Point     │
-│  - センサーCSV   │                                       │ Athena (SQL分析)         │
-│  - 設備ログ      │                                       │ Glue (ETL/カタログ)       │
-│                 │                                       │ Bedrock (RAG)           │
-│ FlexCache       │←───────────────────────────────────── │ AI推論結果               │
-│  (推論結果参照)   │                                       │ SageMaker モデル出力      │
-└─────────────────┘                                       └─────────────────────────┘
+[On-premises]                                       [Cloud (AWS)]
+ONTAP                                               FSx for ONTAP
++---------------------+                             +-------------------------+
+| Factory data        |                             | FSxN Volume             |
+|  - Inspection imgs  |--SnapMirror (async)-------->|   | S3 Access Point     |
+|  - Sensor CSV       |                             | Athena (SQL)            |
+|  - Equipment logs   |                             | Glue (ETL/catalog)      |
+|                     |                             | Bedrock (RAG)           |
+| FlexCache           |<----------------------------| AI inference results    |
+|  (ref results)      |                             | SageMaker model output  |
++---------------------+                             +-------------------------+
 ```
 
 **適用ユースケース**: 大容量データの段階的クラウド移行、エッジでのAI結果参照、DR/BCP
@@ -123,7 +122,7 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 | **データフロー** | Pi → NFS → ONTAP → FPolicy → Lambda → Bedrock Claude Vision → SNS通知 |
 | **ONTAP連携** | 印刷用3Dモデル(STL/3MF)をONTAP NFS共有に保存、FPolicyで新規ファイル検知→自動印刷キュー投入 |
 | **AI活用** | Claude Vision: 糸引き、層間剥離、ノズル詰まりの視覚的検出 |
-| **ビジネス価値** | 無人印刷時の失敗早期検知、フィラメント浪費削減、印刷成功率向上 |
+| **期待される効果** | 無人印刷時の失敗早期検知、フィラメント浪費削減、印刷成功率向上 |
 | **帯域見積** | 30秒間隔撮影 × 1080p JPEG (約300KB/枚) = 約600KB/分 = 約36MB/時。有線LAN経由では帯域制約なし。セルラー利用時: 約¥50-100/日 (SORACOM plan-D) |
 | **成功指標** | 検出精度 ≥80%、キャプチャ→アラート ≤60秒、誤検知率 ≤10% |
 
@@ -136,7 +135,7 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 | **データフロー** | Pi → NFS → ONTAP → SnapMirror → FSxN → S3 AP → SageMaker |
 | **ONTAP連携** | ONTAP REST API でディスクIOPS/レイテンシを同時収集、相関分析 |
 | **AI活用** | SageMaker: 時系列異常検知モデル (Random Cut Forest)、Bedrock: 根本原因診断レポート生成 |
-| **ビジネス価値** | 計画外ダウンタイム削減、部品交換の最適タイミング予測 |
+| **期待される効果** | 計画外ダウンタイム削減、部品交換の最適タイミング予測 |
 
 #### UC-M3: 外観検査自動化
 
@@ -147,7 +146,7 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 | **データフロー** | Pi → NFS → ONTAP → FPolicy → Lambda → Rekognition Custom Labels / Bedrock |
 | **ONTAP連携** | 検査画像をONTAPに保存（NFS）、SnapMirrorでFSxNに同期、S3 APでAthena分析 |
 | **AI活用** | Rekognition Custom Labels: 欠陥分類、Bedrock: 検査レポート自動生成 |
-| **ビジネス価値** | 検査工程の自動化、人的ミス削減、トレーサビリティ確保 |
+| **期待される効果** | 検査工程の自動化、人的ミス削減、トレーサビリティ確保 |
 
 ### 3.2 物流・倉庫
 
@@ -160,7 +159,7 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 | **データフロー** | Pi → NFS → ONTAP → FPolicy → Lambda → Bedrock Claude Vision |
 | **ONTAP連携** | 在庫マスターデータをONTAP NFS上で管理、FlexCacheでエッジ拠点に配信 |
 | **AI活用** | Claude Vision: 棚の在庫数カウント、欠品検知、配置異常検出 |
-| **ビジネス価値** | 棚卸し工数削減、リアルタイム在庫可視化、欠品アラート |
+| **期待される効果** | 棚卸し工数削減、リアルタイム在庫可視化、欠品アラート |
 
 #### UC-L2: 入出庫トラッキング
 
@@ -171,7 +170,7 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 | **データフロー** | Pi → NFS → ONTAP → FPolicy → Lambda → Rekognition (OCR) → DynamoDB |
 | **ONTAP連携** | 出荷伝票PDFをONTAPに保存、FPolicyで新規ファイル検知→自動OCR処理 |
 | **AI活用** | Rekognition: テキスト検出(バーコード/QR/ラベル)、Bedrock: 伝票内容の構造化 |
-| **ビジネス価値** | 手入力ミス削減、入出庫リードタイム短縮、トレーサビリティ |
+| **期待される効果** | 手入力ミス削減、入出庫リードタイム短縮、トレーサビリティ |
 
 ### 3.3 農業・環境
 
@@ -184,7 +183,7 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 | **データフロー** | Pi → NFS → ONTAP → SnapMirror → FSxN → S3 AP → Athena |
 | **ONTAP連携** | 過去の気象データ・収穫データをONTAPに蓄積、SnapMirrorでFSxNに同期しAthena分析 |
 | **AI活用** | SageMaker: 収穫量予測モデル、Bedrock: 栽培アドバイス生成 |
-| **ビジネス価値** | 収穫量最適化、水・肥料の効率化、異常気象への早期対応 |
+| **期待される効果** | 収穫量最適化、水・肥料の効率化、異常気象への早期対応 |
 
 #### UC-A2: 画像による生育管理
 
@@ -195,7 +194,7 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 | **データフロー** | Pi → NFS → ONTAP → FPolicy → Lambda → Bedrock Claude Vision |
 | **ONTAP連携** | 時系列画像アーカイブをONTAPに保存、年次比較分析に活用 |
 | **AI活用** | Claude Vision: 病害虫検出・生育ステージ判定、NDVI算出 |
-| **ビジネス価値** | 病害虫の早期発見、農薬使用量最適化、収穫タイミング予測 |
+| **期待される効果** | 病害虫の早期発見、農薬使用量最適化、収穫タイミング予測 |
 
 ### 3.4 ビル管理
 
@@ -208,7 +207,7 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 | **データフロー** | Pi → NFS → ONTAP → SnapMirror → FSxN → S3 AP → Athena + QuickSight |
 | **ONTAP連携** | BMS(ビル管理システム)のログをONTAPに集約、長期トレンド分析 |
 | **AI活用** | SageMaker: 電力需要予測、Bedrock: 省エネレポート自動生成 |
-| **ビジネス価値** | 電力コスト削減(10-30%)、快適性維持、カーボンフットプリント可視化 |
+| **期待される効果** | 電力コスト削減(10-30%)、快適性維持、カーボンフットプリント可視化 |
 
 #### UC-B2: 設備異常検知（音声）
 
@@ -219,7 +218,7 @@ ONTAP (エントリー/ミッドレンジ)                             FSx for O
 | **データフロー** | Pi (エッジ推論: 異常スコア算出) → NFS → ONTAP → SnapMirror → FSxN → S3 AP → SageMaker |
 | **ONTAP連携** | 音声データアーカイブをONTAPに保存、正常/異常パターンの学習データとして活用 |
 | **AI活用** | エッジ: TensorFlow Lite (異常スコア)、クラウド: SageMaker (モデル再学習) |
-| **ビジネス価値** | 設備故障の予兆検知、保守コスト削減、テナント満足度向上 |
+| **期待される効果** | 設備故障の予兆検知、保守コスト削減、テナント満足度向上 |
 
 ---
 

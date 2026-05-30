@@ -6,16 +6,16 @@
 
 ---
 
-## 1. Executive Summary
+## 1. Research Overview
 
-This research systematically organizes use cases for collecting data accumulated on NetApp ONTAP (on-premises FAS/AFF or FSx for ONTAP) via IoT devices (Raspberry Pi 5, SORACOM cellular gateways) and leveraging AWS Analytics/AI services.
+Survey and organization of patterns for collecting data accumulated on ONTAP (FAS/AFF, ONTAP Select, FSx for ONTAP) via IoT devices (Raspberry Pi 5, etc.) and leveraging AWS AI/analytics services.
 
-**Key Findings:**
+**What was confirmed:**
 
 1. **Multi-layered ONTAP utilization**: Five axes of application — FPolicy event-driven integration, SnapMirror edge-to-cloud sync, FlexCache low-latency caching, ARP/AI security, and S3 Access Points for direct AWS service connectivity
 2. **FPolicy event-driven pipeline**: Edge devices simply write to ONTAP via NFS/SMB, and FPolicy triggers Lambda for automatic Bedrock analysis — no cloud integration code needed on the device side
-3. **FSx for ONTAP S3 AP strategic positioning**: Using FSxN as the final storage destination for edge-collected data, with S3 AP providing direct connectivity to Athena/Glue/Bedrock/SageMaker, represents the most integrated pattern
-4. **Hardware configuration affinity**: The combination of Raspberry Pi 5 + camera + 3D printer + ONTAP entry-level storage enables immediate PoC construction for manufacturing visual inspection and predictive maintenance
+3. **FSx for ONTAP S3 AP usage pattern**: Using FSxN as the final storage destination for edge-collected data, with S3 AP providing direct connectivity to Athena/Glue/Bedrock/SageMaker, represents the most integrated pattern
+4. **PoC configuration example**: The combination of Raspberry Pi 5 + camera + 3D printer + ONTAP entry-level storage enables immediate PoC construction for manufacturing visual inspection and predictive maintenance
 
 ---
 
@@ -24,18 +24,18 @@ This research systematically organizes use cases for collecting data accumulated
 ### Pattern A: Edge Image Capture → ONTAP → FPolicy → Cloud AI Analysis
 
 ```
-[Edge]                            [ONTAP (Data Hub)]        [Cloud]
-Raspberry Pi 5                   On-premises ONTAP         AWS
-┌─────────────────┐              ┌──────────────────┐     ┌─────────────────────────┐
-│ Camera Module   │──NFS write─→ │ NFS Volume       │     │                         │
-│ (NoIR V2/BRIO)  │              │   ↓              │     │ Lambda (event handler)  │
-│                 │              │ FPolicy (detect) │──→  │   ↓                     │
-│ Pre-processing: │              │   ↓              │     │ Bedrock (Claude Vision) │
-│  - Resize       │              │ Lambda trigger   │     │ Rekognition             │
-│  - JPEG compress│              └──────────────────┘     │   ↓                     │
-│  - Timestamp    │                                       │ DynamoDB (results)      │
-└─────────────────┘                                       │ SNS (alerts)            │
-                                                          └─────────────────────────┘
+[Edge]                     [ONTAP]                  [Cloud (AWS)]
+Raspberry Pi 5             On-premises              
++------------------+       +------------------+     +-------------------------+
+| Camera module    |--NFS->| NFS Volume       |     |                         |
+| (NoIR V2/BRIO)  |       |   |              |     | Lambda                  |
+|                  |       | FPolicy (detect) |---->|   |                     |
+| Pre-process:     |       |   |              |     | Bedrock (Claude Vision) |
+|  - Resize        |       | Lambda trigger   |     | Rekognition             |
+|  - JPEG compress |       +------------------+     |   |                     |
+|  - Timestamp     |                                | DynamoDB (results)      |
++------------------+                                | SNS (alerts)            |
+                                                    +-------------------------+
 ```
 
 **Applicable use cases**: Visual inspection, 3D print quality monitoring, inventory image management, safety equipment verification
@@ -43,19 +43,19 @@ Raspberry Pi 5                   On-premises ONTAP         AWS
 ### Pattern B: Sensor Data → ONTAP → SnapMirror → Cloud Analytics
 
 ```
-[Edge]                            [ONTAP (Data Hub)]        [Cloud]
-Raspberry Pi 5                   On-premises ONTAP         AWS (FSx for ONTAP)
-┌─────────────────┐              ┌──────────────────┐     ┌─────────────────────────┐
-│ Sensor array    │──NFS write─→ │ NFS Volume       │     │ FSxN Volume             │
-│ - Temp/humidity │  (CSV/JSON)   │   ↓              │     │   ↓ S3 Access Point     │
-│ - Vibration     │              │ SnapMirror ──────│──→  │ Athena (SQL analytics)  │
-│ - Current       │              │ (incremental)    │     │ Glue ETL                │
-│ - Pressure      │              └──────────────────┘     │ SageMaker (prediction)  │
-│                 │                                       │ CloudWatch (alerts)     │
-│ Pre-processing: │                                       │ QuickSight (BI)         │
-│ - Aggregation   │                                       └─────────────────────────┘
-│ - Outlier filter│
-└─────────────────┘
+[Edge]                     [ONTAP]                  [Cloud (AWS)]
+Raspberry Pi 5             On-premises              FSx for ONTAP
++------------------+       +------------------+     +-------------------------+
+| Sensors          |--NFS->| NFS Volume       |     | FSxN Volume             |
+|  - Temp/Humidity |       |   |              |     |   | S3 Access Point     |
+|  - Vibration     |       | SnapMirror ------|--->| Athena (SQL)            |
+|  - Current       |       | (incremental)    |     | Glue ETL                |
+|  - Pressure      |       +------------------+     | SageMaker (prediction)  |
+|                  |                                | CloudWatch (alerts)     |
+| Pre-process:     |                                | QuickSight (BI)         |
+|  - Aggregation   |                                +-------------------------+
+|  - Outlier filter|
++------------------+
 ```
 
 **Applicable use cases**: Predictive maintenance, environmental monitoring, HVAC optimization
@@ -63,26 +63,25 @@ Raspberry Pi 5                   On-premises ONTAP         AWS (FSx for ONTAP)
 ### Pattern C: ONTAP Event-Driven → Cloud Processing
 
 ```
-[On-premises ONTAP]              [Cloud]
-ONTAP (Entry/Mid-range)          AWS
-┌─────────────────┐              ┌─────────────────────────┐
-│  FPolicy        │──Lambda──→   │ Lambda (event handler)  │
-│ - File create   │  trigger     │   ↓                     │
-│ - File modify   │              │ Step Functions          │
-│ - File delete   │              │   ├── Glue (ETL)        │
-│                 │              │   ├── Bedrock (analysis)│
-│  REST API       │              │   └── SNS (notify)      │
-│ - Performance   │              │                         │
-│ - Capacity      │              │ FSxN (SnapMirror dest)  │
-│ - Health        │              └─────────────────────────┘
-└─────────────────┘
-       ▲
-       │ NFS/SMB writes
-┌─────────────────┐
-│ Raspberry Pi 5  │
-│ (sensors/camera) │
-│ Telemetry       │
-└─────────────────┘
+[ONTAP]                              [Cloud (AWS)]
+On-premises                          
++---------------------+              +-------------------------+
+| FPolicy             |--Lambda----->| Lambda                  |
+|  - File create      |  trigger     |   |                     |
+|  - File modify      |              | Step Functions          |
+|  - File delete      |              |   +-- Glue (ETL)        |
+|                     |              |   +-- Bedrock (analysis) |
+| REST API            |              |   +-- SNS (notify)       |
+|  - Performance      |              |                         |
+|  - Capacity         |              | FSxN (SnapMirror dest)  |
+|  - Health           |              +-------------------------+
++---------------------+
+         ^
+         | NFS/SMB writes
++---------------------+
+| Raspberry Pi 5      |
+| (sensors/camera)    |
++---------------------+
 ```
 
 **Applicable use cases**: File-arrival triggered processing, storage health monitoring, data lifecycle management
@@ -90,17 +89,17 @@ ONTAP (Entry/Mid-range)          AWS
 ### Pattern D: SnapMirror/FlexCache Hybrid Data Sync
 
 ```
-[On-premises]                                              [Cloud]
-ONTAP (Entry/Mid-range)                                    FSx for ONTAP
-┌─────────────────┐                                       ┌─────────────────────────┐
-│ Factory data    │                                       │ FSxN Volume             │
-│ - Inspection img│──SnapMirror (async)───────────────→   │   ↓ S3 Access Point     │
-│ - Sensor CSV    │                                       │ Athena (SQL analytics)  │
-│ - Equipment logs│                                       │ Glue (ETL/catalog)      │
-│                 │                                       │ Bedrock (RAG)           │
-│ FlexCache       │←───────────────────────────────────── │ AI inference results    │
-│ (ref results)   │                                       │ SageMaker model output  │
-└─────────────────┘                                       └─────────────────────────┘
+[On-premises]                                       [Cloud (AWS)]
+ONTAP                                               FSx for ONTAP
++---------------------+                             +-------------------------+
+| Factory data        |                             | FSxN Volume             |
+|  - Inspection imgs  |--SnapMirror (async)-------->|   | S3 Access Point     |
+|  - Sensor CSV       |                             | Athena (SQL)            |
+|  - Equipment logs   |                             | Glue (ETL/catalog)      |
+|                     |                             | Bedrock (RAG)           |
+| FlexCache           |<----------------------------| AI inference results    |
+|  (ref results)      |                             | SageMaker model output  |
++---------------------+                             +-------------------------+
 ```
 
 **Applicable use cases**: Staged cloud migration of large datasets, edge AI result reference, DR/BCP
@@ -123,7 +122,7 @@ ONTAP (Entry/Mid-range)                                    FSx for ONTAP
 | **Data flow** | Pi → NFS → ONTAP → FPolicy → Lambda → Bedrock Claude Vision → SNS notification |
 | **ONTAP integration** | Store 3D models (STL/3MF) on ONTAP NFS share; FPolicy detects new files → auto-queue print jobs |
 | **AI usage** | Claude Vision: detect stringing, layer delamination, nozzle clogging |
-| **Business value** | Early failure detection during unattended printing, filament waste reduction, improved print success rate |
+| **Expected outcome** | Early failure detection during unattended printing, filament waste reduction, improved print success rate |
 | **Bandwidth estimate** | 30-sec interval capture × 1080p JPEG (~300KB/image) = ~600KB/min = ~36MB/hour. No bandwidth constraints over wired LAN. Cellular (if used): ~¥50-100/day (SORACOM plan-D) |
 | **Success metrics** | Detection accuracy ≥80%, capture-to-alert ≤60s, false positive rate ≤10% |
 
@@ -136,7 +135,7 @@ ONTAP (Entry/Mid-range)                                    FSx for ONTAP
 | **Data flow** | Pi → NFS → ONTAP → SnapMirror → FSxN → S3 AP → SageMaker |
 | **ONTAP integration** | Simultaneously collect disk IOPS/latency via ONTAP REST API for correlation analysis |
 | **AI usage** | SageMaker: time-series anomaly detection (Random Cut Forest); Bedrock: root cause diagnosis report generation |
-| **Business value** | Reduce unplanned downtime, optimize part replacement timing |
+| **Expected outcome** | Reduce unplanned downtime, optimize part replacement timing |
 
 #### UC-M3: Automated Visual Inspection
 
@@ -147,7 +146,7 @@ ONTAP (Entry/Mid-range)                                    FSx for ONTAP
 | **Data flow** | Pi → NFS → ONTAP → FPolicy → Lambda → Rekognition Custom Labels / Bedrock |
 | **ONTAP integration** | Store inspection images on ONTAP (NFS), SnapMirror to FSxN, analyze via S3 AP with Athena |
 | **AI usage** | Rekognition Custom Labels: defect classification; Bedrock: automated inspection report generation |
-| **Business value** | Inspection process automation, human error reduction, traceability |
+| **Expected outcome** | Inspection process automation, human error reduction, traceability |
 
 ### 3.2 Logistics & Warehousing
 
@@ -160,7 +159,7 @@ ONTAP (Entry/Mid-range)                                    FSx for ONTAP
 | **Data flow** | Pi → NFS → ONTAP → FPolicy → Lambda → Bedrock Claude Vision |
 | **ONTAP integration** | Manage inventory master data on ONTAP NFS, distribute to edge sites via FlexCache |
 | **AI usage** | Claude Vision: shelf inventory counting, stockout detection, placement anomaly detection |
-| **Business value** | Reduced stocktaking labor, real-time inventory visibility, stockout alerts |
+| **Expected outcome** | Reduced stocktaking labor, real-time inventory visibility, stockout alerts |
 
 #### UC-L2: Inbound/Outbound Tracking
 
@@ -171,7 +170,7 @@ ONTAP (Entry/Mid-range)                                    FSx for ONTAP
 | **Data flow** | Pi → NFS → ONTAP → FPolicy → Lambda → Rekognition (OCR) → DynamoDB |
 | **ONTAP integration** | Store shipping document PDFs on ONTAP; FPolicy detects new files → auto-OCR processing |
 | **AI usage** | Rekognition: text detection (barcode/QR/labels); Bedrock: document content structuring |
-| **Business value** | Reduced manual entry errors, shortened lead times, traceability |
+| **Expected outcome** | Reduced manual entry errors, shortened lead times, traceability |
 
 ### 3.3 Agriculture & Environment
 
@@ -184,7 +183,7 @@ ONTAP (Entry/Mid-range)                                    FSx for ONTAP
 | **Data flow** | Pi → NFS → ONTAP → SnapMirror → FSxN → S3 AP → Athena |
 | **ONTAP integration** | Accumulate historical weather/harvest data on ONTAP, SnapMirror to FSxN for Athena analysis |
 | **AI usage** | SageMaker: yield prediction model; Bedrock: cultivation advice generation |
-| **Business value** | Yield optimization, water/fertilizer efficiency, early response to abnormal weather |
+| **Expected outcome** | Yield optimization, water/fertilizer efficiency, early response to abnormal weather |
 
 #### UC-A2: Image-Based Growth Management
 
@@ -195,7 +194,7 @@ ONTAP (Entry/Mid-range)                                    FSx for ONTAP
 | **Data flow** | Pi → NFS → ONTAP → FPolicy → Lambda → Bedrock Claude Vision |
 | **ONTAP integration** | Store time-series image archives on ONTAP for year-over-year comparative analysis |
 | **AI usage** | Claude Vision: pest/disease detection, growth stage classification, NDVI calculation |
-| **Business value** | Early pest/disease discovery, pesticide usage optimization, harvest timing prediction |
+| **Expected outcome** | Early pest/disease discovery, pesticide usage optimization, harvest timing prediction |
 
 ### 3.4 Building Management
 
@@ -208,7 +207,7 @@ ONTAP (Entry/Mid-range)                                    FSx for ONTAP
 | **Data flow** | Pi → NFS → ONTAP → SnapMirror → FSxN → S3 AP → Athena + QuickSight |
 | **ONTAP integration** | Aggregate BMS (Building Management System) logs on ONTAP for long-term trend analysis |
 | **AI usage** | SageMaker: power demand forecasting; Bedrock: automated energy-saving report generation |
-| **Business value** | Power cost reduction (10-30%), comfort maintenance, carbon footprint visibility |
+| **Expected outcome** | Power cost reduction (10-30%), comfort maintenance, carbon footprint visibility |
 
 #### UC-B2: Equipment Anomaly Detection (Audio)
 
@@ -219,7 +218,7 @@ ONTAP (Entry/Mid-range)                                    FSx for ONTAP
 | **Data flow** | Pi (edge inference: anomaly score) → NFS → ONTAP → SnapMirror → FSxN → S3 AP → SageMaker |
 | **ONTAP integration** | Store audio data archives on ONTAP as training data for normal/anomaly pattern learning |
 | **AI usage** | Edge: TensorFlow Lite (anomaly score); Cloud: SageMaker (model retraining) |
-| **Business value** | Equipment failure precursor detection, maintenance cost reduction, tenant satisfaction |
+| **Expected outcome** | Equipment failure precursor detection, maintenance cost reduction, tenant satisfaction |
 
 ---
 
