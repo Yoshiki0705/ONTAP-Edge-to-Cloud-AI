@@ -10,7 +10,7 @@
 
 | Principle | Rationale |
 |-----------|-----------|
-| JSON as standard message format | Compatibility with SORACOM / AWS IoT Core / Kinesis |
+| JSON as standard message format | Highly versatile — readable as files on ONTAP NFS and directly queryable by AWS services (Athena, Glue) |
 | S3 stores Parquet (analytics) + raw JSON/JPEG (archive) | Balance between Athena query performance and data preservation |
 | Partition by date + device ID | Supports both time-series queries and per-device filtering |
 | Introduce schema versioning | Enable field additions while maintaining backward compatibility |

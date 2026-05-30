@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 # Add edge code to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "edge" / "raspberry-pi" / "camera"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "edge" / "raspberry-pi" / "camera" / "_cellular_fallback"))
 
 from buffer import MessageBuffer
 from config import BufferConfig

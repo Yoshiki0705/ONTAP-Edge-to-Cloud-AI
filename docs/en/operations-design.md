@@ -14,7 +14,7 @@
 | SLI | Definition | Measurement | Scope |
 |-----|-----------|-------------|-------|
 | Capture success rate | Proportion of successful capture attempts | `captures_success / captures_total` | Edge (Pi) |
-| Upload success rate | Proportion of successful upload attempts | `uploads_success / uploads_total` | Edge → Cloud |
+| NFS write success rate | Proportion of successful NFS write attempts | `nfs_writes_success / nfs_writes_total` | Edge → ONTAP |
 | Analysis response time | Time from image upload to alert issuance | Lambda Duration + Bedrock latency | Cloud |
 | Alert delivery success rate | Proportion of SNS publishes successfully delivered | `sns_delivered / sns_published` | Cloud |
 | Device uptime | Proportion of expected health reports received | `heartbeats_received / heartbeats_expected` | Edge |
@@ -24,7 +24,7 @@
 | SLO | Target | Measurement Period | Error Budget |
 |-----|--------|-------------------|--------------|
 | Capture success rate | ≥ 99.5% | 30 days | 7.2 hours/month downtime allowed |
-| Upload success rate | ≥ 99.0% | 30 days | 14.4 hours/month (absorbed by buffer) |
+| NFS write success rate | ≥ 99.0% | 30 days | 14.4 hours/month (absorbed by local buffer) |
 | Analysis response (p95) | ≤ 30 seconds | 30 days | 5% of requests may exceed 30s |
 | Alert delivery success rate | ≥ 99.9% | 30 days | 43 seconds/month delivery failure allowed |
 | Device uptime | ≥ 95.0% | 30 days | 36 hours/month downtime allowed |
@@ -34,7 +34,7 @@
 | SLO | Action on Violation |
 |-----|-------------------|
 | Capture success < 99.5% | Check camera connection, reboot Pi, consider camera replacement |
-| Upload success < 99.0% | Check network, verify SORACOM status, check buffer state |
+| Upload success < 99.0% | Check NFS mount, verify ONTAP status, check network |
 | Analysis response > 30s (p95) | Check Bedrock throttling, optimize image size |
 | Device uptime < 95.0% | Check Pi hardware, power stability, OS updates |
 
@@ -68,7 +68,7 @@ Include `message_id` in all logs and metrics for cross-service tracing:
 
 ```
 [Pi: capture] message_id=abc-123 → 
-[SORACOM: upload] message_id=abc-123 →
+[ONTAP: NFS write] message_id=abc-123 →
 [Lambda: analyze] message_id=abc-123 →
 [Bedrock: invoke] message_id=abc-123 →
 [SNS: alert] message_id=abc-123
