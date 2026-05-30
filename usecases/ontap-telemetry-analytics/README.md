@@ -2,25 +2,35 @@
 
 > ONTAP REST API からパフォーマンスメトリクスを収集し、容量予測・異常検知を行う
 
-## 概要
-
-Raspberry Pi が ONTAP REST API を定期ポーリングし、IOPS/レイテンシ/容量/CPU 等のメトリクスを
-ONTAP NFS ボリュームに JSON で蓄積。SnapMirror で FSx for ONTAP に同期し、S3 AP 経由で
-Athena/SageMaker による分析・予測を行う。
-
 ## アーキテクチャ
 
-```
-[Raspberry Pi 5]          [ONTAP]                [AWS]
-+----------------+        +----------------+     +------------------------+
-| REST API poll  |--HTTPS->| (self)         |     | FSx for ONTAP          |
-|  /cluster/     |        |                |     |   | S3 Access Point    |
-|  /volumes/     |        | NFS Volume     |     |   |                    |
-|  /nodes/       |        |  /telemetry/   |     | Athena (SQL query)     |
-|   |            |--NFS-->|   YYYY/MM/DD/  |     | SageMaker (prediction) |
-| Save JSON      |        |                |     | Bedrock (report gen)   |
-| (1-min interval)|        | SnapMirror ----|---->| CloudWatch (dashboard) |
-+----------------+        +----------------+     +------------------------+
+```mermaid
+flowchart LR
+    subgraph Edge
+        Pi[Raspberry Pi 5]
+    end
+    subgraph ONTAP[ONTAP On-premises]
+        API[REST API]
+        NFS[NFS Volume<br/>/vol_telemetry]
+        SM[SnapMirror]
+    end
+    subgraph AWS
+        FSx[FSx for ONTAP]
+        S3AP[S3 Access Point]
+        Glue[Glue ETL<br/>JSON→Parquet]
+        Athena[Athena SQL]
+        SM2[SageMaker<br/>Prediction]
+        CW[CloudWatch<br/>Dashboard]
+    end
+    Pi -->|HTTPS poll| API
+    Pi -->|NFS write JSON| NFS
+    NFS -->|SnapMirror| SM
+    SM --> FSx
+    FSx --> S3AP
+    S3AP --> Glue
+    Glue --> Athena
+    S3AP --> SM2
+    Pi -.->|metrics| CW
 ```
 
 ## 使用パターン

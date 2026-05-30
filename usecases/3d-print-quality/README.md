@@ -2,30 +2,37 @@
 
 > カメラ画像を ONTAP に保存し、Bedrock Claude Vision で印刷品質を自動検査する
 
-## 概要
-
-FDM 3Dプリンターの印刷中に Raspberry Pi + USB カメラで定期撮影し、ONTAP NFS に保存。
-Pi が Lambda を直接呼び出し、Bedrock Claude Vision で品質異常（糸引き、層間剥離、ノズル詰まり等）を検出する。
-
 ## アーキテクチャ
 
+```mermaid
+flowchart LR
+    subgraph Edge
+        Pi[Raspberry Pi 5]
+        Cam[USB Camera]
+        Cam --> Pi
+    end
+    subgraph ONTAP
+        NFS[NFS Volume<br/>/vol_images]
+        Results[NFS Volume<br/>/vol_results]
+    end
+    subgraph AWS
+        S3[S3 Bucket]
+        Lambda[Lambda<br/>2-Stage Analysis]
+        Haiku[Haiku<br/>Screening]
+        Sonnet[Sonnet<br/>Detail]
+        Bedrock[Bedrock<br/>Claude Vision]
+        SNS[SNS Alert]
+    end
+    Pi -->|NFS write| NFS
+    Pi -->|S3 PUT PoC| S3
+    Pi -->|invoke| Lambda
+    Lambda --> Haiku
+    Haiku -->|anomaly?| Sonnet
+    Sonnet --> Bedrock
+    Lambda -->|alert| SNS
+    Lambda -->|result| S3
+    Pi -->|save result| Results
 ```
-[Raspberry Pi 5]          [ONTAP]                [AWS]
-+----------------+        +----------------+     +------------------------+
-| USB Camera     |        | NFS Volume     |     | S3 (PoC shortcut)      |
-|   |            |--NFS-->|  /images/      |     |   |                    |
-| Capture (60s)  |        |  /results/     |     | Lambda (2-stage)       |
-|   |            |        +----------------+     |   +-- Haiku (screen)   |
-| Save to ONTAP  |                               |   +-- Sonnet (detail)  |
-|   |            |--S3 PUT (PoC)---------------->|   |                    |
-| Invoke Lambda  |--Lambda invoke--------------->| Bedrock Claude Vision  |
-|   |            |                               |   |                    |
-| Save result    |                               | SNS (alert)            |
-+----------------+                               +------------------------+
-```
-
-> **Note**: PoC Phase 1 では Pi が S3 に直接 PUT + Lambda invoke する。
-> 本番構成では ONTAP → SnapMirror → FSx for ONTAP → S3 AP 経由で Lambda がアクセスする。
 
 ## 使用パターン
 
