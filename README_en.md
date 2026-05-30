@@ -7,34 +7,36 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Yoshiki0705/ontap-edge-to-cloud-ai/badge)](https://scorecard.dev/viewer/?uri=github.com/Yoshiki0705/ontap-edge-to-cloud-ai)
 
-**TL;DR**: Building a system to connect underutilized inspection images and sensor data on NAS to AI analytics — without copying data. Raspberry Pi collects data, writes to ONTAP, and connects directly to Bedrock/Athena via S3 Access Points.
+**TL;DR**: IoT devices (cameras, sensors, etc.) at field sites generate data that tends to be scattered and siloed per device or per site. This project validates an approach to aggregate that data into ONTAP and connect it to AWS AI/analytics services via S3 Access Points, enabling cross-organizational data utilization.
 
 > **Disclaimer**: This is a personal technical exploration project and does not represent official views or recommendations of any organization. It does not recommend purchasing any specific product.
 
 ## The Problem
 
-Factories and sites accumulate inspection images, equipment logs, and sensor data on NAS storage daily. In most cases, this data is "just stored" — not analyzed or leveraged by AI.
+At factories and field sites, IoT devices (cameras, sensors, control PCs, etc.) generate data daily. In most cases, this data is scattered per device or per site, creating silos.
 
 **Common situations:**
-- Terabytes of inspection images on NAS, used only for manual visual review
-- Equipment logs are saved but failure precursors go undetected
-- Want to analyze data with cloud AI services, but full copy to cloud is impractical
-- Want to integrate edge device (camera, sensor) data with existing storage infrastructure
+- Camera images in printer's built-in cloud, sensor data on Pi's SD card, equipment logs on Windows PC — all in different places
+- No way to cross-analyze data between Site A and Site B
+- Individual device data is visible, but the big picture (correlation, trends) is not
+- Want to use AI for analysis, but data is too scattered to build a pipeline
 
 ## This Project's Approach
 
-Use existing ONTAP NAS as the data aggregation point. Edge devices write collected data via NFS/SMB, then connect to cloud AI/analytics services through ONTAP capabilities.
+Aggregate scattered IoT data into ONTAP, then enable cross-organizational data utilization via AWS AI/analytics services.
 
 **Key points:**
-- No full data copy to S3 (direct access via ONTAP S3 Access Points)
-- Existing file workflows (NFS/SMB) remain unchanged
-- File arrival triggers automated analysis (FPolicy)
-- Edge → cloud sync uses incremental transfer (SnapMirror)
+- Edge devices simply write to ONTAP via NFS/SMB (device-side implementation stays simple)
+- ONTAP becomes the data aggregation point, eliminating silos
+- S3 Access Points provide direct AWS service access to aggregated data (no data copying)
+- SnapMirror for inter-site and edge→cloud data synchronization
+- FPolicy triggers automated analysis on file arrival
 
 ### Target Audience
 
-- **Existing ONTAP users**: Want to leverage NAS data with AI/analytics
-- **IoT/Edge developers**: Want to integrate edge device data with existing storage
+- **IoT/Edge developers**: Looking for ways to aggregate and utilize device-generated data
+- **Data utilization advocates**: Want to break down data silos and enable cross-organizational analysis
+- **Existing ONTAP users**: Want to use ONTAP as an IoT data aggregation point
 - **AWS users**: Want to use Athena/Bedrock/SageMaker with non-S3 storage sources
 
 ### What If I Don't Have ONTAP?
