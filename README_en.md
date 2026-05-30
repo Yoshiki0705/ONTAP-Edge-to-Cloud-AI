@@ -98,9 +98,11 @@ This architecture assumes ONTAP, but the core pattern (edge collection → aggre
 
 ## Motivation
 
-As an SA/SE visiting customer sites, I repeatedly heard "we have data on NAS but can't leverage it." With the following technologies maturing in 2024-2025, a practical solution became feasible for the first time:
+As an SA/SE visiting customer sites, I repeatedly heard "IoT device and sensor data is scattered per site and per device — we can't analyze it across the organization." The data is being generated, but silos prevent utilization.
 
-- **FSx for ONTAP S3 Access Points** (2025 GA): S3 API access to ONTAP data without copying
+With the following technologies maturing in 2024-2025, I believe "aggregation → cross-analysis" became achievable at low cost, and started this validation:
+
+- **FSx for ONTAP S3 Access Points** (2025 GA): S3 API access to aggregated data without copying
 - **Claude Vision / Multimodal AI**: Industrial image judgment at practical accuracy with generic prompts
 - **Raspberry Pi 5 (16GB)**: Edge pre-processing and lightweight inference at practical performance
 
