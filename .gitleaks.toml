@@ -40,4 +40,5 @@ paths = [
   '''.*\.example$''',
   '''.*\.md$''',
   '''cloud/fsxn/template\.yaml$''',
+  '''\.github/workflows/.*\.yml$''',
 ]

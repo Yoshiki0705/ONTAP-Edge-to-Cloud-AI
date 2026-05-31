@@ -1,0 +1,97 @@
+name: Security & Privacy Check
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  sensitive-data-check:
+    name: "Sensitive Data Scan"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Check .kiro/ not tracked
+        run: |
+          result=$(git ls-files .kiro/ 2>/dev/null || true)
+          if [ -n "$result" ]; then
+            echo "::error::.kiro/ directory is tracked by git"
+            exit 1
+          fi
+          echo "✅ .kiro/ not tracked"
+
+      - name: Check .env files not tracked
+        run: |
+          result=$(git ls-files .env .env.local '.env.*' 2>/dev/null || true)
+          if [ -n "$result" ]; then
+            echo "::error::.env files are tracked by git: $result"
+            exit 1
+          fi
+          echo "✅ .env files not tracked"
+
+      - name: Check .pem files not tracked
+        run: |
+          result=$(git ls-files '*.pem' 2>/dev/null || true)
+          if [ -n "$result" ]; then
+            echo "::error::.pem files are tracked by git: $result"
+            exit 1
+          fi
+          echo "✅ .pem files not tracked"
+
+      - name: Check no personal file paths with secrets
+        run: |
+          result=$(git ls-files | xargs grep -rln '/Users/.*\.pem' 2>/dev/null || true)
+          if [ -n "$result" ]; then
+            echo "::error::Personal .pem paths found in: $result"
+            exit 1
+          fi
+          echo "✅ No personal .pem paths"
+
+      - name: Check no real AWS account ID
+        env:
+          SECURITY_CHECK_ACCOUNT_ID: ${{ secrets.SECURITY_CHECK_ACCOUNT_ID }}
+        run: |
+          if [ -z "$SECURITY_CHECK_ACCOUNT_ID" ]; then
+            echo "⚠️ SECURITY_CHECK_ACCOUNT_ID secret not set — skipping"
+            exit 0
+          fi
+          result=$(git ls-files | xargs grep -rl "$SECURITY_CHECK_ACCOUNT_ID" 2>/dev/null || true)
+          if [ -n "$result" ]; then
+            echo "::error::Real AWS account ID found in: $result"
+            exit 1
+          fi
+          echo "✅ No real AWS account ID in tracked files"
+
+      - name: Check no hardcoded real IPs
+        run: |
+          result=$(git ls-files | xargs grep -rln '3\.112\.208\.171\|13\.113\.190\.197' 2>/dev/null || true)
+          if [ -n "$result" ]; then
+            echo "::error::Real IP addresses found in: $result"
+            exit 1
+          fi
+          echo "✅ No known real IPs in tracked files"
+
+      - name: Check no persona names in public content
+        run: |
+          result=$(git ls-files | xargs grep -riln 'Matsushita\|Kawahara\|Yakio\|Takizawa\|Kobayashi\|Hikita\|Kuramitsu\|Yamaguchi' 2>/dev/null || true)
+          if [ -n "$result" ]; then
+            echo "::error::Persona names found in public content: $result"
+            exit 1
+          fi
+          echo "✅ No persona names in public content"
+
+      - name: Check no promotional language
+        run: |
+          patterns='industry-leading\|best-in-class\|unmatched\|revolutionary\|dramatically'
+          result=$(git ls-files '*.md' | xargs grep -riln "$patterns" 2>/dev/null || true)
+          if [ -n "$result" ]; then
+            echo "::warning::Potential promotional language in: $result"
+          fi
+          echo "✅ Promotional language check complete"
