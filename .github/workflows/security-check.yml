@@ -47,7 +47,7 @@ jobs:
 
       - name: Check no personal file paths with secrets
         run: |
-          result=$(git ls-files | xargs grep -rln '/Users/.*\.pem' 2>/dev/null || true)
+          result=$(git ls-files | grep -v '.github/workflows/' | xargs grep -rln '/Users/.*\.pem' 2>/dev/null || true)
           if [ -n "$result" ]; then
             echo "::error::Personal .pem paths found in: $result"
             exit 1
@@ -80,7 +80,7 @@ jobs:
 
       - name: Check no persona names in public content
         run: |
-          result=$(git ls-files | xargs grep -riln 'Matsushita\|Kawahara\|Yakio\|Takizawa\|Kobayashi\|Hikita\|Kuramitsu\|Yamaguchi' 2>/dev/null || true)
+          result=$(git ls-files | grep -v '.github/workflows/' | xargs grep -riln 'Matsushita\|Kawahara\|Yakio\|Takizawa\|Kobayashi\|Hikita\|Kuramitsu\|Yamaguchi' 2>/dev/null || true)
           if [ -n "$result" ]; then
             echo "::error::Persona names found in public content: $result"
             exit 1
