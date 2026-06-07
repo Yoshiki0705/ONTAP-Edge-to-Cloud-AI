@@ -16,6 +16,11 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "edge" / "raspberry-pi" / "sensors"))
 
+# Test constants — use .invalid TLD (RFC 6761) to avoid gitleaks false positives
+TEST_ONTAP_HOST = "ontap.test.invalid"
+TEST_ONTAP_USER = "svc-iot-telemetry"
+TEST_ONTAP_PASSWORD = "test-password"
+
 
 # Realistic ONTAP REST API mock responses
 MOCK_CLUSTER_RESPONSE = {
@@ -94,7 +99,7 @@ class TestONTAPTelemetryE2E:
     """End-to-end tests for the ONTAP telemetry pipeline."""
 
     @patch.dict("os.environ", {
-        "ONTAP_HOST": "192.0.2.10",
+        "ONTAP_HOST": "ontap.test.invalid",
         "ONTAP_USER": "svc-iot-telemetry",
         "ONTAP_PASSWORD": "test-password",
         "ONTAP_VERIFY_SSL": "false",
@@ -108,7 +113,7 @@ class TestONTAPTelemetryE2E:
         import ontap_telemetry as ot
         importlib.reload(ot)
 
-        client = ot.ONTAPClient("192.0.2.10", "svc-iot-telemetry", "test-password", verify_ssl=False)
+        client = ot.ONTAPClient(TEST_ONTAP_HOST, "svc-iot-telemetry", "test-password", verify_ssl=False)
 
         # Mock all ONTAP API calls
         def mock_get(url, **kwargs):
@@ -170,7 +175,7 @@ class TestONTAPTelemetryE2E:
                 assert success is True
 
     @patch.dict("os.environ", {
-        "ONTAP_HOST": "192.0.2.10",
+        "ONTAP_HOST": "ontap.test.invalid",
         "ONTAP_USER": "svc-iot-telemetry",
         "ONTAP_PASSWORD": "test-password",
         "DEVICE_ID": "rpi5-e2e-test",
@@ -194,7 +199,7 @@ class TestONTAPTelemetryE2E:
             assert success is False
 
     @patch.dict("os.environ", {
-        "ONTAP_HOST": "192.0.2.10",
+        "ONTAP_HOST": "ontap.test.invalid",
         "ONTAP_USER": "svc-iot-telemetry",
         "ONTAP_PASSWORD": "test-password",
         "DEVICE_ID": "rpi5-e2e-test",
@@ -217,7 +222,7 @@ class TestONTAPTelemetryE2E:
             assert success is False
 
     @patch.dict("os.environ", {
-        "ONTAP_HOST": "192.0.2.10",
+        "ONTAP_HOST": "ontap.test.invalid",
         "ONTAP_USER": "svc-iot-telemetry",
         "ONTAP_PASSWORD": "test-password",
         "DEVICE_ID": "rpi5-e2e-test",
@@ -228,7 +233,7 @@ class TestONTAPTelemetryE2E:
         import ontap_telemetry as ot
         importlib.reload(ot)
 
-        client = ot.ONTAPClient("192.0.2.10", "svc-iot-telemetry", "test-password", verify_ssl=False)
+        client = ot.ONTAPClient(TEST_ONTAP_HOST, "svc-iot-telemetry", "test-password", verify_ssl=False)
 
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
@@ -253,7 +258,7 @@ class TestONTAPTelemetryE2E:
             assert volumes[0]["metrics"]["capacity_used_percent"] == 75.0
 
     @patch.dict("os.environ", {
-        "ONTAP_HOST": "192.0.2.10",
+        "ONTAP_HOST": "ontap.test.invalid",
         "ONTAP_USER": "svc-iot-telemetry",
         "ONTAP_PASSWORD": "test-password",
         "DEVICE_ID": "rpi5-e2e-test",

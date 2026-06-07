@@ -8,7 +8,7 @@ AUTHOR_EMAIL=$(git config user.email)
 if [[ ! "$AUTHOR_EMAIL" =~ @(netapp\.com|gmail\.com)$ ]]; then
   echo "❌ ERROR: Author email must be @netapp.com or @gmail.com"
   echo "   Current: $AUTHOR_EMAIL"
-  echo "   Fix: git config user.email 'your-email@netapp.com'"
+  echo "   Fix: git config user.email '<your-verified-email>'"
   exit 1
 fi
 
