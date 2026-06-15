@@ -7,7 +7,7 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Yoshiki0705/ontap-edge-to-cloud-ai/badge)](https://scorecard.dev/viewer/?uri=github.com/Yoshiki0705/ontap-edge-to-cloud-ai)
 
-**TL;DR**: 現場の IoT デバイス（カメラ、センサー等）が生成するデータは、デバイスごと・拠点ごとに分散しがちです。ONTAP にデータを集約し、S3 Access Points 経由で AWS AI/分析サービスに接続することで、組織横断でのデータ活用を実現する仕組みを検証しています。
+**TL;DR**: 現場の IoT デバイスが生成するデータの分散・サイロ化を、ONTAP への集約 + Kafka/ClickHouse によるリアルタイム分析 + AWS AI で解消し、組織横断のデータ活用を実現する仕組みを検証しています。
 
 > **免責事項**: 本プロジェクトは個人の技術検証活動であり、所属組織の公式見解・推奨を示すものではありません。特定製品の購入を推奨するものでもありません。
 
@@ -28,15 +28,23 @@
 
 ## このプロジェクトのアプローチ
 
-分散した IoT データを ONTAP に集約し、クラウド/SaaS のツール・サービスを活用して、組織横断のデータ分析・AI活用を実現します。
+分散した IoT データを ONTAP に集約し、Kafka + ClickHouse でリアルタイム分析、AWS AI で画像判定を行うハイブリッドパイプラインです。
 
-**ポイント:**
-- エッジデバイスは NFS/SMB で ONTAP に書き込むだけ（デバイス側の実装はシンプル）
-- ONTAP がデータの集約点となり、サイロ化を解消
-- **分析・AI・ガバナンスはクラウドサービスに委ねる**（オンプレに分析基盤を構築する代わりに、AWS Athena/Bedrock/Glue 等を利用し、データ活用に直接着手）
-- S3 Access Points で集約データに AWS サービスから直接アクセス（データコピー不要）
-- SnapMirror で拠点間・エッジ→クラウドのデータ同期
-- FPolicy でファイル到着をトリガーに自動分析
+**データフロー:**
+1. エッジデバイスは NFS で ONTAP に書き込む（ペイロード: 画像、CSV）
+2. 同時に Kafka に構造化イベントを publish（メタデータ: いつ、どこで、何を）
+3. ClickHouse が Kafka からリアルタイムに取り込み、ダッシュボード・異常検知を提供
+4. AWS Bedrock (Lambda) が画像を AI 分析し、品質判定を返す
+5. Databricks が curated データセットを管理し、AI 学習データを生成
+
+**Before → After:**
+
+| | Before | After |
+|---|--------|-------|
+| データ | デバイスごとにサイロ化 | ONTAP に集約、Kafka で流通 |
+| 分析 | 手段がない（ツールから構築が必要） | ClickHouse で即座にダッシュボード表示 |
+| 異常検知 | 人による目視（無人時は不可） | AI が 60 秒以内に自動検出・アラート |
+| 横断分析 | 不可能 | Databricks で全拠点の品質トレンドを統合 |
 
 ### 対象読者
 
@@ -63,26 +71,29 @@
 ## アーキテクチャ
 
 ```
-[Edge Devices]              [ONTAP (Aggregation)]           [AI / Analytics]
-                            FAS/AFF | ONTAP Select | FSx for ONTAP
-+------------------+        +----------------------+        +---------------------+
-| Raspberry Pi 5   |--NFS-->|                      |        | AWS                 |
-|   Camera         |        |  Inspection images   |--S3 AP>|   Bedrock (GenAI)   |
-|   Sensors        |        |  Sensor CSV          |        |   SageMaker (ML)    |
-+------------------+        |  Equipment logs      |--SM--->|   Athena (SQL)      |
-| 3D Printer       |--SMB-->|  3D models           |        |   Glue (ETL)        |
-+------------------+        |                      |        |   QuickSight (BI)   |
-| USB Camera       |--NFS-->|  FPolicy (events)    |        +---------------------+
-+------------------+        |  REST API (telemetry)|        | Local AI            |
-                            |  ARP/AI (protection) |        |   GPU Server        |
-[Connectivity]              |  Snapshot (preserve) |        |   Pi Edge Inference |
-|- Wired LAN (10GbE)        +----------------------+        +---------------------+
-|- Wi-Fi
-|- SORACOM Cellular (option)
-|- SORACOM S+ Camera (option)
-
-SM = SnapMirror --> FSx for ONTAP --> S3 AP
+[Edge Devices]              [ONTAP (Aggregation)]       [Real-Time Ops]       [AI / Analytics]
+                            FAS/AFF|Select|FSx for ONTAP  On-prem VMs           AWS Cloud
++------------------+        +--------------------+      +---------------+      +------------------+
+| Raspberry Pi 5   |--NFS-->| Inspection images  |      | Kafka         |      | Bedrock (GenAI)  |
+|   Camera         |        | Sensor CSV         |      |  (events)     |      | Athena (SQL)     |
+|   Sensors        |--Kafka>| Equipment logs     |      | ClickHouse    |      | Glue (ETL)       |
++------------------+        | 3D models          |      |  (analytics)  |      | SageMaker (ML)   |
+| 3D Printer       |--SMB-->|                    |      +---------------+      +------------------+
++------------------+        | FPolicy (trigger)  |            |                       |
+                            | REST API (metrics) |            v                       v
+[Connectivity]              | ONTAP S3 (backup)  |      [Dashboards]           [Databricks]
+|- Wired LAN (10GbE)        | ARP/AI (protect)   |      Anomaly detection     Unity Catalog
+|- Wi-Fi                    | Snapshot (preserve) |      Quality trends        Gold datasets
+|- Cellular (option)        +--------------------+      Payload lookup         Feature tables
+                                    |
+                                    |--SnapMirror--> FSx for ONTAP --> S3 AP --> AWS AI
 ```
+
+**データの流れ:**
+- **ペイロード** (画像、CSV、ログ): エッジ → NFS → ONTAP (保存)
+- **イベント** (メタデータ): エッジ → Kafka → ClickHouse (リアルタイム分析)
+- **AI分析**: ONTAP → S3 AP → Bedrock / Lambda (品質判定)
+- **バックアップ**: ClickHouse → ONTAP S3 (S3互換ストレージ)
 
 ### エッジデバイス（選択肢）
 
@@ -134,12 +145,16 @@ SA/SE として顧客の現場を訪問する中で、「IoT デバイスやセ�
 
 | コンポーネント | ステータス | 備考 |
 |--------------|-----------|------|
-| AWS インフラ (CFn) | ✅ デプロイ済 | S3, Kinesis, Lambda, IAM, Glue, SNS |
-| Lambda (2段階AI分析) | ✅ デプロイ済 | Haiku スクリーニング + Sonnet 詳細 (コスト85%削減) |
+| エッジカメラコード | ✅ 実装済 | simple_capture.py (NFS + Kafka + Lambda) |
+| 統一イベントスキーマ (v3) | ✅ 実装済 | event_schema.py — Kafka/ClickHouse/Databricks 互換 |
+| Kafka Producer + バッファ | ✅ 実装済 | 切断時ローカル保存 + 復旧後リプレイ |
 | ONTAP テレメトリ収集 | ✅ 実装済 | REST API ポーリング (モックE2Eテスト済) |
-| エッジカメラコード | ✅ 実装済 | Pi到着後にテスト |
-| 設計ドキュメント | ✅ 完成 | 日英同期 8ドキュメント |
-| 実機テスト | 📋 ハードウェア待ち | Pi + カメラ + ONTAP 到着後 |
+| AWS インフラ (CFn) | ✅ デプロイ済 | S3, Kinesis, Lambda, IAM, Glue, SNS |
+| Lambda (2段階AI分析) | ✅ デプロイ済 | Haiku → Sonnet (コスト85%削減) |
+| 設計ドキュメント | ✅ 完成 | 日英同期 (data-schema, security, operations, kafka-integration, FAQ) |
+| Kafka/ClickHouse VM | 🔄 準備中 | Instaclustr managed platform デプロイ待ち |
+| ONTAP NFS テスト | 📋 Phase 1 | Pi → ONTAP 接続テスト |
+| E2E 統合テスト | 📋 Phase 6 | 全コンポーネント接続後 |
 
 ## クイックスタート
 
@@ -170,13 +185,14 @@ aws cloudformation deploy \
 |------------|--------|---------|
 | ユースケース調査 | [docs/ja/use-case-research.md](docs/ja/use-case-research.md) | [docs/en/use-case-research.md](docs/en/use-case-research.md) |
 | データスキーマ設計 | [docs/ja/data-schema-design.md](docs/ja/data-schema-design.md) | [docs/en/data-schema-design.md](docs/en/data-schema-design.md) |
+| Kafka 統合設計 | [docs/ja/kafka-integration.md](docs/ja/kafka-integration.md) | [docs/en/kafka-integration.md](docs/en/kafka-integration.md) |
 | セキュリティ設計 | [docs/ja/security-design.md](docs/ja/security-design.md) | [docs/en/security-design.md](docs/en/security-design.md) |
 | 運用設計 | [docs/ja/operations-design.md](docs/ja/operations-design.md) | [docs/en/operations-design.md](docs/en/operations-design.md) |
 | FAQ | [docs/ja/faq.md](docs/ja/faq.md) | [docs/en/faq.md](docs/en/faq.md) |
 
 ## 関連プロジェクト
 
-- [fsxn-lakehouse-integrations](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations) — FSx for ONTAP S3 AP × Lakehouse 統合
+- [fsxn-lakehouse-integrations](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations) — FSx for ONTAP S3 AP × Lakehouse 統合 (**Kafka + ClickHouse + Databricks 側の実装はこちら**)
 - [FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns) — FSx for ONTAP S3 AP サーバーレスパターン集（17ユースケース）
 
 ## ライセンス
