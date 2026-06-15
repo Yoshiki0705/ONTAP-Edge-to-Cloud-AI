@@ -26,6 +26,8 @@ CREATE TABLE IF NOT EXISTS kafka_events_queue
     lineage_id        String,
     processing_status String,
     metadata          String,
+    -- Governance: synthetic test data flag (sent as _synthetic in JSON)
+    `_synthetic`      Bool DEFAULT false,
     -- Virtual columns exposed by kafka_handle_error_mode = 'stream'
     -- These capture parse errors and the raw message for dead-letter routing
     _error            String,
@@ -82,6 +84,7 @@ SELECT
     size_bytes,
     lineage_id,
     processing_status,
-    metadata
+    metadata,
+    `_synthetic` AS is_synthetic
 FROM kafka_events_queue
 WHERE length(_error) = 0;  -- Only process successfully parsed messages

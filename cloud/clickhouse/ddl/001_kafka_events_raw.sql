@@ -26,7 +26,9 @@ CREATE TABLE IF NOT EXISTS kafka_events_raw
     size_bytes        Nullable(UInt64),
     lineage_id        String,
     processing_status LowCardinality(String),
-    metadata          String  -- JSON string, parsed by Materialized Views
+    metadata          String,  -- JSON string, parsed by Materialized Views
+    -- Governance: distinguishes synthetic test data from real production data
+    is_synthetic      Bool DEFAULT false
 )
 ENGINE = MergeTree
 PARTITION BY toYYYYMM(timestamp)
