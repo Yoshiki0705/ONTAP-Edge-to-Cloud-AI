@@ -11,7 +11,7 @@
 | Principle | Rationale |
 |-----------|-----------|
 | Least Privilege | Each component holds only minimum required permissions |
-| Device auth via NFS/Kerberos + certificates | ONTAP NFS v4.1 Kerberos authentication as primary path; SIM-based auth for cellular connectivity |
+| Device auth via NFS/Kerberos + certificates | PoC phase: NFSv3 (sys auth) for rapid start. Phase 6: migrate to NFS v4.1 + Kerberos |
 | Mandatory encryption in transit and at rest | Protect data over LAN/cellular and on S3/ONTAP |
 | No secrets in code | Manage via environment variables / AWS Secrets Manager |
 | Network segmentation | Separate ONTAP management plane from IoT data plane |
