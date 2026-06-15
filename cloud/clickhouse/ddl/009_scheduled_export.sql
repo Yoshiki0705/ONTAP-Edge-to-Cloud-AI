@@ -1,0 +1,22 @@
+-- ClickHouse DDL: Scheduled export of training features to ONTAP S3
+-- Runs daily at 02:00 UTC, exports previous day's features as Parquet
+-- Databricks (Lakehouse project) picks up via DataSync → S3 → Auto Loader
+--
+-- NOTE: ClickHouse scheduled queries require ClickHouse Cloud or
+-- clickhouse-keeper based scheduled tasks. For on-premises managed (Instaclustr),
+-- use OS-level cron or the provided export script instead.
+
+-- Option 1: ClickHouse Cloud / recent versions with scheduled queries
+-- CREATE SCHEDULED QUERY IF NOT EXISTS export_training_features_daily
+-- ON SCHEDULE EVERY 1 DAY AT '02:00'
+-- AS
+-- INSERT INTO FUNCTION s3(
+--     'https://<ontap-s3-endpoint>/clickhouse-export/training_features/{toYYYYMMDD(now() - INTERVAL 1 DAY)}.parquet',
+--     '<access_key>', '<secret_key>',
+--     'Parquet'
+-- )
+-- SELECT * FROM training_features_export
+-- WHERE export_timestamp >= now() - INTERVAL 1 DAY;
+
+-- Option 2: Manual/cron-triggered export (for on-premises managed Kafka/ClickHouse)
+-- See: cloud/clickhouse/scripts/export_training_features.sh
