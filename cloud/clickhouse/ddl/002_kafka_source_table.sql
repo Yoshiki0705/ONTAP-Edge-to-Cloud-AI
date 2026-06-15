@@ -25,7 +25,11 @@ CREATE TABLE IF NOT EXISTS kafka_events_queue
     size_bytes        Nullable(UInt64),
     lineage_id        String,
     processing_status String,
-    metadata          String
+    metadata          String,
+    -- Virtual columns exposed by kafka_handle_error_mode = 'stream'
+    -- These capture parse errors and the raw message for dead-letter routing
+    _error            String,
+    _raw_message      String
 )
 ENGINE = Kafka
 SETTINGS

@@ -19,6 +19,7 @@ These JSONL files can be used to:
 | `sensor_event_samples.jsonl` | sensor_event | 5 | Temperature/humidity readings |
 | `telemetry_event_samples.jsonl` | telemetry_event | 3 | ONTAP performance metrics |
 | `anomaly_event_samples.jsonl` | anomaly_event | 3 | Anomaly detections |
+| `feedback_event_samples.jsonl` | feedback_event | 3 | Human ground-truth labels |
 
 ## Regeneration
 

@@ -203,12 +203,51 @@ def generate_anomaly_event(trigger_event_id: str = None) -> dict:
     )
 
 
+def generate_feedback_event(target_event_id: str = None) -> dict:
+    """Generate a synthetic feedback_event (human ground-truth label)."""
+    equip = random.choice(EQUIPMENT)
+    ai_said_anomaly = random.choice([True, False])
+    human_says_anomaly = random.choice([True, True, False])  # AI mostly correct
+    correct = ai_said_anomaly == human_says_anomaly
+
+    if ai_said_anomaly and human_says_anomaly:
+        feedback_type = "true_positive"
+    elif ai_said_anomaly and not human_says_anomaly:
+        feedback_type = "false_positive"
+    elif not ai_said_anomaly and not human_says_anomaly:
+        feedback_type = "true_negative"
+    else:
+        feedback_type = "false_negative"
+
+    return build_event(
+        event_type="feedback_event",
+        event_category="quality_inspection",
+        source_id="feedback-recorder",
+        asset_type=equip["type"],
+        asset_id=equip["asset"],
+        equipment_id=equip["id"],
+        sensor_id="camera-001",
+        processing_status="completed",
+        metadata={
+            "target_event_id": target_event_id or str(uuid.uuid4()),
+            "ai_verdict": "anomaly_detected" if ai_said_anomaly else "normal",
+            "human_label": "confirmed_defect" if human_says_anomaly else "confirmed_normal",
+            "feedback_type": feedback_type,
+            "correct": correct,
+            "label_confidence": round(random.uniform(0.8, 1.0), 2),
+            "labeled_by": "operator",
+            "notes": "",
+        },
+    )
+
+
 GENERATORS = {
     "payload_arrival": generate_payload_arrival,
     "quality_event": generate_quality_event,
     "sensor_event": generate_sensor_event,
     "telemetry_event": generate_telemetry_event,
     "anomaly_event": generate_anomaly_event,
+    "feedback_event": generate_feedback_event,
 }
 
 

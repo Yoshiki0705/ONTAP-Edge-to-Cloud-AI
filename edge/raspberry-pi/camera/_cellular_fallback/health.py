@@ -37,6 +37,11 @@ class HealthReport:
     error_count_since_boot: int
     python_version: str
     os_version: str
+    # Kafka delivery metrics (from EventPublisher.metrics)
+    kafka_published: int = 0
+    kafka_delivered: int = 0
+    kafka_failed: int = 0
+    kafka_buffered: int = 0
 
 
 class HealthMonitor:
@@ -72,12 +77,19 @@ class HealthMonitor:
         self,
         camera_status: str = "unknown",
         buffer_pending: int = 0,
+        kafka_metrics: dict | None = None,
     ) -> bool:
         """Generate and send health report.
+
+        Args:
+            camera_status: Camera health ("ok"|"error"|"unknown")
+            buffer_pending: Number of events pending in local buffer
+            kafka_metrics: Optional EventPublisher.metrics dict
 
         Returns:
             True if report was sent successfully
         """
+        km = kafka_metrics or {}
         report = HealthReport(
             device_id=self._device_id,
             timestamp=datetime.now(timezone.utc).isoformat(),
@@ -93,6 +105,10 @@ class HealthMonitor:
             error_count_since_boot=self._error_count,
             python_version=platform.python_version(),
             os_version=platform.platform(),
+            kafka_published=km.get("published", 0),
+            kafka_delivered=km.get("delivered", 0),
+            kafka_failed=km.get("failed", 0),
+            kafka_buffered=km.get("buffered", 0),
         )
 
         success = self._send_report(report)
