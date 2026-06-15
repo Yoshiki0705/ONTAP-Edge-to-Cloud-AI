@@ -34,6 +34,8 @@ class EventPublisher:
     def __init__(self):
         self._producer = None
         self._buffer_dir = Path(KAFKA_BUFFER_PATH)
+        # Delivery metrics (for Observability — see operations-design.md)
+        self.metrics = {"published": 0, "delivered": 0, "failed": 0, "buffered": 0}
 
         if KAFKA_ENABLED:
             try:
@@ -43,7 +45,9 @@ class EventPublisher:
                     "bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS,
                     "client.id": f"edge-{os.getenv('DEVICE_ID', 'unknown')}",
                     "acks": "all",
-                    "retries": 3,
+                    "enable.idempotence": True,  # Exactly-once semantics (no duplicates on retry)
+                    "max.in.flight.requests.per.connection": 5,
+                    "retries": 2147483647,  # Required for idempotence (effectively unlimited)
                     "retry.backoff.ms": 1000,
                     "linger.ms": 100,  # Batch for efficiency
                     "compression.type": "lz4",
@@ -80,13 +84,16 @@ class EventPublisher:
                     value=event_json.encode("utf-8"),
                     callback=self._delivery_callback,
                 )
+                self.metrics["published"] += 1
                 return True
             except Exception as e:
                 print(f"[kafka] Publish failed: {e}, buffering locally")
                 self._buffer_event(event_json)
+                self.metrics["buffered"] += 1
                 return False
         else:
             self._buffer_event(event_json)
+            self.metrics["buffered"] += 1
             return False
 
     def flush(self, timeout: float = 10.0) -> int:
@@ -99,10 +106,14 @@ class EventPublisher:
             return self._producer.flush(timeout)
         return 0
 
-    def replay_buffer(self) -> int:
+    def replay_buffer(self, batch_size: int = 100) -> int:
         """Replay locally buffered events to Kafka.
 
-        Call this after Kafka connectivity is restored.
+        Call this after Kafka connectivity is restored. Processes in batches
+        to avoid loading all buffered files into memory at once.
+
+        Args:
+            batch_size: Number of files to process per flush cycle
 
         Returns:
             Number of events replayed
@@ -111,15 +122,26 @@ class EventPublisher:
             return 0
 
         replayed = 0
+        batch_count = 0
+        # iterdir() is lazy; sorted on filename (timestamp) preserves order
         for f in sorted(self._buffer_dir.glob("*.json")):
             try:
                 event = json.loads(f.read_text(encoding="utf-8"))
                 if self.publish(event):
                     f.unlink()  # Remove after successful publish
                     replayed += 1
+                    batch_count += 1
+                    if batch_count >= batch_size:
+                        self.flush(timeout=10.0)  # Flush batch before continuing
+                        batch_count = 0
+                else:
+                    break  # Kafka still down — stop replay
             except Exception as e:
                 print(f"[kafka] Replay failed for {f.name}: {e}")
                 break  # Stop replay on failure to maintain ordering
+
+        if batch_count > 0:
+            self.flush(timeout=10.0)
 
         if replayed > 0:
             print(f"[kafka] Replayed {replayed} buffered events")
@@ -133,9 +155,11 @@ class EventPublisher:
         buffer_file = self._buffer_dir / f"{timestamp}.json"
         buffer_file.write_text(event_json, encoding="utf-8")
 
-    @staticmethod
-    def _delivery_callback(err, msg):
-        """Kafka delivery confirmation callback."""
+    def _delivery_callback(self, err, msg):
+        """Kafka delivery confirmation callback. Tracks delivery metrics."""
         if err is not None:
+            self.metrics["failed"] += 1
             print(f"[kafka] Delivery failed: {err}")
-        # Successful delivery — silent (avoid log spam in continuous mode)
+        else:
+            self.metrics["delivered"] += 1
+        # Successful delivery — no per-message log (avoid spam in continuous mode)

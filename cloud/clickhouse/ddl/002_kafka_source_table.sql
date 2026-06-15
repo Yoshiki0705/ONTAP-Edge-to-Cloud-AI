@@ -34,7 +34,23 @@ SETTINGS
     kafka_group_name = 'clickhouse-consumer-group',
     kafka_format = 'JSONEachRow',
     kafka_num_consumers = 1,
-    kafka_max_block_size = 1048576;
+    kafka_max_block_size = 1048576,
+    -- Route malformed messages to system.kafka error stream instead of crashing
+    kafka_handle_error_mode = 'stream';
+
+-- Materialized View: capture parse errors → dead_letter_events
+CREATE MATERIALIZED VIEW IF NOT EXISTS mv_kafka_errors
+TO dead_letter_events
+AS
+SELECT
+    now64(3, 'UTC') AS ingest_time,
+    _raw_message AS raw_payload,
+    _error AS error_reason,
+    'factory.events.raw' AS source_topic,
+    _offset AS kafka_offset,
+    _partition AS kafka_partition
+FROM kafka_events_queue
+WHERE length(_error) > 0;
 
 -- Materialized View: Kafka queue → kafka_events_raw (with type conversion)
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_kafka_to_raw
@@ -63,4 +79,5 @@ SELECT
     lineage_id,
     processing_status,
     metadata
-FROM kafka_events_queue;
+FROM kafka_events_queue
+WHERE length(_error) = 0;  -- Only process successfully parsed messages

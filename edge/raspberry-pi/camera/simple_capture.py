@@ -28,6 +28,11 @@ from pathlib import Path
 import boto3
 import cv2
 
+# Add common module path for event schema + Kafka producer
+sys.path.insert(0, str(Path(__file__).parent.parent / "common"))
+from event_schema import build_event  # noqa: E402
+from kafka_producer import EventPublisher  # noqa: E402
+
 # Configuration — adjust via environment variables or edit defaults
 DEVICE_ID = os.getenv("DEVICE_ID", "rpi5-001")
 CAMERA_DEVICE = int(os.getenv("CAMERA_DEVICE", "0"))
@@ -39,9 +44,20 @@ JPEG_QUALITY = int(os.getenv("CAPTURE_JPEG_QUALITY", "80"))
 INTERVAL_SECONDS = int(os.getenv("CAPTURE_INTERVAL_SECONDS", "60"))
 ONTAP_IMAGE_PATH = os.getenv("ONTAP_NFS_PATH", "/mnt/ontap/images")
 ONTAP_RESULT_PATH = os.getenv("ONTAP_RESULT_PATH", "/mnt/ontap/results")
+ONTAP_SVM_NAME = os.getenv("ONTAP_SVM_NAME", "svm-iot")
+ONTAP_VOLUME_NAME = os.getenv("ONTAP_VOLUME_NAME", "vol_images")
 LAMBDA_FUNCTION_NAME = os.getenv("LAMBDA_FUNCTION_NAME", "edge-to-cloud-image-analyzer")
 AWS_REGION = os.getenv("AWS_REGION", "ap-northeast-1")
 S3_BUCKET = os.getenv("S3_BUCKET", "")  # If set, also upload to S3 for Athena
+
+# Factory hierarchy (v3 aligned event schema)
+ASSET_TYPE = os.getenv("ASSET_TYPE", "3d_printer")
+ASSET_ID = os.getenv("ASSET_ID", "bambu-p2s-001")
+EQUIPMENT_ID = os.getenv("EQUIPMENT_ID", "printer-001")
+SENSOR_ID = os.getenv("SENSOR_ID", "camera-001")
+
+# Kafka event publisher (initialized once)
+_publisher = EventPublisher()
 
 
 def capture_image() -> tuple[bytes, str]:
@@ -136,35 +152,73 @@ def save_result_to_ontap(result: dict, timestamp: str) -> None:
 
 
 def capture_and_analyze(skip_analyze: bool = False) -> bool:
-    """Full pipeline: capture → save to ONTAP → analyze → save result."""
-    # 1. Capture
+    """Full pipeline: capture → save to ONTAP → publish event → analyze → save result.
+
+    Partial failure handling: ONTAP save is the source of truth. If the image is
+    saved to ONTAP, the cycle is considered successful even if Kafka publish or
+    Lambda analysis fails (Kafka buffers locally; analysis can be re-run from ONTAP).
+    """
+    # 1. Capture (hard failure — nothing to do without an image)
     image_bytes, timestamp = capture_image()
     print(f"[{timestamp}] Captured: {len(image_bytes)} bytes")
 
-    # 2. Save to ONTAP NFS
+    # 2. Save to ONTAP NFS (source of truth — hard failure if this fails)
     image_path = save_to_ontap(image_bytes, timestamp)
     print(f"[{timestamp}] Saved to ONTAP: {image_path}")
+
+    # 3. Publish payload_arrival event to Kafka (soft failure — buffers locally)
+    try:
+        payload_uri = f"nfs://{ONTAP_SVM_NAME}/{ONTAP_VOLUME_NAME}/{image_path.relative_to(Path(ONTAP_IMAGE_PATH))}"
+        event = build_event(
+            event_type="payload_arrival",
+            event_category="quality_inspection",
+            source_id=DEVICE_ID,
+            asset_type=ASSET_TYPE,
+            asset_id=ASSET_ID,
+            equipment_id=EQUIPMENT_ID,
+            sensor_id=SENSOR_ID,
+            timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
+            payload_uri=payload_uri,
+            payload_type="image",
+            content_type="image/jpeg",
+            payload_bytes=image_bytes,
+            processing_status="pending_analysis" if not skip_analyze else "completed",
+            metadata={
+                "capture_trigger": "scheduled",
+                "capture_interval_seconds": INTERVAL_SECONDS,
+                "camera_model": "brio-4k",
+                "resolution": f"{RESOLUTION[0]}x{RESOLUTION[1]}",
+                "jpeg_quality": JPEG_QUALITY,
+            },
+        )
+        kafka_ok = _publisher.publish(event)
+        print(f"[{timestamp}] Event published: kafka={'ok' if kafka_ok else 'buffered'}")
+    except Exception as e:
+        print(f"[{timestamp}] Event publish error (non-fatal): {e}")
 
     if skip_analyze:
         return True
 
-    # 3. Invoke Lambda for AI analysis
+    # 4. Invoke Lambda for AI analysis (soft failure — image is safe in ONTAP)
     if not S3_BUCKET:
         print(f"[{timestamp}] Skipping analysis: S3_BUCKET not configured")
         return True
 
-    result = invoke_analysis_lambda(image_path, image_bytes)
-    if result is None:
-        print(f"[{timestamp}] Analysis failed")
-        return False
+    try:
+        result = invoke_analysis_lambda(image_path, image_bytes)
+        if result is None:
+            print(f"[{timestamp}] Analysis failed (image preserved in ONTAP for retry)")
+            return True  # ONTAP save succeeded — cycle is not a failure
 
-    # 4. Save result to ONTAP
-    body = result.get("body", result)
-    save_result_to_ontap(body, timestamp)
+        # 5. Save result to ONTAP
+        body = result.get("body", result)
+        save_result_to_ontap(body, timestamp)
+        status = body.get("status", "unknown")
+        alert = body.get("alert_sent", False)
+        print(f"[{timestamp}] Analysis: status={status}, alert_sent={alert}")
+    except Exception as e:
+        print(f"[{timestamp}] Analysis error (non-fatal, image preserved): {e}")
 
-    status = body.get("status", "unknown")
-    alert = body.get("alert_sent", False)
-    print(f"[{timestamp}] Analysis: status={status}, alert_sent={alert}")
     return True
 
 
@@ -184,18 +238,24 @@ def main():
 
     if not args.loop:
         success = capture_and_analyze(skip_analyze=args.no_analyze)
+        _publisher.flush()
         return 0 if success else 1
 
     print(f"Starting continuous capture: interval={INTERVAL_SECONDS}s")
     print(f"  Image output: {ONTAP_IMAGE_PATH}")
     print(f"  Result output: {ONTAP_RESULT_PATH}")
     print(f"  Lambda: {LAMBDA_FUNCTION_NAME} ({'enabled' if S3_BUCKET else 'disabled (no S3_BUCKET)'})")
+    print(f"  Kafka: {'enabled' if _publisher._producer else 'buffering locally'}")
 
     while True:
         try:
             capture_and_analyze(skip_analyze=args.no_analyze)
+            _publisher.flush(timeout=5.0)
         except KeyboardInterrupt:
-            print("\nStopped.")
+            print("\nFlushing Kafka buffer...")
+            _publisher.flush()
+            print(f"Metrics: {_publisher.metrics}")
+            print("Stopped.")
             break
         except Exception as e:
             print(f"Error: {e}")

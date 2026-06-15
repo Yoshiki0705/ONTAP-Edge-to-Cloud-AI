@@ -22,6 +22,12 @@ CREATE TABLE IF NOT EXISTS training_features_export
     -- Sensor context (nearest reading)
     temperature_celsius Nullable(Float32),
     humidity_percent    Nullable(Float32),
+    -- Human feedback label (from feedback_recorder Lambda → ClickHouse)
+    -- NULL until an operator provides ground-truth feedback
+    human_label         LowCardinality(Nullable(String)),  -- confirmed_normal / confirmed_defect / mislabeled
+    label_confidence    Nullable(Float32),
+    labeled_by          Nullable(String),
+    labeled_at          Nullable(DateTime64(3, 'UTC')),
     -- Export metadata
     export_timestamp  DateTime64(3, 'UTC') DEFAULT now64(3)
 )

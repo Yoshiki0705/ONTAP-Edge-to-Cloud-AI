@@ -29,6 +29,8 @@ TTL timestamp + INTERVAL 365 DAY
 SETTINGS index_granularity = 8192;
 
 -- Materialized View: Extract quality_events from kafka_events_raw
+-- anomalies in metadata is an array of objects [{type, severity, location}, ...]
+-- We extract the 'type' field from each object into anomaly_types array.
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_raw_to_quality
 TO quality_events
 AS
@@ -43,7 +45,11 @@ SELECT
     ingest_time,
     JSONExtractString(metadata, 'verdict') AS verdict,
     JSONExtractFloat(metadata, 'confidence') AS confidence,
-    JSONExtractArrayRaw(metadata, 'anomalies') AS anomaly_types,  -- simplified
+    -- Extract 'type' from each anomaly object: [{type,severity,...}] -> ['stringing',...]
+    arrayMap(
+        x -> JSONExtractString(x, 'type'),
+        JSONExtractArrayRaw(metadata, 'anomalies')
+    ) AS anomaly_types,
     JSONExtractString(metadata, 'max_severity') AS max_severity,
     JSONExtractString(metadata, 'analyzer_model') AS analyzer_model,
     JSONExtractUInt(metadata, 'analysis_latency_ms') AS analysis_latency_ms,

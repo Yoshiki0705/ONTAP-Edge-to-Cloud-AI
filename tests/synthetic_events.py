@@ -230,6 +230,8 @@ def main():
     for i in range(args.count):
         event_type = random.choice(event_types)
         event = GENERATORS[event_type]()
+        # Mark as synthetic test data (governance requirement — not real production data)
+        event["_synthetic"] = True
 
         if args.stdout:
             print(json.dumps(event, ensure_ascii=False))
