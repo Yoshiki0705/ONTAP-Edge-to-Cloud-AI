@@ -188,6 +188,8 @@ aws cloudformation deploy \
 | Kafka 統合設計 | [docs/ja/kafka-integration.md](docs/ja/kafka-integration.md) | [docs/en/kafka-integration.md](docs/en/kafka-integration.md) |
 | セキュリティ設計 | [docs/ja/security-design.md](docs/ja/security-design.md) | [docs/en/security-design.md](docs/en/security-design.md) |
 | 運用設計 | [docs/ja/operations-design.md](docs/ja/operations-design.md) | [docs/en/operations-design.md](docs/en/operations-design.md) |
+| デモシナリオ | [docs/ja/demo-scenarios.md](docs/ja/demo-scenarios.md) | [docs/en/demo-scenarios.md](docs/en/demo-scenarios.md) |
+| Databricks 連携 | [docs/ja/databricks-integration.md](docs/ja/databricks-integration.md) | [docs/en/databricks-integration.md](docs/en/databricks-integration.md) |
 | FAQ | [docs/ja/faq.md](docs/ja/faq.md) | [docs/en/faq.md](docs/en/faq.md) |
 
 ## 関連プロジェクト

@@ -296,7 +296,93 @@ AI分析の精度は時間とともに劣化する可能性がある（プリン
 復旧確認: 使用率が 70% 以下に戻ること
 ```
 
-### 5.5 エスカレーションフロー
+### 5.5 アラート: Kafka 消費ラグ増大 (consumer lag > 10000)
+
+```
+症状: ClickHouse の Kafka consumer lag が増大し続けている
+影響: ダッシュボードがリアルタイム性を失う、データ遅延
+
+手順:
+1. ClickHouse で consumer lag を確認
+   SELECT * FROM system.kafka_consumers WHERE table = 'kafka_events_queue';
+
+2. ラグの原因を切り分け
+   → ClickHouse 取り込み遅延: Step 3 へ
+   → Kafka producer 過多: Step 4 へ
+
+3. [ClickHouse 取り込み遅延]
+   a. ClickHouse CPU/メモリ使用率確認
+   b. Materialized View の実行時間確認 (system.query_log)
+   c. kafka_num_consumers を増やす (再起動が必要)
+   d. kafka_max_block_size 調整
+
+4. [Producer 過多]
+   a. エッジデバイスの撮影間隔を確認
+   b. 想定外の高頻度 publish がないか確認
+   c. 必要に応じて撮影間隔を延長
+
+復旧確認: consumer lag が 1000 以下に戻ること
+```
+
+### 5.6 アラート: Dead Letter 急増 (> 1%/1時間)
+
+```
+症状: dead_letter_events への書き込みが急増
+影響: イベントが正常に処理されていない (スキーマ不整合)
+
+手順:
+1. Dead Letter の内容を確認
+   SELECT error_reason, count() FROM dead_letter_events
+   WHERE ingest_time > now() - INTERVAL 1 HOUR
+   GROUP BY error_reason ORDER BY count() DESC;
+
+2. エラー原因を特定
+   → JSON parse error: Step 3 へ
+   → 型変換エラー: Step 4 へ
+
+3. [JSON parse error]
+   a. エッジ側 event_schema.py のバージョン確認
+   b. schema_version フィールドの値を確認
+   c. 不正な producer を特定 (source_id で絞り込み)
+   d. 該当デバイスのコード更新
+
+4. [型変換エラー]
+   a. raw_payload を確認し、想定外のフィールド型を特定
+   b. ClickHouse DDL のスキーマと突合
+   c. スキーマ進化が必要なら ALTER TABLE 検討
+
+復旧確認: dead_letter rate が 1% 以下に戻ること
+```
+
+### 5.7 アラート: ClickHouse → ONTAP S3 エクスポート失敗
+
+```
+症状: training_features_export の日次エクスポートが失敗
+影響: Databricks への特徴量供給が止まる、ML学習データが古くなる
+
+手順:
+1. エクスポートスクリプトのログを確認
+   journalctl -u clickhouse-export --since "1 day ago"
+
+2. 失敗原因を切り分け
+   → ONTAP S3 接続エラー: Step 3 へ
+   → ClickHouse クエリエラー: Step 4 へ
+
+3. [ONTAP S3 接続エラー]
+   a. ONTAP S3 LIF の疎通確認 (curl -k https://<ONTAP_S3_LIF>:443)
+   b. S3 認証情報 (access_key/secret_key) の有効性確認
+   c. バケットポリシー確認
+   d. 証明書エラーなら CA 証明書を確認
+
+4. [ClickHouse クエリエラー]
+   a. training_features_export テーブルの存在確認
+   b. 手動でエクスポートクエリを実行
+   c. ディスク容量・メモリ確認
+
+復旧確認: 翌日のエクスポートが成功し、Databricks に Parquet が到着すること
+```
+
+### 5.8 エスカレーションフロー
 
 ```
 [アラート発生]

@@ -296,7 +296,93 @@ Steps:
 Recovery confirmation: Utilization returns to ≤ 70%
 ```
 
-### 5.5 Escalation Flow
+### 5.5 Alert: Kafka Consumer Lag Increasing (lag > 10000)
+
+```
+Symptom: ClickHouse Kafka consumer lag keeps growing
+Impact: Dashboard loses real-time freshness, data delay
+
+Steps:
+1. Check consumer lag in ClickHouse
+   SELECT * FROM system.kafka_consumers WHERE table = 'kafka_events_queue';
+
+2. Isolate the cause
+   -> ClickHouse ingestion slow: go to Step 3
+   -> Too many producers: go to Step 4
+
+3. [ClickHouse ingestion slow]
+   a. Check ClickHouse CPU/memory usage
+   b. Check Materialized View execution time (system.query_log)
+   c. Increase kafka_num_consumers (requires restart)
+   d. Tune kafka_max_block_size
+
+4. [Too many producers]
+   a. Check edge device capture interval
+   b. Look for unexpected high-frequency publishing
+   c. Extend capture interval if needed
+
+Recovery confirmation: consumer lag returns to <= 1000
+```
+
+### 5.6 Alert: Dead Letter Spike (> 1%/hour)
+
+```
+Symptom: Sudden increase in dead_letter_events writes
+Impact: Events not processed normally (schema mismatch)
+
+Steps:
+1. Inspect dead letter contents
+   SELECT error_reason, count() FROM dead_letter_events
+   WHERE ingest_time > now() - INTERVAL 1 HOUR
+   GROUP BY error_reason ORDER BY count() DESC;
+
+2. Identify error cause
+   -> JSON parse error: go to Step 3
+   -> Type conversion error: go to Step 4
+
+3. [JSON parse error]
+   a. Check edge-side event_schema.py version
+   b. Check schema_version field value
+   c. Identify malformed producer (filter by source_id)
+   d. Update the device's code
+
+4. [Type conversion error]
+   a. Inspect raw_payload for unexpected field types
+   b. Reconcile with ClickHouse DDL schema
+   c. Consider ALTER TABLE if schema evolution needed
+
+Recovery confirmation: dead_letter rate returns to <= 1%
+```
+
+### 5.7 Alert: ClickHouse to ONTAP S3 Export Failure
+
+```
+Symptom: Daily training_features_export fails
+Impact: Feature supply to Databricks stops, ML training data goes stale
+
+Steps:
+1. Check export script logs
+   journalctl -u clickhouse-export --since "1 day ago"
+
+2. Isolate failure cause
+   -> ONTAP S3 connection error: go to Step 3
+   -> ClickHouse query error: go to Step 4
+
+3. [ONTAP S3 connection error]
+   a. Verify ONTAP S3 LIF connectivity (curl -k https://<ONTAP_S3_LIF>:443)
+   b. Check S3 credentials (access_key/secret_key) validity
+   c. Check bucket policy
+   d. If certificate error, verify CA certificate
+
+4. [ClickHouse query error]
+   a. Verify training_features_export table exists
+   b. Run export query manually
+   c. Check disk capacity and memory
+
+Recovery confirmation: Next day's export succeeds, Parquet arrives in Databricks
+```
+
+### 5.8 Escalation Flow
 
 ```
 [Alert Triggered]
