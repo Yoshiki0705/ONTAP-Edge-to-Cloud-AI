@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "edge" / "raspberry-pi" / "sensors"))
+sys.path.insert(0, str(Path(__file__).parents[3] / "edge" / "raspberry-pi" / "sensors"))
 
 
 class TestBuildTelemetryMessage:

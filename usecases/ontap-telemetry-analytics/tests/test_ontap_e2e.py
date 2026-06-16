@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "edge" / "raspberry-pi" / "sensors"))
+sys.path.insert(0, str(Path(__file__).parents[3] / "edge" / "raspberry-pi" / "sensors"))
 
 
 # Realistic ONTAP REST API mock responses
