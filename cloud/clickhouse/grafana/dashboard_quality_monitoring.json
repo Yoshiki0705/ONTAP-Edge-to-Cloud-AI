@@ -1,0 +1,154 @@
+{
+  "__comment": "Grafana dashboard for 3D Print Quality Monitoring. Requires ClickHouse datasource (grafana-clickhouse-datasource plugin). Import via Grafana UI > Dashboards > Import. Replace ${DS_CLICKHOUSE} with your datasource.",
+  "title": "Edge Quality Monitoring",
+  "uid": "edge-quality-mon",
+  "tags": ["edge", "ontap", "clickhouse", "quality"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": {"from": "now-1h", "to": "now"},
+  "templating": {
+    "list": [
+      {
+        "name": "equipment_id",
+        "type": "query",
+        "datasource": "${DS_CLICKHOUSE}",
+        "query": "SELECT DISTINCT equipment_id FROM kafka_events_raw ORDER BY equipment_id",
+        "includeAll": true,
+        "multi": true
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Anomaly Rate (last 1h)",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0},
+      "datasource": "${DS_CLICKHOUSE}",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 15},
+              {"color": "red", "value": 30}
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT round(countIf(verdict = 'anomaly_detected') * 100.0 / count(), 1) AS anomaly_rate FROM quality_events WHERE timestamp > now() - INTERVAL 1 HOUR AND equipment_id IN (${equipment_id:sqlstring})"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Total Inspections (last 1h)",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0},
+      "datasource": "${DS_CLICKHOUSE}",
+      "targets": [
+        {
+          "rawSql": "SELECT count() AS inspections FROM quality_events WHERE timestamp > now() - INTERVAL 1 HOUR AND equipment_id IN (${equipment_id:sqlstring})"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Ingest Lag p95 (ms)",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 0},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 500}
+            ]
+          }
+        }
+      },
+      "datasource": "${DS_CLICKHOUSE}",
+      "targets": [
+        {
+          "rawSql": "SELECT quantile(0.95)(dateDiff('millisecond', timestamp, ingest_time)) AS p95_lag FROM kafka_events_raw WHERE timestamp > now() - INTERVAL 1 HOUR"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Dead Letter Count (last 1h)",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 6, "x": 18, "y": 0},
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 1}
+            ]
+          }
+        }
+      },
+      "datasource": "${DS_CLICKHOUSE}",
+      "targets": [
+        {
+          "rawSql": "SELECT count() AS dlq FROM dead_letter_events WHERE ingest_time > now() - INTERVAL 1 HOUR"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Quality Trend (hourly)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+      "datasource": "${DS_CLICKHOUSE}",
+      "targets": [
+        {
+          "rawSql": "SELECT toStartOfHour(timestamp) AS t, countIf(verdict = 'anomaly_detected') AS anomalies, countIf(verdict = 'normal') AS normal FROM quality_events WHERE timestamp > now() - INTERVAL 24 HOUR AND equipment_id IN (${equipment_id:sqlstring}) GROUP BY t ORDER BY t"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "AI Analysis Latency (p50/p95)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+      "fieldConfig": {"defaults": {"unit": "ms"}},
+      "datasource": "${DS_CLICKHOUSE}",
+      "targets": [
+        {
+          "rawSql": "SELECT toStartOfMinute(timestamp) AS t, quantile(0.50)(analysis_latency_ms) AS p50, quantile(0.95)(analysis_latency_ms) AS p95 FROM quality_events WHERE timestamp > now() - INTERVAL 1 HOUR GROUP BY t ORDER BY t"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Recent Anomalies (with payload reference)",
+      "type": "table",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 14},
+      "datasource": "${DS_CLICKHOUSE}",
+      "targets": [
+        {
+          "rawSql": "SELECT a.timestamp AS time, a.equipment_id, a.anomaly_type, a.severity, p.payload_uri FROM anomaly_events a LEFT JOIN payload_manifest p ON a.trigger_event_id = p.event_id WHERE a.timestamp > now() - INTERVAL 6 HOUR ORDER BY a.timestamp DESC LIMIT 50"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Sensor Environment (temp/humidity)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 22},
+      "datasource": "${DS_CLICKHOUSE}",
+      "targets": [
+        {
+          "rawSql": "SELECT minute AS t, avg(avg_value_1) AS avg_temp_c, avg(avg_value_2) AS avg_humidity_pct FROM sensor_events_rollup_1m WHERE minute > now() - INTERVAL 3 HOUR GROUP BY t ORDER BY t"
+        }
+      ]
+    }
+  ]
+}
