@@ -195,6 +195,8 @@ aws cloudformation deploy \
 ## 関連プロジェクト
 
 - [fsxn-lakehouse-integrations](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations) — FSx for ONTAP S3 AP × Lakehouse 統合 (**Kafka + ClickHouse + Databricks 側の実装はこちら**)
+  - 連携の実体: [integrations/manufacturing-data-platform](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/tree/main/integrations/manufacturing-data-platform) — 製造データプラットフォーム連携
+  - 同期ドキュメント: [Edge ↔ Lakehouse 同期](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/ja/14_edge_lakehouse_sync.md) ([English](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/en/14_edge_lakehouse_sync.md)) — スキーマ・トピック・責任分担の同期記録
 - [FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns) — FSx for ONTAP S3 AP サーバーレスパターン集（17ユースケース）
 
 ## ライセンス

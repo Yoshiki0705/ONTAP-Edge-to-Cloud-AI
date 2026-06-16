@@ -3,6 +3,7 @@
 > Created: 2026-06-15
 > Status: Design Complete (synchronized with Lakehouse project)
 > Related: [fsxn-lakehouse-integrations/poc-templates/04-databricks-integration](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/tree/main/poc-templates/04-databricks-integration)
+> Edge ↔ Lakehouse sync record: [14_edge_lakehouse_sync.md](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/en/14_edge_lakehouse_sync.md) — Schema / topic / responsibility-matrix sync status
 
 ---
 
