@@ -3,6 +3,7 @@
 > 作成日: 2026-06-15
 > ステータス: 設計完了（Lakehouse プロジェクトと同期）
 > 関連: [fsxn-lakehouse-integrations/poc-templates/04-databricks-integration](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/tree/main/poc-templates/04-databricks-integration)
+> Edge ↔ Lakehouse 同期記録: [14_edge_lakehouse_sync.md](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/ja/14_edge_lakehouse_sync.md) — スキーマ・トピック・責任分担の同期状況
 
 ---
 
