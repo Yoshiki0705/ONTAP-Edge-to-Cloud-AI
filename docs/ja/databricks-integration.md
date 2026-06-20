@@ -21,9 +21,12 @@
 
 | # | パス | データ種別 | リアルタイム性 | 用途 |
 |---|------|-----------|-------------|------|
-| A | Kafka → Spark Structured Streaming → Delta | イベント (JSON) | 秒〜分 | Bronze テーブル直接取り込み |
+| A | Kafka → Spark Structured Streaming → Delta | イベント (JSON) | 秒〜分 † | Bronze テーブル直接取り込み |
 | B | ClickHouse → Parquet Export → ONTAP S3 → DataSync → S3 → UC | 集計済み特徴量 | 時間 (バッチ) | Silver/Gold テーブル |
 | C | ONTAP NFS → DataSync → S3 → Auto Loader → UC | 生画像, CSV | 分〜時間 | 生データの長期保管・分析 |
+| D | Kafka → Lakebase (LTAP) | イベント (JSON) | ミリ秒〜秒 | Operational DB + 分析統合 (将来候補) |
+
+> † パス A のレイテンシは Real-Time Mode for SDP (GA) により最小 5ms まで短縮可能。セクション 2.6 参照。
 
 ### 2.2 パス A: Kafka → Structured Streaming → Delta (推奨: リアルタイム)
 
@@ -126,6 +129,179 @@ aws cloudformation deploy \
     SourceSubdirectory=/vol_images \
   --capabilities CAPABILITY_IAM
 ```
+
+### 2.5 パス D: Kafka → Lakebase — LTAP (将来候補)
+
+> **ステータス**: 設計検討中 — Lakebase は GA だが Kafka → Lakebase コネクタの具体的ドキュメント公開待ち
+> **前提**: DAIS 2026 (2026-06-16) で発表された LTAP (Lake Transactional/Analytical Processing)
+> **参考**: [LTAP プレスリリース](https://www.databricks.com/company/newsroom/press-releases/databricks-launches-ltap-first-lake-transactionalanalytical) / [Lakebase Search](https://www.databricks.com/blog/announcing-lakebase-search-agent-native-retrieval-built-lakebase-postgres)
+
+#### LTAP 概要
+
+LTAP は Databricks が提唱する新しいアーキテクチャパターンで、トランザクション処理（OLTP）と分析処理（OLAP）を単一プラットフォーム上で統合する。本リポジトリのエッジ → クラウドフローにおいて、Kafka → Lakebase 直接書き込みパスを将来の代替シナリオとして位置づける。
+
+| コンポーネント | 役割 | ステータス |
+|---|---|---|
+| Lakebase | Postgres 互換 operational DB（Databricks 管理） | GA |
+| Lakehouse//RT | ミリ秒クエリエンジン（Reyden エンジン） | Preview |
+| Lakebase Search | ハイブリッド vector + full-text 検索 | Beta |
+
+#### データフロー (想定)
+
+```
+[Edge Pi]                   [Kafka]              [Databricks LTAP]
+simple_capture.py  ─event─> factory.events.raw ─> Kafka Connector (TBD)
+                                                      |
+                                                      v
+                                                 Lakebase (Postgres 互換)
+                                                      |
+                                            ┌─────────┴─────────┐
+                                            v                   v
+                                     Lakehouse//RT          Delta Lake
+                                   (ミリ秒クエリ)       (バッチ分析・ML)
+```
+
+#### パス A (Structured Streaming → Delta) との比較
+
+| 観点 | パス A: Kafka → Structured Streaming → Delta | パス D: Kafka → Lakebase (LTAP) |
+|------|----------------------------------------------|--------------------------------|
+| レイテンシ | 秒〜分（マイクロバッチ） | ミリ秒〜秒（想定） |
+| クエリエンジン | Spark SQL / Photon | Lakehouse//RT (Reyden) / Postgres 互換 |
+| データモデル | Delta テーブル (append-only Bronze) | Postgres テーブル (UPDATE/DELETE 可) |
+| 用途 | バッチ分析、ML 学習データ生成 | Operational AI、リアルタイムダッシュボード、API サーブ |
+| 成熟度 | GA (検証済み) | Lakebase GA / Lakehouse//RT Preview |
+| コスト構造 | DBU (Streaming) + S3 ストレージ | Lakebase インスタンス + Lakehouse//RT (未定) |
+
+#### 本プロジェクトへの影響
+
+- **エッジ側に変更なし**: ローカル ONTAP + Kafka トピック構成はそのまま維持
+- **クラウド側の代替パス**: 既存パス A (Structured Streaming → Delta) を置き換えるのではなく、並列オプションとして追加
+- **Operational AI シナリオ**: リアルタイム品質判定 API や Lakebase Search による画像メタデータ検索など、Delta 単独では難しいユースケースに対応可能
+
+#### 検証必要事項
+
+| 項目 | 確認観点 | 現状 |
+|------|---------|------|
+| Kafka → Lakebase コネクタ | 接続方式、設定、スループット | ドキュメント公開待ち |
+| 順序保証 | パーティション内の順序が Lakebase 書き込みで保持されるか | 未検証 |
+| 障害時挙動 | Lakebase 書き込み失敗時の Kafka offset 管理 | 未検証 |
+| スキーマ互換性 | v3 イベントスキーマの Postgres テーブルへのマッピング | 設計必要 |
+| Delta Lake 同期 | Lakebase → Delta Lake への自動フェデレーション | LTAP の自動同期メカニズム確認必要 |
+| Lakehouse//RT 性能 | ミリ秒クエリの実効レイテンシ（Preview 制約） | GA 待ち |
+| コスト | Lakebase + Lakehouse//RT の料金体系 | 未公開の可能性あり |
+| ネットワーク | オンプレミス Kafka → Databricks Lakebase 間の接続 | PrivateLink or VPN 経由 |
+
+#### 採用判断基準
+
+以下の条件が満たされた段階で PoC 検証を開始する:
+
+1. Kafka → Lakebase コネクタのドキュメントが公開され、設定方法が明確になる
+2. Lakehouse//RT が GA になる（Preview 段階では本番採用不可）
+3. 既存パス A では満たせないレイテンシ要件または Operational AI 要件が顕在化する
+
+#### 制約事項
+
+- Lakehouse//RT は **Preview** — 本番採用は GA 待ち
+- LTAP に**オンプレミスオプションはない** — クラウド側のみ影響
+- エッジ側の設計（ローカル ONTAP + Kafka）は変更しない
+- 既存パス A/B/C は LTAP 採用後も**併存**する（置き換えではない）
+
+---
+
+### 2.6 Lakeflow / Zerobus Ingest 影響評価
+
+> **評価日**: 2026-06-20 (GA ステータス反映)
+> **背景**: DAIS 2026 (2026-06-16) で Databricks が「Lakeflow: A new era of agentic data engineering」を発表
+> **参考**: [Lakeflow ブログ](https://www.databricks.com/blog/lakeflow-new-era-agentic-data-engineering) / [Zerobus Ingest ドキュメント](https://docs.databricks.com/aws/en/ingestion/lakeflow-connect/zerobus-overview) / [Real-Time Mode ドキュメント](https://docs.databricks.com/aws/en/structured-streaming/real-time) / [Real-Time Mode GA 発表](https://www.databricks.com/de/blog/announcing-general-availability-real-time-mode-apache-spark-structured-streaming-databricks)
+
+#### 影響のある新機能
+
+| # | 機能 | 概要 | ステータス | 本プロジェクトへの影響 |
+|---|------|------|-----------|---------------------|
+| 1 | Zerobus Ingest | Push 型サーバーレス取り込み API。Kafka/MSK なしで直接 Delta テーブルへ書き込み | GA | エッジデバイスからの取り込みパスの追加候補 |
+| 2 | Real-Time Mode (SDP) | Spark Structured Streaming の 5ms レイテンシモード | GA (DBR 16.2+) | 既存パス A のレイテンシ改善パス |
+| 3 | Lakeflow Connect (100+ コネクタ) | エンタープライズデータソースへのマネージド接続 | GA (コネクタ依存) | 新コネクタの利用可能性確認 |
+| 4 | Agentic Data Engineering | Unity Catalog 上で AI エージェントがパイプラインコンテキストを活用 | Preview | データ品質 × エージェントの接点 |
+
+#### Zerobus Ingest と MSK/Confluent Kafka の比較
+
+| 観点 | Zerobus Ingest | MSK / Confluent Kafka (現行設計) |
+|------|---------------|----------------------------------|
+| アーキテクチャ | Push 型 API → Delta テーブル直接書き込み | Pub/Sub メッセージバス → Consumer が Pull |
+| インフラ管理 | サーバーレス（パーティション/ブローカー不要） | ブローカー/パーティション管理必要 |
+| インターフェース | gRPC SDK / REST API / OpenTelemetry | Kafka プロトコル (confluent-kafka-python) |
+| スループット | 100 MB/s per stream, 10+ GB/s per table | クラスタ構成依存 |
+| 順序保証 | ストリーム単位で保証 | パーティション単位で保証 |
+| マルチコンシューマ | 不可（Delta テーブルが唯一のシンク） | 可（複数 Consumer Group） |
+| 用途の幅 | Databricks 取り込み専用 | 汎用イベントバス（ClickHouse, Lambda 等へも配信） |
+| デプロイ | Databricks ワークスペース内（クラウド） | オンプレミス VM (本プロジェクト) or マネージド |
+| コスト | Jobs Serverless SKU (DBU 課金) | VM 固定費 or マネージドサービス月額 |
+
+**本プロジェクトにおける判断**:
+
+本プロジェクトでは Kafka が**汎用イベントバス**として機能し、ClickHouse・Lambda・Databricks 等の複数コンシューマにイベントを配信している。Zerobus Ingest は Databricks への取り込みに特化しているため、Kafka の**代替ではなく**、Databricks 向け取り込みの**追加オプション**として位置づける。
+
+Zerobus Ingest が適するシナリオ:
+- Databricks のみがコンシューマである新規データソースの追加時
+- Kafka を経由せず直接 Delta テーブルへ書き込みたい場合（例: OpenTelemetry データ）
+- エッジデバイス数が大幅に増加し、Kafka ブローカーの負荷分散が課題になった場合の補完
+
+#### Real-Time Mode (SDP) と既存パス A のレイテンシ比較
+
+| 観点 | パス A 現行: Kafka → Structured Streaming (マイクロバッチ) | パス A 改善: Kafka → Real-Time Mode (SDP) |
+|------|--------------------------------------------------------|------------------------------------------|
+| レイテンシ | 秒〜分（トリガー間隔依存） | 5 ミリ秒〜（end-to-end） |
+| 実行モデル | マイクロバッチ（定期トリガー） | 長時間実行バッチ + 連続処理 |
+| ランタイム | DBR 標準 | DBR 16.2+ |
+| ユースケース | バッチ分析、ML データ生成 | 不正検知、リアルタイムパーソナライゼーション、品質即時判定 |
+| 成熟度 | GA | GA (DBR 16.2+) |
+| 追加コスト | なし（現行と同じ DBU） | 同じ DBU 体系 |
+
+**パス A への影響**:
+
+Real-Time Mode は GA に到達しており、既存パス A (Kafka → Structured Streaming → Delta) のトリガーモードを Real-Time Mode に変更するだけで、コードを大幅に書き換えずにミリ秒レイテンシを実現できる。これは Path D (LTAP: Kafka → Lakebase) の一部ユースケースをカバーし得る。
+
+#### パス D (LTAP) との関係整理
+
+```
+                          [Kafka]
+                            |
+              +-------------+-------------+
+              |             |             |
+              v             v             v
+    Path A (現行)     Path A (改善)     Path D (将来)
+    Structured        Real-Time Mode    Kafka → Lakebase
+    Streaming         for SDP
+    (秒〜分)          (5ms〜)           (ms〜秒、想定)
+        |                 |                 |
+        v                 v                 v
+    Delta Table       Delta Table       Lakebase (Postgres)
+    (分析・ML)        (分析・ML・即時)   (Operational AI)
+```
+
+| シナリオ | 推奨パス | 理由 |
+|---------|---------|------|
+| ML 学習データ生成 | Path A (現行) | マイクロバッチで十分、コスト効率良 |
+| 準リアルタイム分析ダッシュボード | Path A (Real-Time Mode) | Delta テーブル + Photon で高速クエリ |
+| 即時品質判定 API サーブ | Path D (LTAP) | Postgres 互換 API で UPDATE/DELETE + ミリ秒応答 |
+| OpenTelemetry メトリクス取り込み | Zerobus Ingest (直接) | Kafka 不要、OTLP ネイティブ対応 |
+
+#### 採用ゲート条件
+
+| 機能 | ゲート条件 | アクション |
+|------|-----------|-----------|
+| Zerobus Ingest | エッジデバイスの Databricks 専用取り込みニーズが顕在化 | SDK 検証 (gRPC + Python) |
+| Real-Time Mode | 既存 Path A パイプラインでのレイテンシ要件顕在化 (GA 済み) | トリガーモード変更の PoC |
+| Lakeflow Connect | 新コネクタで ONTAP / NFS 直接接続が可能になった場合 | DataSync 代替として評価 |
+| Agentic Data Engineering | Unity Catalog リネージ × AI Agent の具体的 API 公開 | データ品質パイプライン改善に適用検討 |
+
+#### 制約事項
+
+- Zerobus Ingest は **Databricks 専用** — Kafka のような汎用マルチコンシューマ配信は不可
+- Real-Time Mode は **GA** (DBR 16.2+) — 本番採用可能
+- Lakeflow は **Databricks マネージド** — オンプレミス非対応
+- エッジ側の Kafka Producer 設計には変更を加えない（クラウド側受信のみの影響）
+- 「Lakeflow/Zerobus が Kafka を上回る」等のベンダー対決表現は不適切 — 用途に応じて選択
 
 ---
 
@@ -320,3 +496,5 @@ Edge capture (Pi)
 | Kafka → Databricks 直接接続のネットワーク設計 | 設計中 | Kafka VM ↔ Databricks VPC |
 | ClickHouse → S3 Export の自動化 (cron or ClickHouse scheduled) | 設計済み | ClickHouse デプロイ後 |
 | DataSync Agent (ONTAP NFS → S3) | Lakehouse プロジェクトで検証済み | FSx for ONTAP 環境 |
+| LTAP (Kafka → Lakebase) コネクタ検証 | ドキュメント公開待ち | Lakebase GA / コネクタ仕様公開 |
+| Lakehouse//RT GA 評価 | Preview — GA 待ち | Databricks ロードマップ |
