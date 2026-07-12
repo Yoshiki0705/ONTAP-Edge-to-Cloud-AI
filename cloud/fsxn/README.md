@@ -150,6 +150,27 @@ AD 参加済み SMB 共有は以下のデモで活用:
 - **外観検査**: 製造ラインのカメラが Windows PC 経由で SMB 書き込み
 - **ONTAP テレメトリ**: ONTAP FPolicy イベントのユーザー識別が AD ユーザー名で記録される
 
+### Windows クライアントの AD 参加（SSM 経由）
+
+Pattern A（Managed AD）では、SSM Association によるタグベースの自動ドメイン参加が設定されます。
+新しい Windows EC2 に以下のタグを付けるだけで自動的にドメイン参加します:
+
+```yaml
+Tags:
+  - Key: DomainJoin
+    Value: demo.edge-to-cloud.local  # ← AD ドメイン名
+```
+
+EC2 インスタンスの IAM ロールには以下のポリシーが必須:
+```yaml
+ManagedPolicyArns:
+  - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+  - arn:aws:iam::aws:policy/AmazonSSMDirectoryServiceAccess
+```
+
+> **既知の落とし穴**: EC2 の `SsmAssociations` プロパティにカスタム SSM Document（`aws:domainJoin` アクション）を指定する方式は **デプロイ時に失敗します**（`Document schema version, 2.2, is not supported by association that is created with instance id`）。
+> 正しい方式は、`AWS::SSM::Association` リソースで AWS 管理ドキュメント `AWS-JoinDirectoryServiceDomain` を参照することです。本テンプレートはこの正しいパターンを実装済みです。
+
 ### AD 環境のクリーンアップ
 
 ```bash

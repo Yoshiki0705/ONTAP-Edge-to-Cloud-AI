@@ -233,6 +233,7 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonSSMDirectoryServiceAccess
       Tags:
         - Key: Project
           Value: edge-to-cloud-ai
@@ -264,6 +265,40 @@ Resources:
       VpcId: !Ref VpcId
       DhcpOptionsId: !Ref ADDhcpOptions
 
+  # ----------------------------------------------------------
+  # SSM Domain Join (Pattern A: Managed AD)
+  # ----------------------------------------------------------
+  # IMPORTANT: Do NOT use EC2 SsmAssociations property with a custom
+  # SSM Document containing aws:domainJoin. That pattern fails with:
+  #   "Document schema version, 2.2, is not supported by association
+  #    that is created with instance id"
+  #
+  # Correct approach: Use AWS::SSM::Association as a separate resource
+  # referencing the AWS-managed document "AWS-JoinDirectoryServiceDomain".
+  # See: https://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-state-assoc.html
+  #
+  # This Association is exported so other stacks can tag their EC2
+  # instances to auto-join via SSM targeting by tag.
+  # ----------------------------------------------------------
+  DomainJoinAssociation:
+    Type: AWS::SSM::Association
+    Condition: UseManagedAD
+    Properties:
+      AssociationName: !Sub "${AWS::StackName}-domain-join"
+      Name: AWS-JoinDirectoryServiceDomain
+      Targets:
+        - Key: "tag:DomainJoin"
+          Values:
+            - !Ref DomainName
+      Parameters:
+        directoryId:
+          - !Ref ManagedAD
+        directoryName:
+          - !Ref DomainName
+        dnsIpAddresses:
+          - !Select [0, !GetAtt ManagedAD.DnsIpAddresses]
+          - !Select [1, !GetAtt ManagedAD.DnsIpAddresses]
+
 # ============================================================
 # Outputs
 # ============================================================
@@ -276,6 +311,13 @@ Outputs:
     Description: AWS Managed AD Directory ID (Pattern A only)
     Condition: UseManagedAD
     Value: !Ref ManagedAD
+    Export:
+      Name: !Sub "${AWS::StackName}-DirectoryId"
+
+  DomainJoinAssociationId:
+    Description: SSM Association for auto domain join (tag EC2 with DomainJoin=<domain>)
+    Condition: UseManagedAD
+    Value: !Ref DomainJoinAssociation
 
   DnsIpAddresses:
     Description: DNS IP addresses for SVM AD join
