@@ -38,7 +38,10 @@ paths = [
   '''\.gitleaks\.toml$''',
   '''\.gitignore$''',
   '''.*\.example$''',
+  '''.*\.example\.json$''',
   '''.*\.md$''',
   '''cloud/fsxn/template\.yaml$''',
+  '''infrastructure/.*\.yaml$''',
+  '''scripts/.*\.sh$''',
   '''\.github/workflows/.*\.yml$''',
 ]

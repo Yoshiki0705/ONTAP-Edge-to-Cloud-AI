@@ -1,0 +1,319 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Demo AD Environment for FSx for ONTAP SMB/NFS authentication.
+  Supports 3 patterns:
+    A) AWS Managed Microsoft AD (recommended for PoC)
+    B) Self-managed AD on EC2 (simulates on-premises)
+    C) Existing AD (pass DNS IPs and domain — no AD resources created)
+
+# ============================================================
+# Parameters
+# ============================================================
+Parameters:
+  ADPattern:
+    Type: String
+    AllowedValues: [ManagedAD, SelfManagedEC2, ExistingAD]
+    Default: ManagedAD
+    Description: >
+      AD deployment pattern.
+      ManagedAD: AWS Managed Microsoft AD (simplest, ~$0.15/hr).
+      SelfManagedEC2: Windows Server DC on EC2 (simulates on-prem).
+      ExistingAD: Use existing AD — only DNS/domain params needed.
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC where AD and FSx for ONTAP reside
+
+  SubnetId1:
+    Type: AWS::EC2::Subnet::Id
+    Description: Subnet in AZ-1 (for Managed AD or EC2 DC)
+
+  SubnetId2:
+    Type: AWS::EC2::Subnet::Id
+    Description: Subnet in AZ-2 (for Managed AD — requires 2 AZs)
+
+  DomainName:
+    Type: String
+    Default: demo.edge-to-cloud.local
+    Description: Fully qualified domain name for the AD domain
+    AllowedPattern: ^[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
+
+  DomainNetBIOSName:
+    Type: String
+    Default: DEMO
+    MaxLength: 15
+    Description: NetBIOS name (max 15 chars)
+
+  AdminPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 8
+    MaxLength: 64
+    Description: AD Administrator password (min 8 chars, stored in Secrets Manager)
+
+  # --- Pattern C: Existing AD parameters ---
+  ExistingDnsIp1:
+    Type: String
+    Default: ""
+    Description: (Pattern C only) Primary DNS IP of existing AD
+
+  ExistingDnsIp2:
+    Type: String
+    Default: ""
+    Description: (Pattern C only) Secondary DNS IP of existing AD
+
+  # --- Pattern B: EC2 DC parameters ---
+  EC2InstanceType:
+    Type: String
+    Default: t3.medium
+    AllowedValues: [t3.small, t3.medium, t3.large]
+    Description: (Pattern B only) Instance type for the DC
+
+  EC2KeyPair:
+    Type: String
+    Default: ""
+    Description: (Pattern B only) EC2 Key Pair name for RDP access
+
+# ============================================================
+# Conditions
+# ============================================================
+Conditions:
+  UseManagedAD: !Equals [!Ref ADPattern, ManagedAD]
+  UseSelfManagedEC2: !Equals [!Ref ADPattern, SelfManagedEC2]
+  UseExistingAD: !Equals [!Ref ADPattern, ExistingAD]
+  CreateADResources: !Not [!Equals [!Ref ADPattern, ExistingAD]]
+  HasKeyPair: !Not [!Equals [!Ref EC2KeyPair, ""]]
+
+# ============================================================
+# Resources
+# ============================================================
+Resources:
+
+  # ----------------------------------------------------------
+  # Secrets Manager: AD admin credentials (Patterns A & B)
+  # ----------------------------------------------------------
+  ADAdminSecret:
+    Type: AWS::SecretsManager::Secret
+    Condition: CreateADResources
+    DeletionPolicy: Delete
+    Properties:
+      Name: !Sub "${AWS::StackName}/ad-admin"
+      Description: AD Administrator credentials for demo environment
+      SecretString: !Sub |
+        {
+          "username": "Admin",
+          "password": "${AdminPassword}",
+          "domain": "${DomainName}"
+        }
+      Tags:
+        - Key: Project
+          Value: edge-to-cloud-ai
+        - Key: Purpose
+          Value: demo-ad
+
+  # ----------------------------------------------------------
+  # Pattern A: AWS Managed Microsoft AD
+  # ----------------------------------------------------------
+  ManagedAD:
+    Type: AWS::DirectoryService::MicrosoftAD
+    Condition: UseManagedAD
+    Properties:
+      Name: !Ref DomainName
+      ShortName: !Ref DomainNetBIOSName
+      Edition: Standard
+      Password: !Ref AdminPassword
+      VpcSettings:
+        VpcId: !Ref VpcId
+        SubnetIds:
+          - !Ref SubnetId1
+          - !Ref SubnetId2
+      Tags:
+        - Key: Project
+          Value: edge-to-cloud-ai
+        - Key: ADPattern
+          Value: ManagedAD
+
+  # ----------------------------------------------------------
+  # Pattern B: Self-Managed AD on EC2 (Windows Server)
+  # ----------------------------------------------------------
+  DCSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: UseSelfManagedEC2
+    Properties:
+      GroupDescription: Domain Controller security group
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: 198.51.100.0/24
+          Description: DNS (TCP)
+        - IpProtocol: udp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: 198.51.100.0/24
+          Description: DNS (UDP)
+        - IpProtocol: tcp
+          FromPort: 88
+          ToPort: 88
+          CidrIp: 198.51.100.0/24
+          Description: Kerberos
+        - IpProtocol: tcp
+          FromPort: 389
+          ToPort: 389
+          CidrIp: 198.51.100.0/24
+          Description: LDAP
+        - IpProtocol: tcp
+          FromPort: 636
+          ToPort: 636
+          CidrIp: 198.51.100.0/24
+          Description: LDAPS
+        - IpProtocol: tcp
+          FromPort: 445
+          ToPort: 445
+          CidrIp: 198.51.100.0/24
+          Description: SMB
+        - IpProtocol: tcp
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: 198.51.100.0/24
+          Description: RDP (restrict in production)
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-dc-sg"
+
+  DomainController:
+    Type: AWS::EC2::Instance
+    Condition: UseSelfManagedEC2
+    Properties:
+      InstanceType: !Ref EC2InstanceType
+      ImageId: !Sub "{{resolve:ssm:/aws/service/ami-windows-latest/Windows_Server-2022-English-Full-Base}}"
+      SubnetId: !Ref SubnetId1
+      SecurityGroupIds:
+        - !Ref DCSecurityGroup
+      KeyName: !If [HasKeyPair, !Ref EC2KeyPair, !Ref "AWS::NoValue"]
+      IamInstanceProfile: !Ref DCInstanceProfile
+      UserData:
+        Fn::Base64: !Sub |
+          <powershell>
+          # Install AD DS role
+          Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools
+
+          # Promote to Domain Controller
+          Import-Module ADDSDeployment
+          Install-ADDSForest `
+            -DomainName "${DomainName}" `
+            -DomainNetbiosName "${DomainNetBIOSName}" `
+            -SafeModeAdministratorPassword (ConvertTo-SecureString "${AdminPassword}" -AsPlainText -Force) `
+            -InstallDns:$true `
+            -NoRebootOnCompletion:$false `
+            -Force:$true
+
+          # Create service account for FSx for ONTAP SVM join
+          # (available after reboot and AD promotion completes)
+          </powershell>
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-dc"
+        - Key: Project
+          Value: edge-to-cloud-ai
+        - Key: ADPattern
+          Value: SelfManagedEC2
+
+  DCRole:
+    Type: AWS::IAM::Role
+    Condition: UseSelfManagedEC2
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Tags:
+        - Key: Project
+          Value: edge-to-cloud-ai
+
+  DCInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Condition: UseSelfManagedEC2
+    Properties:
+      Roles:
+        - !Ref DCRole
+
+  # ----------------------------------------------------------
+  # DHCP Options Set (updates VPC DNS to point to AD)
+  # ----------------------------------------------------------
+  ADDhcpOptions:
+    Type: AWS::EC2::DHCPOptions
+    Condition: UseManagedAD
+    Properties:
+      DomainName: !Ref DomainName
+      DomainNameServers: !GetAtt ManagedAD.DnsIpAddresses
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-dhcp"
+
+  ADDhcpAssociation:
+    Type: AWS::EC2::VPCDHCPOptionsAssociation
+    Condition: UseManagedAD
+    Properties:
+      VpcId: !Ref VpcId
+      DhcpOptionsId: !Ref ADDhcpOptions
+
+# ============================================================
+# Outputs
+# ============================================================
+Outputs:
+  ADPattern:
+    Description: Active AD pattern
+    Value: !Ref ADPattern
+
+  DirectoryId:
+    Description: AWS Managed AD Directory ID (Pattern A only)
+    Condition: UseManagedAD
+    Value: !Ref ManagedAD
+
+  DnsIpAddresses:
+    Description: DNS IP addresses for SVM AD join
+    Value: !If
+      - UseManagedAD
+      - !Join [",", !GetAtt ManagedAD.DnsIpAddresses]
+      - !If
+        - UseSelfManagedEC2
+        - !GetAtt DomainController.PrivateIp
+        - !Sub "${ExistingDnsIp1},${ExistingDnsIp2}"
+
+  DomainName:
+    Description: AD domain FQDN
+    Value: !Ref DomainName
+    Export:
+      Name: !Sub "${AWS::StackName}-DomainName"
+
+  DomainNetBIOSName:
+    Description: AD NetBIOS name
+    Value: !Ref DomainNetBIOSName
+    Export:
+      Name: !Sub "${AWS::StackName}-NetBIOS"
+
+  SecretArn:
+    Description: Secrets Manager ARN for AD credentials
+    Condition: CreateADResources
+    Value: !Ref ADAdminSecret
+
+  DCPrivateIp:
+    Description: Domain Controller private IP (Pattern B only)
+    Condition: UseSelfManagedEC2
+    Value: !GetAtt DomainController.PrivateIp
+
+  NextSteps:
+    Description: Post-deployment instructions
+    Value: !Sub >
+      Run: ./scripts/demo-ad-join-svm.sh
+      --svm-id <SVM_ID>
+      --domain ${DomainName}
+      --dns-ips <see DnsIpAddresses output>
+      --secret-arn <see SecretArn output>
