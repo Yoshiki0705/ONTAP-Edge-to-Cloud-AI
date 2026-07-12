@@ -15,6 +15,7 @@
 !*.tfvars.example
 *-params.json
 !*-params.example.json
+cfn-params/*.local.json
 
 # Private operational logs
 .private/
