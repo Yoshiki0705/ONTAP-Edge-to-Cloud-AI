@@ -1,0 +1,46 @@
+[
+  {
+    "ParameterKey": "ADPattern",
+    "ParameterValue": "ManagedAD"
+  },
+  {
+    "ParameterKey": "VpcId",
+    "ParameterValue": "vpc-0123456789abcdef0"
+  },
+  {
+    "ParameterKey": "SubnetId1",
+    "ParameterValue": "subnet-0123456789abcdef0"
+  },
+  {
+    "ParameterKey": "SubnetId2",
+    "ParameterValue": "subnet-0fedcba9876543210"
+  },
+  {
+    "ParameterKey": "DomainName",
+    "ParameterValue": "demo.edge-to-cloud.local"
+  },
+  {
+    "ParameterKey": "DomainNetBIOSName",
+    "ParameterValue": "DEMO"
+  },
+  {
+    "ParameterKey": "AdminPassword",
+    "ParameterValue": "CHANGE-ME-StrongP@ss1"
+  },
+  {
+    "ParameterKey": "ExistingDnsIp1",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "ExistingDnsIp2",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EC2InstanceType",
+    "ParameterValue": "t3.medium"
+  },
+  {
+    "ParameterKey": "EC2KeyPair",
+    "ParameterValue": ""
+  }
+]
