@@ -1,0 +1,14 @@
+[
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "poc"
+  },
+  {
+    "ParameterKey": "SoracomOperatorId",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "AlertEmail",
+    "ParameterValue": "alerts@example.com"
+  }
+]
