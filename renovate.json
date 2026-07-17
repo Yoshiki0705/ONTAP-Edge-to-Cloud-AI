@@ -1,0 +1,45 @@
+{
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests",
+    ":semanticCommitsDisabled"
+  ],
+  "timezone": "Asia/Tokyo",
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies"],
+  "commitMessagePrefix": "chore(deps):",
+  "dependencyDashboard": true,
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"]
+  },
+  "osvVulnerabilityAlerts": true,
+  "packageRules": [
+    {
+      "description": "Group all GitHub Actions updates together",
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions",
+      "pinDigests": true
+    },
+    {
+      "description": "Group Python dependency updates",
+      "matchManagers": ["pip_requirements", "pep621"],
+      "groupName": "python-dependencies"
+    },
+    {
+      "description": "Group CDK/npm dependency updates",
+      "matchManagers": ["npm"],
+      "groupName": "npm-dependencies"
+    },
+    {
+      "description": "Require manual approval for major version bumps",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    }
+  ],
+  "ignorePaths": [
+    "node_modules/**",
+    ".venv/**",
+    "cdk.out/**"
+  ]
+}
