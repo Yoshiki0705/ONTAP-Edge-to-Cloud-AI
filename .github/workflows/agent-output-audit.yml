@@ -60,10 +60,10 @@ jobs:
           echo "$TEXT_FILES" > /tmp/changed_text.txt
 
           # Output counts for logging
-          MD_COUNT=$(echo "$MD_FILES" | grep -c . || echo 0)
-          TEXT_COUNT=$(echo "$TEXT_FILES" | grep -c . || echo 0)
-          echo "md_count=$MD_COUNT" >> "$GITHUB_OUTPUT"
-          echo "text_count=$TEXT_COUNT" >> "$GITHUB_OUTPUT"
+          MD_COUNT=$(echo "$MD_FILES" | grep -c . 2>/dev/null || true)
+          TEXT_COUNT=$(echo "$TEXT_FILES" | grep -c . 2>/dev/null || true)
+          echo "md_count=${MD_COUNT:-0}" >> "$GITHUB_OUTPUT"
+          echo "text_count=${TEXT_COUNT:-0}" >> "$GITHUB_OUTPUT"
 
       - name: "Hard-fail: Naming violations (changed .md)"
         if: steps.changed.outputs.md_count != '0'

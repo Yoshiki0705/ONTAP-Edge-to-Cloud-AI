@@ -11,10 +11,6 @@ permissions: read-all
 jobs:
   analysis:
     runs-on: ubuntu-latest
-    # Scorecard checks depend on repository settings (branch protection,
-    # required reviews, signed commits) that are not controlled by code.
-    # Allow failure so it does not block other CI workflows.
-    continue-on-error: true
     permissions:
       security-events: write
       id-token: write
