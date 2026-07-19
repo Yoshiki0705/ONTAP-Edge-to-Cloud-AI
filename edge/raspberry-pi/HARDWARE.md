@@ -6,15 +6,18 @@
 
 ## 機器一覧
 
-| 機器 | 用途 | セットアップ難易度 |
-|------|------|-----------------|
-| [Raspberry Pi 5](#raspberry-pi-5) | エッジコンピュート | ★★☆ |
-| [Geekworm X1004 + NVMe SSD](#nvme-ssd-geekworm-x1004) | Pi ストレージ高速化 | ★★☆ |
-| [USB カメラ (Logitech BRIO 4K)](#usb-camera) | 画像キャプチャ | ★☆☆ |
-| [CSI カメラ (NoIR V2)](#csi-camera) | 近赤外線撮影 | ★★☆ |
-| [Bambu Lab P2S](#bambu-lab-p2s) | 3Dプリンター (監視対象) | ★★☆ |
-| [FS.com S5860-24XMG](#fscom-switch) | 10GbE L3 スイッチ | ★★★ |
-| [NetApp ONTAP](#netapp-ontap) | データ集約ストレージ | ★★★ |
+| 機器 | 接続 | 用途 | セットアップ難易度 |
+|------|------|------|-----------------|
+| [Raspberry Pi 5](#raspberry-pi-5) | 有線 LAN (NFS) | カメラ撮影、センサー収集、エッジ推論 | ★★☆ |
+| [Geekworm X1004 + NVMe SSD](#nvme-ssd-geekworm-x1004) | Pi 内蔵 | ストレージ高速化 | ★★☆ |
+| [USB カメラ (Logitech BRIO 4K)](#usb-camera) | Pi 経由 (USB) | 外観検査、品質監視 | ★☆☆ |
+| [CSI カメラ (NoIR V2)](#csi-camera) | Pi 経由 (CSI) | 暗所撮影、近赤外線 | ★★☆ |
+| [Bambu Lab P2S](#bambu-lab-p2s) | 有線 LAN (SMB) | 3D プリントデータ保存（監視対象） | ★★☆ |
+| [FS.com S5860-24XMG](#fscom-switch) | — | 10GbE L3 スイッチ（ネットワーク基盤） | ★★★ |
+| [NetApp ONTAP](#netapp-ontap) | NFS/SMB/S3 | データ集約ストレージ | ★★★ |
+| SORACOM S+ Camera | セルラー (オプション) | 有線 LAN がない現場 | ★★☆ |
+| SORACOM Air + Pi | セルラー (オプション) | 有線 LAN がない現場の接続 | ★★☆ |
+| 産業用センサー | Pi GPIO / I2C / SPI | 温湿度、振動、電流 | ★★☆ |
 
 ---
 
