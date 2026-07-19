@@ -1,5 +1,33 @@
 # FAQ
 
+## About This Project
+
+**Q: Who is this project for?**
+
+A: This project targets the following audiences:
+
+| Audience | Interest |
+|----------|----------|
+| IoT/Edge developers | How to aggregate and utilize device-generated data |
+| Data utilization advocates | Break down data silos, enable cross-organizational analysis |
+| Existing ONTAP users | Use ONTAP as an IoT data aggregation point |
+| AWS users | Use Athena/Bedrock/SageMaker with non-S3 storage sources |
+
+**Q: Can I achieve the same thing with a different storage if I don't have ONTAP?**
+
+A: Yes. The core pattern (edge collection → aggregation → AI analysis) works with other storage options.
+
+| Storage | Data Flow | Characteristics | Constraints |
+|---------|-----------|----------------|-------------|
+| **S3 direct** | Edge → S3 → Athena/Bedrock | Simplest. Native AWS integration. S3 Object Lock for tamper protection | No NFS/SMB. Integrating with existing file workflows requires extra work |
+| **EFS** | Edge → NFS → EFS → Lambda/Bedrock | NFS mountable. Good affinity with Linux devices. Auto-scaling | No SMB. No direct S3 API access. Cross-region via EFS Replication |
+| **ONTAP** | Edge → NFS/SMB → ONTAP → S3 AP → AWS AI | NFS + SMB + S3 on same data. FPolicy triggers. SnapMirror incremental sync. ARP/AI ransomware protection | Requires ONTAP environment. S3 AP has no conditional writes. Needs ONTAP operational knowledge |
+
+**Which to choose:**
+- No existing data / greenfield → **S3 direct** is simplest
+- Linux devices writing NFS / VPC-contained → **EFS**
+- Already have ONTAP/NAS with data / need NFS+SMB / want to avoid data copying → **ONTAP**
+
 ## Setup
 
 **Q: Can I try this without ONTAP?**

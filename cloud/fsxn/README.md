@@ -1,6 +1,23 @@
 # FSx for ONTAP Infrastructure
 
-> ⚠️ **Cost Warning**: FSx for ONTAP costs ~$500+/month (Multi-AZ, 128 MBps, 1 TiB). Deploy only when needed for Phase 3 testing.
+> ⚠️ **Cost Warning**: FSx for ONTAP costs ~$500+/month (Multi-AZ, 128 MBps, 1 TiB). Deploy only when needed for testing.
+
+## ONTAP プラットフォーム選択ガイド
+
+本プロジェクトのアーキテクチャはどの ONTAP プラットフォームでも動作します。用途に応じて選択してください。
+
+| プラットフォーム | 配置 | 特徴 | 適したケース |
+|----------------|------|------|-------------|
+| **FAS/AFF** | オンプレミス | ハードウェアアプライアンス。高性能・大容量 | 既存 NAS、本番データ集約 |
+| **ONTAP Select** | オンプレミス / VM | ソフトウェア定義。汎用サーバーや VM 上で動作 | 小規模検証、仮想環境 |
+| **FSx for ONTAP** | AWS クラウド | フルマネージド。SnapMirror 先として最適。S3 AP 対応 | AWS AI 連携、SnapMirror DR |
+
+**選び方:**
+- エッジ側のデータ集約先として → **FAS/AFF** or **ONTAP Select**（オンプレ側）
+- AWS AI サービスとの連携先として → **FSx for ONTAP**（S3 AP でデータコピー不要）
+- SnapMirror で オンプレ → クラウドの DR/分析 → **FSx for ONTAP** をデスティネーションに
+
+本リポジトリの CloudFormation テンプレートは **FSx for ONTAP** をデプロイします。
 
 ## Purpose
 
