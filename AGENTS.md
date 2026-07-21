@@ -57,6 +57,18 @@ zizmor .github/workflows/
 
 ---
 
+## Common Pitfalls
+
+| Pitfall | Root Cause | Solution |
+|---------|-----------|----------|
+| AgentCore Gateway assumed us-east-1 only | Workshop examples default to us-east-1 | **ap-northeast-1 で利用可能（検証済み 2026-07）**。Gateway + Lambda を同一リージョンに配置 |
+| AgentCore Lambda event: `event.toolName` で取得 | 誤った前提 | `context.client_context.custom['bedrockAgentCoreToolName']` を使用。event はフラットなパラメータ辞書。ツール名は `targetName___toolName` 形式 |
+| `create-gateway-target` で Lambda not found | Gateway と Lambda のリージョン不一致 | 同一リージョン配置必須。クロスリージョン Lambda 呼び出しは不可 |
+| Quick Desktop MCP: Remote 追加が永続化されない | Quick Desktop の間欠的バグ | **Import 方式**（JSON ファイルからの読み込み）を使う。Local/Remote 直接追加は不安定 |
+| Quick Desktop サインインで「account name is invalid」 | IAM ユーザー名 ≠ QuickSight ユーザー名 | `aws quicksight list-users` で確認。Email ベースのサインインが最もシンプル |
+
+---
+
 ## Agent Output Standards
 
 > ユーザーレベル Kiro グローバル steering のミラー。steering 未ロードの環境でも従えるようにする。
