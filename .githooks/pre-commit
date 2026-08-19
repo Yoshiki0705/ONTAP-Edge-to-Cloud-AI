@@ -31,9 +31,16 @@ if [[ -n "$GLOBAL_HOOKS_PATH" ]]; then
 fi
 
 # --- 1. Author email verification ------------------------------------------
+# users.noreply.github.com is included deliberately. Every commit in this
+# repository has been authored with that form, so the original pattern of
+# @netapp.com|@gmail.com would have rejected all of them the moment this hook was
+# wired up — the check was unenforced for long enough to stop matching reality.
+# It is also the address this repository's own rules prefer: the noreply form
+# keeps a real address out of a public, search-indexed history.
 AUTHOR_EMAIL=$(git config user.email)
-if [[ ! "$AUTHOR_EMAIL" =~ @(netapp\.com|gmail\.com)$ ]]; then
-  echo "❌ ERROR: Author email must be @netapp.com or @gmail.com"
+if [[ ! "$AUTHOR_EMAIL" =~ @(netapp\.com|gmail\.com|users\.noreply\.github\.com)$ ]]; then
+  echo "❌ ERROR: Author email must end in @netapp.com, @gmail.com, or"
+  echo "   @users.noreply.github.com"
   echo "   Current: $AUTHOR_EMAIL"
   echo "   Fix: git config user.email '<your-verified-email>'"
   exit 1
