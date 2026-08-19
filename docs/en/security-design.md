@@ -560,6 +560,135 @@ system. If that stops being true (the Pi writing to a PLC, for instance), every
 - **IEC 62443 / NIST SP 800-82 conformance**: not assessed. Connecting to
   regulated equipment is outside the scope of this document.
 
+## 14. Private connectivity and endpoints
+
+Configurations that keep traffic to AWS services off the internet. This extends the network
+separation in §4 into the cloud side.
+
+| Configuration | What it solves | Note |
+|---------------|----------------|------|
+| Gateway VPC endpoint | Keeps S3 traffic inside the VPC, at no additional charge | Per route table. Not directly usable from on-premises |
+| Interface VPC endpoint | Keeps traffic to Bedrock, Secrets Manager and others inside the VPC | Creates an ENI per AZ, with hourly and data processing charges |
+| AWS PrivateLink | The mechanism underneath, also used for VPC-to-VPC and cross-account connectivity | An endpoint policy can bound what is reachable |
+| Connectivity from on-premises | Reach the VPC's endpoints over Direct Connect or VPN | DNS resolution has to be designed on the on-premises side |
+
+**Order of decision**: ask first whether each flow needs the internet at all, and move the ones that
+do not onto endpoints. Closing everything at once makes it hard to isolate which flow broke.
+
+### Network origin of an S3 access point
+
+An S3 access point has a network origin setting and can be configured to accept requests only from a
+VPC ([source](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/accessing-data-via-s3-access-points.html)).
+For access points attached to an FSx for ONTAP volume, block public access is enforced by default and
+cannot be disabled.
+
+**There is a conflict, though.** Using Athena requires the access point to have an **internet**
+network origin
+([source](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/tutorial-query-data-with-athena.html)).
+Where the analytics path and a private-only requirement collide, one has to take precedence.
+
+### Endpoint policies
+
+A VPC endpoint can carry a policy. Separately from restrictions on the IAM role, it enforces "from
+this network, only these resources are reachable". S3 access point authorization already has two
+layers, IAM and file system permissions
+([S3 AP compatibility and constraints](s3ap-compatibility-matrix.md)); an endpoint policy sits in
+front of both as a third.
+
+---
+
+## 15. Data lake permissions and the catalog
+
+Analytics permissions tend to be maintained in two places, the catalog and the data. Maintaining both
+is how one of them ends up stale.
+
+| Layer | What it controls |
+|---|---|
+| Glue Data Catalog | Visibility of tables and columns |
+| Lake Formation | Permissions at table, column and row level |
+| S3 / file storage | Access to the actual data |
+
+**Lake Formation table permissions have been extended to cover access to the underlying S3 data**
+([source](https://aws.amazon.com/about-aws/whats-new/2026/06/aws-lake-formation-access-data-amazon-s3/)),
+which reduces the need to maintain the catalog-side and data-side grants separately.
+
+**Where this repository stands**: the Glue crawler and Athena queries exist
+([`usecases/ontap-telemetry-analytics/`](../../usecases/ontap-telemetry-analytics/)), but Lake
+Formation permission management is **not in place**. Everything is written assuming a single account
+and a single user. Multi-team use starts with designing this.
+
+---
+
+## 16. Threat detection and control visibility
+
+| Service | Role | State in this repository |
+|---|---|---|
+| GuardDuty | Detecting anomalous behaviour inside the account | Recommended to enable (§12 checklist) |
+| Security Hub | Aggregating findings and compliance state across security services | Not in place |
+| CloudTrail | Recording API calls | Assumed enabled (§17) |
+
+**What Security Hub is for** is collecting findings that individual services produce into one place.
+When results from GuardDuty, Inspector and Config are scattered, there is no basis for prioritising a
+response.
+
+**Specific to IoT**: anomalous device behaviour — publishing to an unexpected topic, a sudden jump in
+message volume — is not visible to account-level threat detection. Device-side monitoring is a
+separate design, and is not implemented here.
+
+---
+
+## 17. Data residency and auditability
+
+### 17.1 Data residency
+
+**Where data sits and where it is processed is not settled by Region choice alone.** A generative AI
+call hands data to wherever the model runs.
+
+| Strength of requirement | Options | Note |
+|---|---|---|
+| Keep it within a Region | Use only services and models available in that Region | Model availability differs by Region; confirm the model you intend to use can be enabled there first |
+| Keep it within a country or bloc | A Region in that geography, or an independently operated partition | The set of available services can differ from an ordinary Region |
+| It cannot leave the site | Complete processing at the edge ([Pattern 09](aws-patterns/09-edge-agentic-ai.md)), or a hybrid configuration | Verify first that edge-side model capability suffices |
+
+For retrieval-augmented generation under data residency requirements, AWS
+[publishes a worked configuration](https://aws.amazon.com/blogs/machine-learning/implement-rag-while-meeting-data-residency-requirements-using-aws-hybrid-and-edge-services/).
+Where stricter isolation is required, an independently operated partition is also an option
+([European digital sovereignty](https://aws.amazon.com/compliance/europe-digital-sovereignty/)).
+
+> **This section offers no legal judgement.** Which requirements apply to your organisation, and
+> which configuration satisfies them, belongs to legal and compliance functions. What is organised
+> here is the technical options and what changes with each.
+
+### 17.2 Auditability
+
+Being able to reconstruct who did what to which data and when. In this architecture the records are
+spread across four places.
+
+| Record | What it shows | How to think about retention |
+|---|---|---|
+| CloudTrail | AWS API calls | Long retention, including tamper protection |
+| S3 / file storage access logs | Which data was read | High volume; bound to what is needed |
+| ONTAP audit logs | File system level operations | Keep timestamps correlatable with the cloud-side logs |
+| AI invocation records | Which model returned what for which input | Needed to explain a verdict. [Agentic AI on AWS](agentic-ai-on-aws.md) §6 |
+
+**A consequence of two-layer authorization**: access through an S3 access point passes both IAM and
+file system permissions. Looking only at the IAM-side log, a request denied by the file system can
+appear to have been allowed. The design has to correlate both.
+
+**Additional requirement when an agent is involved**: for a process that chooses several steps
+itself, not only the final output but what it consulted and called along the way has to be retained.
+The list is in [Agentic AI on AWS](agentic-ai-on-aws.md) §6.
+
+### 17.3 Not addressed in this section
+
+- **Lake Formation adoption**: not done (§15)
+- **Security Hub adoption**: not done (§16)
+- **Device-side behaviour monitoring**: not implemented (§16)
+- **Log correlation**: no mechanism designed for correlating the four record sources
+- **Basis for retention periods**: the reason each retention period was chosen is not recorded
+
+---
+
 ## Related Documents
 
 - [Quality gates](../agent/quality-gates_en.md) — the gates that verify this design

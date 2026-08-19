@@ -180,6 +180,7 @@ The full procedure is in the [deployment guide](docs/en/deployment-guide.md).
 | Document | 日本語 | English |
 |----------|--------|---------|
 | **AWS pattern catalog** (9 patterns) | [aws-patterns](docs/ja/aws-patterns/README.md) | [aws-patterns](docs/en/aws-patterns/README.md) |
+| **Deployment models** (differences by scale and industry) | [deployment-models](docs/ja/deployment-models/README.md) | [deployment-models](docs/en/deployment-models/README.md) |
 | Agentic AI on AWS | [agentic-ai-on-aws](docs/ja/agentic-ai-on-aws.md) | [agentic-ai-on-aws](docs/en/agentic-ai-on-aws.md) |
 | Flexible AI Data Layer (forward-looking) | [flexible-ai-data-layer](docs/ja/flexible-ai-data-layer.md) | [flexible-ai-data-layer](docs/en/flexible-ai-data-layer.md) |
 | Deployment guide | [deployment-guide](docs/ja/deployment-guide.md) | [deployment-guide](docs/en/deployment-guide.md) |

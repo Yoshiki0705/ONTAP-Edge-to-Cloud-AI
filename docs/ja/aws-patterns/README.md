@@ -63,6 +63,7 @@
 - **イベントスキーマ**: [データスキーマ設計](../data-schema-design.md)
 - **エージェント処理の設計論点**: [Agentic AI on AWS](../agentic-ai-on-aws.md)
 - **将来の構成候補**: [Flexible AI Data Layer](../flexible-ai-data-layer.md)
+- **規模・業種による差分**: [デプロイメントモデル](../deployment-models/README.md)
 
 ## リポジトリ構造との対応
 
