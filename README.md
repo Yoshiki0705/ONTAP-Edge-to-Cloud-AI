@@ -42,24 +42,9 @@
 
 ## アーキテクチャ
 
-```
-[Edge Devices]              [ONTAP (Aggregation)]       [Real-Time Ops]       [AI / Analytics]
-                            FAS/AFF|Select|FSx for ONTAP  On-prem VMs           AWS Cloud
-+------------------+        +--------------------+      +---------------+      +------------------+
-| Raspberry Pi 5   |--NFS-->| Inspection images  |      | Kafka         |      | Bedrock (GenAI)  |
-|   Camera         |        | Sensor CSV         |      |  (events)     |      | Athena (SQL)     |
-|   Sensors        |--Kafka>| Equipment logs     |      | ClickHouse    |      | Glue (ETL)       |
-+------------------+        | 3D models          |      |  (analytics)  |      | SageMaker (ML)   |
-| 3D Printer       |--SMB-->|                    |      +---------------+      +------------------+
-+------------------+        | FPolicy (trigger)  |            |                       |
-                            | REST API (metrics) |            v                       v
-[Connectivity]              | ONTAP S3 (backup)  |      [Dashboards]           [Databricks]
-|- Wired LAN (10GbE)        | ARP/AI (protect)   |      Anomaly detection     Unity Catalog
-|- Wi-Fi                    | Snapshot (preserve) |      Quality trends        Gold datasets
-|- Cellular (option)        +--------------------+      Payload lookup         Feature tables
-                                    |
-                                    |--SnapMirror--> FSx for ONTAP --> S3 AP --> AWS AI
-```
+![エッジ拠点のカメラと振動センサーが書いたファイルをローカルストレージ経由で Amazon FSx for NetApp ONTAP に集約し、S3 Access Point から Amazon Bedrock、Amazon Athena、Amazon SageMaker AI に渡す構成。センサーイベントは AWS IoT Core と Kafka / ClickHouse の 2 経路に分かれる](docs/images/architecture-overview.svg)
+
+図 1: 全体アーキテクチャ（[.drawio](docs/diagrams/architecture-overview.drawio) / [English](docs/images/architecture-overview-en.svg)）
 
 **データの流れ:**
 - **ペイロード** (画像、CSV、ログ): エッジ → NFS → ONTAP (保存)
@@ -192,6 +177,8 @@ aws cloudformation deploy \
 | 運用設計 | [operations-design](docs/ja/operations-design.md) | [operations-design](docs/en/operations-design.md) |
 | デモシナリオ | [demo-scenarios](docs/ja/demo-scenarios.md) | [demo-scenarios](docs/en/demo-scenarios.md) |
 | FAQ | [faq](docs/ja/faq.md) | [faq](docs/en/faq.md) |
+
+アーキテクチャ図（公式アイコン、日英）: [docs/diagrams/](docs/diagrams/)
 
 デモ手順（英語のみ）: [前提条件](docs/demo-guides/demo-guide-00-prerequisites.md) /
 [IoT Core → Lambda → S3 AP](docs/demo-guides/demo-guide-01-iot-core-lambda-s3ap.md) /

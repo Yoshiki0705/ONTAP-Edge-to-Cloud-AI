@@ -38,7 +38,7 @@ graph LR
     FSX -->|S3 access point| GL[Glue]
     LAKE --> GL
     GL --> ATH[Athena]
-    ATH --> BI[Amazon Quick]
+    ATH --> BI[Amazon Quick Sight]
   end
 ```
 
@@ -49,7 +49,7 @@ graph LR
    count, so batch by time window
 4. Large payloads (waveforms, images) stay in file storage; the event carries only a reference
 5. Glue derives the schema and Athena answers SQL
-6. Visualization with Amazon Quick (available in ap-northeast-1)
+6. Visualization with Amazon Quick Sight (available in ap-northeast-1)
 
 ## Storage
 

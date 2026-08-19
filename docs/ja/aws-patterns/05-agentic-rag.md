@@ -38,6 +38,8 @@ graph LR
   end
 ```
 
+公式アイコンで描いた版: [SVG](../../images/pattern-05-agentic-rag.svg)（作図元は [pattern-05-agentic-rag.drawio](../../diagrams/pattern-05-agentic-rag.drawio)、生成手順は [docs/diagrams/](../../diagrams/)）
+
 1. 既存のファイル共有に文書が置かれている。利用者は SMB / NFS で使い続ける
 2. 集約先へ同期する（または集約先を直接共有として使う）
 3. S3 Access Point の alias を Knowledge Base のデータソースに指定する。

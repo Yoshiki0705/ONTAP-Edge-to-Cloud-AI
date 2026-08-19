@@ -42,6 +42,7 @@ in `scripts/` and run from `make drift`, `.githooks/pre-commit` and CI.
 | `check_sql_interpolation.py` | a SQL construction site missing from `scripts/reviewed_sql_sites.txt`, and entries that no longer match code |
 | `check_doc_parity.py` | heading-level sequences diverging between a JA/EN pair, one-sided files, and stale entries in `scripts/known_doc_parity_gaps.txt` |
 | `check_sunset_services.py` | a document naming a service closed to new customers without a note about its status |
+| `check_diagram_assets.py` | a committed icon-library file, a figure whose SVG or PNG was never re-exported, Japanese left in an English artifact |
 
 Their self-tests are in `scripts/tests/` and run under `make test`.
 

@@ -40,6 +40,7 @@ make check           # lint + security + test + drift（CI と同じ）
 | `check_sql_interpolation.py` | `scripts/reviewed_sql_sites.txt` に無い SQL 組み立て箇所、および実体を失った記載 |
 | `check_doc_parity.py` | JA/EN 対訳ペアの見出しレベル列の不一致、片側のみ存在するファイル、`scripts/known_doc_parity_gaps.txt` の実体を失った記載 |
 | `check_sunset_services.py` | 新規顧客に非開放のサービスを、状況の注記なしに挙げている doc |
+| `check_diagram_assets.py` | コミットされたアイコンライブラリ、再エクスポート漏れで欠けた図の SVG/PNG、英語版の成果物に残った日本語 |
 
 `scripts/tests/` に自己テストがある。`make test` で走る。
 

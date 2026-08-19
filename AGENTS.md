@@ -72,5 +72,6 @@ SQL statement — see `cloud/iot_ingestion/identifiers.py`.
 | Editing a GitHub Actions workflow; adding a dependency | [docs/agent/supply-chain-security.md](docs/agent/supply-chain-security.md) |
 | Naming an AWS service in a design; correcting an existing mention | [docs/agent/service-lifecycle.md](docs/agent/service-lifecycle.md) |
 | Writing or revising a reference doc or guide | [docs/agent/reference-doc-quality.md](docs/agent/reference-doc-quality.md) |
+| Changing an architecture diagram; the `.drawio` files are generated, not edited | [docs/diagrams/README.md](docs/diagrams/README.md) |
 | Anything touching network boundaries, device identity or plant equipment | [docs/ja/security-design.md](docs/ja/security-design.md) |
 | Running or extending the test suites | [TESTING.md](TESTING.md) |

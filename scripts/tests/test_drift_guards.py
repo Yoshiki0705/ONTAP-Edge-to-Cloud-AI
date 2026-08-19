@@ -33,6 +33,7 @@ SCRIPTS = REPO_ROOT / "scripts"
 GUARDS = [
     "check_agent_context_budget.py",
     "check_dependency_pins.py",
+    "check_diagram_assets.py",
     "check_doc_parity.py",
     "check_git_hooks_wiring.py",
     "check_sql_interpolation.py",
@@ -723,3 +724,118 @@ def test_sunset_blocks_when_it_finds_no_documents_at_all(tmp_path):
     result = run_guard(tmp_path, "check_sunset_services.py")
     assert result.returncode == 1
     assert "vacuous" in result.stderr
+
+
+# ---------------------------------------------------------------------------
+# check_diagram_assets.py
+# ---------------------------------------------------------------------------
+
+FIGURES = ("architecture-overview", "pattern-01-edge-ai-bedrock", "pattern-05-agentic-rag")
+
+_DRAWIO = '<mxfile><diagram name="x"><root><mxCell id="0"/></root></diagram></mxfile>'
+
+
+def _diagram_fixture(root: Path) -> None:
+    """A tree with all 24 artifacts present and no Japanese in the English ones."""
+    diagrams = root / "docs" / "diagrams"
+    images = root / "docs" / "images"
+    png = images / "png"
+    for directory in (diagrams, png):
+        directory.mkdir(parents=True, exist_ok=True)
+    for figure in FIGURES:
+        for stem in (figure, f"{figure}-en"):
+            (diagrams / f"{stem}.drawio").write_text(_DRAWIO, encoding="utf-8")
+            (images / f"{stem}.svg").write_text("<svg>Edge site</svg>", encoding="utf-8")
+        # Light and dark PNG, both languages. A raster cannot adapt to the viewer's
+        # colour scheme the way the SVG does, so dark needs its own file.
+        for stem in (figure, f"{figure}-en", f"{figure}-dark", f"{figure}-en-dark"):
+            (png / f"{stem}@2x.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+
+
+def test_diagram_assets_allow_a_complete_set(tmp_path):
+    _diagram_fixture(tmp_path)
+    result = run_guard(tmp_path, "check_diagram_assets.py")
+    assert result.returncode == 0, result.stderr
+    assert "24 artifacts" in result.stdout
+
+
+def test_diagram_assets_block_a_committed_icon_library_file(tmp_path):
+    _diagram_fixture(tmp_path)
+    (tmp_path / "docs" / "Arch_Amazon-Athena_64.svg").write_text("<svg/>", encoding="utf-8")
+    result = run_guard(tmp_path, "check_diagram_assets.py")
+    assert result.returncode == 1
+    assert "Arch_Amazon-Athena_64.svg" in result.stderr
+    assert "redistribution" in result.stderr
+
+
+def test_diagram_assets_block_a_figure_never_re_exported(tmp_path):
+    """The failure this guard exists for: the .drawio changed, the SVG did not follow."""
+    _diagram_fixture(tmp_path)
+    (tmp_path / "docs" / "images" / "pattern-05-agentic-rag.svg").unlink()
+    result = run_guard(tmp_path, "check_diagram_assets.py")
+    assert result.returncode == 1
+    assert "pattern-05-agentic-rag.svg: missing" in result.stderr
+
+
+def test_diagram_assets_block_a_missing_dark_png(tmp_path):
+    """Adding the dark theme is the kind of change that lands for one figure only."""
+    _diagram_fixture(tmp_path)
+    (tmp_path / "docs" / "images" / "png" / "architecture-overview-en-dark@2x.png").unlink()
+    result = run_guard(tmp_path, "check_diagram_assets.py")
+    assert result.returncode == 1
+    assert "architecture-overview-en-dark@2x.png: missing" in result.stderr
+
+
+def test_diagram_assets_do_not_require_a_dark_svg(tmp_path):
+    """The SVG carries both themes itself; requiring a dark one would be wrong."""
+    _diagram_fixture(tmp_path)
+    result = run_guard(tmp_path, "check_diagram_assets.py")
+    assert result.returncode == 0, result.stderr
+    assert "dark.svg" not in result.stderr
+
+
+def test_diagram_assets_block_an_empty_export(tmp_path):
+    _diagram_fixture(tmp_path)
+    (tmp_path / "docs" / "images" / "png" / "architecture-overview@2x.png").write_bytes(b"")
+    result = run_guard(tmp_path, "check_diagram_assets.py")
+    assert result.returncode == 1
+    assert "empty" in result.stderr
+
+
+def test_diagram_assets_block_japanese_left_in_an_english_artifact(tmp_path):
+    _diagram_fixture(tmp_path)
+    (tmp_path / "docs" / "images" / "architecture-overview-en.svg").write_text(
+        "<svg>エッジ拠点</svg>", encoding="utf-8"
+    )
+    result = run_guard(tmp_path, "check_diagram_assets.py")
+    assert result.returncode == 1
+    assert "architecture-overview-en.svg" in result.stderr
+
+
+def test_diagram_assets_block_a_reference_marker_left_untranslated(tmp_path):
+    """U+203B sits outside every CJK block, so a range check written the obvious way
+    reports this file as clean.
+    """
+    _diagram_fixture(tmp_path)
+    (tmp_path / "docs" / "diagrams" / "pattern-01-edge-ai-bedrock-en.drawio").write_text(
+        _DRAWIO.replace('name="x"', 'name="S3 access point ※1"'), encoding="utf-8"
+    )
+    result = run_guard(tmp_path, "check_diagram_assets.py")
+    assert result.returncode == 1
+    assert "※" in result.stderr
+
+
+def test_diagram_assets_block_unparseable_drawio(tmp_path):
+    _diagram_fixture(tmp_path)
+    (tmp_path / "docs" / "diagrams" / "architecture-overview.drawio").write_text(
+        '<mxfile><diagram name="x">', encoding="utf-8"
+    )
+    result = run_guard(tmp_path, "check_diagram_assets.py")
+    assert result.returncode == 1
+    assert "not well-formed" in result.stderr
+
+
+def test_diagram_assets_block_an_empty_tree_rather_than_passing_vacuously(tmp_path):
+    result = run_guard(tmp_path, "check_diagram_assets.py")
+    assert result.returncode == 1
+    assert "missing" in result.stderr

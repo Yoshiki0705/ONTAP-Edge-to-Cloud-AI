@@ -38,7 +38,7 @@ graph LR
     FSX -->|S3 Access Point| GL[Glue]
     LAKE --> GL
     GL --> ATH[Athena]
-    ATH --> BI[Amazon Quick]
+    ATH --> BI[Amazon Quick Sight]
   end
 ```
 
@@ -48,7 +48,7 @@ graph LR
    時間窓でまとめる
 4. 大きなペイロード（波形、画像）はファイルストレージに置き、イベントには参照だけを持たせる
 5. Glue でスキーマを起こし、Athena で SQL を書く
-6. 可視化は Amazon Quick（ap-northeast-1 で利用可能）
+6. 可視化は Amazon Quick Sight（ap-northeast-1 で利用可能）
 
 ## ストレージ
 
