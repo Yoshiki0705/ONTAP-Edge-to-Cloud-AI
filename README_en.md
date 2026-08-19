@@ -37,8 +37,9 @@ Three maturity levels per row. **Implemented** means deployable code exists in t
 | FlexCache / SnapMirror | Edge write paths and read delivery | Design only | [iot-greengrass-flexcache-integration](docs/en/iot-greengrass-flexcache-integration.md) |
 | Greengrass custom S3 client | Direct PutObject to an S3 access point | Design only (walkthrough exists) | [demo-guide-02](docs/demo-guides/demo-guide-02-greengrass-s3ap-client.md) |
 
-What has and has not been verified on hardware is collected under
-[About this repository](#about-this-repository).
+Nine designs are laid out in the [AWS pattern catalog](docs/en/aws-patterns/README.md), each with a
+maturity label and a note on when to choose it. What has and has not been verified on hardware is
+collected under [About this repository](#about-this-repository).
 
 ## Architecture
 
@@ -178,6 +179,9 @@ The full procedure is in the [deployment guide](docs/en/deployment-guide.md).
 
 | Document | 日本語 | English |
 |----------|--------|---------|
+| **AWS pattern catalog** (9 patterns) | [aws-patterns](docs/ja/aws-patterns/README.md) | [aws-patterns](docs/en/aws-patterns/README.md) |
+| Agentic AI on AWS | [agentic-ai-on-aws](docs/ja/agentic-ai-on-aws.md) | [agentic-ai-on-aws](docs/en/agentic-ai-on-aws.md) |
+| Flexible AI Data Layer (forward-looking) | [flexible-ai-data-layer](docs/ja/flexible-ai-data-layer.md) | [flexible-ai-data-layer](docs/en/flexible-ai-data-layer.md) |
 | Deployment guide | [deployment-guide](docs/ja/deployment-guide.md) | [deployment-guide](docs/en/deployment-guide.md) |
 | S3 AP compatibility and constraints | [s3ap-compatibility-matrix](docs/ja/s3ap-compatibility-matrix.md) | [s3ap-compatibility-matrix](docs/en/s3ap-compatibility-matrix.md) |
 | Use case research | [use-case-research](docs/ja/use-case-research.md) | [use-case-research](docs/en/use-case-research.md) |

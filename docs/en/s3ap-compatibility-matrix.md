@@ -181,4 +181,5 @@ Not confirmed in this project. Remove a row once it is.
 - [IoT Greengrass + FlexCache integration](./iot-greengrass-flexcache-integration.md) — write paths and FlexCache
 - [Databricks integration design](./databricks-integration.md) — Unity Catalog connection paths
 - [Deployment guide](./deployment-guide.md) — actual build steps
+- [AWS pattern catalog](./aws-patterns/README.md) — how these constraints bear on each design
 - [FAQ](./faq.md)
