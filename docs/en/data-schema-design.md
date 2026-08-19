@@ -1,7 +1,7 @@
 # Data Schema Design
 
-> Created: 2026-05-29  
-> Scope: PoC #1 (3D Print Quality Monitoring) / PoC #2 (ONTAP Telemetry)  
+> Created: 2026-05-29
+> Scope: PoC #1 (3D Print Quality Monitoring) / PoC #2 (ONTAP Telemetry)
 > Status: Draft
 
 ---

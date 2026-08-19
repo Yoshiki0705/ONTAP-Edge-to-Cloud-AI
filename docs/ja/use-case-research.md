@@ -1,7 +1,7 @@
 # ONTAP × IoT × AWS Analytics/AI ユースケース調査
 
-> 作成日: 2026-05-29  
-> プロジェクト: edge-to-cloud-ai  
+> 作成日: 2026-05-29
+> プロジェクト: edge-to-cloud-ai
 > 親プロジェクト: [fsxn-lakehouse-integrations](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations)
 
 ---
@@ -25,7 +25,7 @@
 
 ```
 [Edge]                     [ONTAP]                  [Cloud (AWS)]
-Raspberry Pi 5             On-premises              
+Raspberry Pi 5             On-premises
 +------------------+       +------------------+     +-------------------------+
 | Camera module    |--NFS->| NFS Volume       |     |                         |
 | (NoIR V2/BRIO)  |       |   |              |     | Lambda                  |
@@ -64,7 +64,7 @@ Raspberry Pi 5             On-premises              FSx for ONTAP
 
 ```
 [ONTAP]                              [Cloud (AWS)]
-On-premises                          
+On-premises
 +---------------------+              +-------------------------+
 | FPolicy             |--Lambda----->| Lambda                  |
 |  - File create      |  trigger     |   |                     |
@@ -112,7 +112,7 @@ ONTAP                                               FSx for ONTAP
 
 #### UC-M1: 3Dプリント品質監視
 
-> **IoT分類**: 後付けIoT（既存の3Dプリンターに外付けカメラを追加）  
+> **IoT分類**: 後付けIoT（既存の3Dプリンターに外付けカメラを追加）
 > **制約**: プリンター内部への組み込み不可、プリンターAPIアクセスはベンダー依存、電源はUSB-C（Pi）+ USB（カメラ）で独立供給
 
 | 項目 | 内容 |

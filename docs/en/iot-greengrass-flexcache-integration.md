@@ -251,31 +251,31 @@ IoT data access frequency decreases over time. FabricPool automatically tiers da
 ```mermaid
 graph TD
     Start[Edge device connectivity?] --> Q1{Stable cloud connection?}
-    
+
     Q1 -->|Yes: always-on| T1[Tier 1: Greengrass → Direct S3 AP PutObject]
     Q1 -->|Partial: intermittent| T2[Tier 2: FlexCache Write-Back]
     Q1 -->|No: long-term offline| T3[Tier 3: SnapMirror independent sync]
-    
+
     T1 --> Q2{Data type?}
     T2 --> Q3{Edge ONTAP available?}
     T3 --> Q3
-    
+
     Q2 -->|Telemetry small high-freq| P1[IoT Core MQTT → Lambda → S3 AP PutObject]
     Q2 -->|Files medium-large| P2[Greengrass Custom S3 Client → S3 AP PutObject]
     Q2 -->|OPC-UA structured| P3[SiteWise Edge → Lambda/Greengrass → S3 AP]
-    
+
     Q3 -->|Available| Q4{ONTAP 9.15.1+?}
     Q3 -->|No → consider deployment| ONTAP[Deploy ONTAP Select]
     ONTAP --> Q4
-    
+
     Q4 -->|Yes| FC_WB[FlexCache Write-Back configuration]
     Q4 -->|No| SM[SnapMirror configuration]
-    
+
     FC_WB --> Q5{Read delivery to other sites?}
     SM --> Q5
     P1 --> Q5
     P2 --> Q5
-    
+
     Q5 -->|Yes| FC_RD[Add FlexCache Read Cache]
     Q5 -->|No| DONE[Run analytics via S3 AP]
     FC_RD --> DONE

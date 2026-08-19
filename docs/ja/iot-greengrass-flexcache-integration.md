@@ -383,31 +383,31 @@ IoT データは時間経過とともにアクセス頻度が低下する。Fabr
 ```mermaid
 graph TD
     Start[エッジデバイスの接続環境?] --> Q1{安定したクラウド接続?}
-    
+
     Q1 -->|はい: 常時接続| T1[Tier 1: Greengrass → 直接 S3 AP PutObject]
     Q1 -->|部分的: 間欠接続| T2[Tier 2: FlexCache Write-Back]
     Q1 -->|いいえ: 長期オフラインあり| T3[Tier 3: SnapMirror 独立同期]
-    
+
     T1 --> Q2{データ種別?}
     T2 --> Q3{エッジ ONTAP あり?}
     T3 --> Q3
-    
+
     Q2 -->|テレメトリ 小容量高頻度| P1[IoT Core MQTT → Lambda → S3 AP PutObject]
     Q2 -->|ファイル 中-大容量| P2[Greengrass Custom S3 Client → S3 AP PutObject]
     Q2 -->|OPC-UA 構造化| P3[SiteWise Edge → Lambda/Greengrass → S3 AP]
-    
+
     Q3 -->|あり| Q4{ONTAP 9.15.1+?}
     Q3 -->|なし → 導入検討| ONTAP[ONTAP Select 導入]
     ONTAP --> Q4
-    
+
     Q4 -->|はい| FC_WB[FlexCache Write-Back 構成]
     Q4 -->|いいえ| SM[SnapMirror 構成]
-    
+
     FC_WB --> Q5{他サイトへの読み取り配信?}
     SM --> Q5
     P1 --> Q5
     P2 --> Q5
-    
+
     Q5 -->|あり| FC_RD[FlexCache Read Cache 追加]
     Q5 -->|なし| DONE[S3 AP 経由で分析実行]
     FC_RD --> DONE
@@ -493,7 +493,7 @@ graph TD
 
 ### Q7: エッジに ONTAP がない場合はどうすればよいですか?
 
-**A**: 
+**A**:
 - **接続が安定**: Greengrass カスタム S3 クライアントコンポーネントで S3 AP に直接 PutObject (Tier 1)
 - **オフライン耐性が必要**: ONTAP Select の導入を検討（汎用 x86 サーバー上、最小 1TB）。FlexCache write-back でエッジバッファ + クラウド集約を実現
 - **小規模 PoC**: Greengrass のローカルディスクバッファ + リトライで簡易的なオフライン耐性を確保

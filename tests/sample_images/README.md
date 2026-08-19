@@ -1,7 +1,7 @@
 # Prompt Test Results
 
-> Tested: 2026-05-29  
-> Model: jp.anthropic.claude-sonnet-4-5-20250929-v1:0 (Bedrock, ap-northeast-1)  
+> Tested: 2026-05-29
+> Model: jp.anthropic.claude-sonnet-4-5-20250929-v1:0 (Bedrock, ap-northeast-1)
 > Screening: jp.anthropic.claude-haiku-4-5-20251001-v1:0
 
 ## Summary

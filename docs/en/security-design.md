@@ -1,7 +1,7 @@
 # Security Design
 
-> Created: 2026-05-29  
-> Scope: PoC #1 (3D Print Quality Monitoring) / PoC #2 (ONTAP Telemetry)  
+> Created: 2026-05-29
+> Scope: PoC #1 (3D Print Quality Monitoring) / PoC #2 (ONTAP Telemetry)
 > Status: Draft
 
 ---
@@ -440,7 +440,7 @@ Perform the following checks when installing cameras:
 | Is image access minimally scoped | Restrict via IAM + S3 bucket policy |
 | Is there a procedure to delete unneeded images | S3 lifecycle policy + manual deletion procedure |
 
-> **PoC (internal lab)**: Capture target is 3D printer only. No people in frame. PIA not required.  
+> **PoC (internal lab)**: Capture target is 3D printer only. No people in frame. PIA not required.
 > **Customer environment**: Follow customer privacy policy; conduct PIA as needed.
 
 ---

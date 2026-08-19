@@ -35,7 +35,7 @@ DEV_REQUIREMENTS = REPO_ROOT / "requirements-dev.txt"
 WORKFLOWS = REPO_ROOT / ".github" / "workflows"
 
 # Tools whose version changes the verdict of a gate.
-GATE_TOOLS = {"ruff", "bandit", "cfn-lint", "pytest"}
+GATE_TOOLS = {"ruff", "bandit", "cfn-lint", "pytest", "pre-commit"}
 
 
 def parse_requirements(path: Path) -> list[tuple[str, str]]:
