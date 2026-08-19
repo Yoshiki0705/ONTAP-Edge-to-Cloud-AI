@@ -24,7 +24,7 @@ make check           # lint + security + test + drift（CI と同じ）
 | `make hygiene` | git 追跡下の全ファイル | `.pre-commit-config.yaml` のフックが書き換えを要したとき（末尾改行、行末空白、YAML/JSON の構文、1 MB 超のファイル） |
 | `make bandit` | `PY_DIRS` | 重大度に関わらず 1 件でも |
 | `make secrets` | 作業ツリー（`.gitleaks.toml`） | 検出 1 件でも |
-| `make drift` | 下記の 9 ガード | ゲートが無音化する構造の検出 |
+| `make drift` | 下記の 10 ガード | ゲートが無音化する構造の検出 |
 | `make agent-config` | global/workspace の steering・skills・hooks | 到達不能な設定 |
 
 ## drift ガード
@@ -43,6 +43,7 @@ make check           # lint + security + test + drift（CI と同じ）
 | `check_sunset_services.py` | 新規顧客に非開放のサービスを、状況の注記なしに挙げている doc |
 | `check_diagram_assets.py` | コミットされたアイコンライブラリ、再エクスポート漏れで欠けた図の SVG/PNG、英語版の成果物に残った日本語 |
 | `check_verification_ledger.py` | 検証状態の台帳が出荷物を説明しなくなった状態（測定に使ったモデル ID がコードから消えた、片方の言語にだけ行が増えた、根拠リンクが切れた、借用した語彙にない段階が足された） |
+| `check_lambda_env_contract.py` | テンプレートが渡す環境変数とハンドラが読む環境変数の不一致、`usecases/handler-map.txt` が must-set と宣言した上書きの欠落、ハンドラが解析するキーを要求しないプロンプト、map に載っていない Lambda 定義 |
 
 `scripts/tests/` に自己テストがある。`make test` で走る。
 

@@ -1,0 +1,27 @@
+# Which handler each template's Lambda function actually runs.
+#
+# Nothing in a template says this. Every function here is created with a `Code: ZipFile`
+# stub that returns 501, and the real code is pushed afterwards with
+# `aws lambda update-function-code`. So the link between a template's environment variables
+# and the module that reads them exists only in a deploy script and in prose — which is how
+# usecases/visual-inspection shipped a set of variables the handler never read.
+#
+# scripts/check_lambda_env_contract.py reads this file, checks the contract for every pair,
+# and fails when a template declares a Lambda function and is absent here. A use case
+# cannot opt out of the check by forgetting to add a line.
+#
+# Format:
+#   <template path> :: <logical resource id> :: <handler module path> [:: must-set=VAR,VAR]
+#
+# `must-set` lists variables the template has to set even though the handler has a default,
+# because that default belongs to a different use case. It exists because the first version
+# of this check passed on the very defect it was written for: once the prompts had defaults,
+# "the handler reads it and the template does not set it" was no longer true of the broken
+# state, and nothing else distinguished a use case that may rely on the default from one
+# that must not.
+
+cloud/iot_ingestion/template.yaml :: IngestionFunction :: cloud/iot_ingestion/handler.py
+usecases/3d-print-quality/template.yaml :: ImageAnalyzerFunction :: cloud/ai/image_analyzer/handler.py
+# Shares the 3D print handler. Its defaults inspect a 3D print, so this use case is only a
+# variant if it overrides them; without that it inspects metal parts for stringing.
+usecases/visual-inspection/template.yaml :: InspectionAnalyzerFunction :: cloud/ai/image_analyzer/handler.py :: must-set=SCREENING_PROMPT,DETAIL_PROMPT

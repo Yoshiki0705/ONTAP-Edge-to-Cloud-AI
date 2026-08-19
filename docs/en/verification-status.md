@@ -112,6 +112,7 @@ attempted and produced nothing.
 | End-to-end latency from edge to cloud | The edge devices have not arrived |
 | Concurrent operation of several devices, and scale-out | Same |
 | Accuracy in a real installation | Same. The published images were captured under different conditions |
+| Accuracy of visual-inspection | Not verified. The accuracy measured for 3d-print-quality covers a different subject and different defect types, so it does not carry over |
 | Bedrock latency as seen from an AWS Lambda function inside a VPC | The recorded measurement was taken on the client. A different path |
 | The ONTAP version | Cannot be obtained without a real environment. The `documented` rows above are statements from official documentation, not values confirmed here |
 
