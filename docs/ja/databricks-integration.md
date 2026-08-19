@@ -491,9 +491,9 @@ Edge capture (Pi)
 
 | コンポーネント | 見積 | 備考 |
 |--------------|------|------|
-| DataSync (10 GB/日) | ~$0.125/日 | 画像 + CSV の日次同期 |
-| S3 (同期コピー, 300GB) | ~$7/月 | Standard IA 利用可能 |
-| Databricks Compute | ~$50-100/月 | All-Purpose cluster (PoC 規模) |
+| DataSync (10 GB/日) | 転送量課金（[料金](https://aws.amazon.com/datasync/pricing/)） | 画像 + CSV の日次同期 |
+| S3 (同期コピー, 300GB) | 保存量課金（[料金](https://aws.amazon.com/s3/pricing/)） | Standard IA 利用可能 |
+| Databricks Compute | DBU 課金（Databricks の価格表。AWS の料金ではない） | All-Purpose cluster (PoC 規模) |
 | Kafka → Databricks Streaming | DBU 消費 | PoC では数 DBU/時間 |
 
 ---

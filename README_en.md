@@ -182,6 +182,7 @@ The full procedure is in the [deployment guide](docs/en/deployment-guide.md).
 | Agentic AI on AWS | [agentic-ai-on-aws](docs/ja/agentic-ai-on-aws.md) | [agentic-ai-on-aws](docs/en/agentic-ai-on-aws.md) |
 | Flexible AI Data Layer (forward-looking) | [flexible-ai-data-layer](docs/ja/flexible-ai-data-layer.md) | [flexible-ai-data-layer](docs/en/flexible-ai-data-layer.md) |
 | Deployment guide | [deployment-guide](docs/ja/deployment-guide.md) | [deployment-guide](docs/en/deployment-guide.md) |
+| **Cost model** (pricing date, Region, formulas) | [cost-model](docs/ja/cost-model.md) | [cost-model](docs/en/cost-model.md) |
 | S3 AP compatibility and constraints | [s3ap-compatibility-matrix](docs/ja/s3ap-compatibility-matrix.md) | [s3ap-compatibility-matrix](docs/en/s3ap-compatibility-matrix.md) |
 | **Verification status** (how far it ran on real hardware) | [verification-status](docs/ja/verification-status.md) | [verification-status](docs/en/verification-status.md) |
 | Use case research | [use-case-research](docs/ja/use-case-research.md) | [use-case-research](docs/en/use-case-research.md) |
@@ -230,11 +231,11 @@ For maintainers: [quality gates](docs/agent/quality-gates_en.md) /
 ### What has been learned so far
 
 - **Two-stage AI analysis can lower cost (calculated)**: analysing every image with the
-  high-accuracy model works out to ~$259/month, while screening with a cheap model and escalating
-  only suspected anomalies works out to ~$40/month. These are **calculations**, not measurements:
-  they assume 60-second intervals, continuous operation, a 10% anomaly rate and model pricing in
-  one Region. A lower anomaly rate narrows the gap
-  ([figures at a realistic defect rate](tests/sample_images/README.md)). The pattern itself applies
+  screen with a cheap model and escalate only suspected anomalies. **How much it saves is decided
+  by the anomaly rate** and narrows as that rate rises; at a 100% anomaly rate two stages cost
+  more than one. No monthly figure here: the $259 and $40 that used to be quoted came from unit
+  prices with different, unrecorded sources and could not be reproduced, so they were withdrawn.
+  The formula and the current rates are in the [cost model](docs/en/cost-model.md). The pattern applies
   to other AI pipelines
 - **Prompting alone reaches usable accuracy for industrial image checks**: 4 of 4 on photographs
   from vendor documentation with Claude Vision prompts and no custom model training. Verification

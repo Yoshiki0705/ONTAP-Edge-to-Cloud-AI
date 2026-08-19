@@ -23,9 +23,12 @@ A: 4/4 on four photographs from vendor documentation and 5/5 on five written des
 **Q: How does two-stage analysis work?**
 
 A: Stage 1 has Claude Haiku (cheap, fast) decide "defect or not". Only on "defect" does Stage 2
-run Claude Sonnet (high accuracy) for detailed analysis. Where most images are normal, this
-**calculates** to roughly 85% less cost assuming a 10% anomaly rate — a calculation, not a
-measurement. A higher anomaly rate narrows the saving.
+run Claude Sonnet (high accuracy) for detailed analysis. Where most images are normal that
+saves model calls, and how much it saves is decided by the anomaly rate. The higher that rate, the more often stage two
+runs and the smaller the saving; at a 100% anomaly rate two stages cost more than one, because
+the screening call becomes pure overhead. The "roughly 85% less" that used to be quoted here
+came from unit prices with a different source and is withdrawn. The formula is in the
+[cost model](cost-model.md).
 
 **Q: Can this be used for inspections other than 3D printing?**
 
@@ -46,11 +49,11 @@ and ONTAP 9.17.1 or later. The full list, with the basis for each claim, is coll
 
 **Q: What's the monthly AWS cost?**
 
-A: PoC scale (1 device, 60-second intervals): ~$40/month. Breakdown: Bedrock API ~$30, S3 ~$3, Kinesis ~$0 (ON_DEMAND, no data = no charge), Lambda ~$1, other ~$5.
+A: No monthly total here. The "~$40/month" that used to be quoted was one of three answers this repository gave for the same assumptions, and it is withdrawn. The only figure whose magnitude will hurt you is FSx for ONTAP: $500.61/month for the PoC configuration, calculated from ap-northeast-1 rates retrieved 2026-08-19. Everything else is single or double-digit dollars at PoC scale. The formulas and the pricing date are in the [cost model](cost-model.md). Kinesis in ON_DEMAND mode is not charged while idle.
 
 **Q: How to reduce cost?**
 
-A: (1) Extend capture interval to 120s (halves cost), (2) Skip when printer is idle, (3) Use Haiku only without Sonnet (lower accuracy).
+A: (1) Lengthen the capture interval (acts directly on the model call count; it does not halve the total, only the per-call part), (2) skip while the printer is idle, (3) use Haiku only without Sonnet (lower accuracy), (4) delete FSx for ONTAP after the PoC if it is in scope — that one dominates. The [cost model](cost-model.md) has a flowchart of where pushing helps.
 
 ## Troubleshooting
 

@@ -1,6 +1,9 @@
 # FSx for ONTAP Infrastructure
 
-> ⚠️ **Cost Warning**: FSx for ONTAP costs ~$500+/month (Multi-AZ, 128 MBps, 1 TiB). Deploy only when needed for Phase 3 testing.
+> ⚠️ **Cost Warning**: $500.61/month and up for this configuration (Multi-AZ, 128 MBps,
+> 1 TiB SSD), from ap-northeast-1 rates retrieved 2026-08-19 — see
+> [docs/ja/cost-model.md](../../docs/ja/cost-model.md) for the formula and what the "and up"
+> covers. Deploy only when needed for Phase 3 testing.
 
 ## Purpose
 
@@ -75,7 +78,7 @@ Configure via AWS Console or FSx for ONTAP API after volume is synced.
 
 | パターン | テンプレートパラメータ | 用途 | コスト |
 |---------|---------------------|------|--------|
-| **A: AWS Managed AD** | `ADPattern=ManagedAD` | PoC 最速。AD 運用不要 | ~$0.15/hr (~$110/月) |
+| **A: AWS Managed AD** | `ADPattern=ManagedAD` | PoC 最速。AD 運用不要 | 時間課金（[Directory Service 料金](https://aws.amazon.com/directoryservice/pricing/)。エディションとリージョンで変わる） |
 | **B: Self-managed EC2** | `ADPattern=SelfManagedEC2` | オンプレ AD 想定の検証 | EC2 インスタンス料金 |
 | **C: Existing AD** | `ADPattern=ExistingAD` | 既存ドメインに参加 | 追加コストなし |
 

@@ -179,6 +179,7 @@ aws cloudformation deploy \
 | Agentic AI on AWS | [agentic-ai-on-aws](docs/ja/agentic-ai-on-aws.md) | [agentic-ai-on-aws](docs/en/agentic-ai-on-aws.md) |
 | Flexible AI Data Layer（将来展望） | [flexible-ai-data-layer](docs/ja/flexible-ai-data-layer.md) | [flexible-ai-data-layer](docs/en/flexible-ai-data-layer.md) |
 | デプロイガイド | [deployment-guide](docs/ja/deployment-guide.md) | [deployment-guide](docs/en/deployment-guide.md) |
+| **コストモデル**（価格基準日・リージョン・計算式） | [cost-model](docs/ja/cost-model.md) | [cost-model](docs/en/cost-model.md) |
 | S3 AP 互換性と制約 | [s3ap-compatibility-matrix](docs/ja/s3ap-compatibility-matrix.md) | [s3ap-compatibility-matrix](docs/en/s3ap-compatibility-matrix.md) |
 | **検証状態**（どこまで実機で動かしたか） | [verification-status](docs/ja/verification-status.md) | [verification-status](docs/en/verification-status.md) |
 | ユースケース調査 | [use-case-research](docs/ja/use-case-research.md) | [use-case-research](docs/en/use-case-research.md) |
@@ -224,11 +225,11 @@ aws cloudformation deploy \
 
 ### ここまでで学んだこと
 
-- **2 段階 AI 分析でコストを下げられる（試算）**: 全画像を高精度モデルで分析すると月 $259、
-  安価なモデルでスクリーニングし異常疑いのみ高精度モデルに回すと月 $40 という**試算**になる。
-  前提は 60 秒間隔・24 時間連続・異常率 10%・特定リージョンのモデル料金であり、実測値ではない。
-  異常率が下がれば削減幅は小さくなる（[実際の欠陥率での試算](tests/sample_images/README.md)）。
-  設計パターン自体は他の AI パイプラインにも応用できる
+- **2 段階 AI 分析でモデル呼び出しのコストを下げられる**: 安価なモデルでスクリーニングし、
+  異常疑いのみ高精度モデルに回す。**削減幅は異常率で決まり**、異常率が高いほど縮む。
+  異常率 100% では 2 段構成のほうが高くなる。月額は書かない — 以前ここにあった $259 と $40 は
+  出典の異なる単価から来ていて再現できなかったため撤回した。式と現行単価は
+  [コストモデル](docs/ja/cost-model.md) にある。設計パターン自体は他の AI パイプラインにも応用できる
 - **プロンプトだけで産業用画像判定が実用精度に達する**: カスタムモデル学習なしで、
   Claude Vision のプロンプトのみで、公開ドキュメント中の実写 4 枚を 4/4 判定。ただし実環境での
   検証はこれから

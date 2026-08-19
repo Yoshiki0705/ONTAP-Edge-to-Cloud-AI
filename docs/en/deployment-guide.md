@@ -174,7 +174,10 @@ What the script validates:
 
 ### 4.1 FSx for ONTAP Stack (optional)
 
-> **Cost warning**: FSx for ONTAP costs ~$500+/month minimum. Delete the stack promptly after PoC completion.
+> **Cost warning**: $500.61/month and up for this configuration (1 TiB SSD / 128 MBps /
+> Multi-AZ), calculated from ap-northeast-1 rates retrieved 2026-08-19 (see the
+> [cost model](./cost-model.md)). Delete the stack promptly after the PoC with
+> [`scripts/teardown.sh`](../../scripts/teardown.sh).
 
 ```bash
 # Copy and customize the parameter file
@@ -406,32 +409,34 @@ VPC endpoints required for private-subnet connectivity. When integrating into an
 
 ## 8. Cost Estimates
 
-### Monthly Cost Breakdown (ap-northeast-1, PoC configuration)
+The [cost model](./cost-model.md) is authoritative for figures; they are not repeated here.
+The monthly total table this section used to carry (~$570–730 / ~$70–230) summed each row's
+range with no arithmetic, no pricing date and no source. It is withdrawn.
 
-| Resource | Configuration | Est. Monthly Cost |
-|----------|--------------|-------------------|
-| FSx for ONTAP | 1 TiB SSD, 128 MBps, Multi-AZ | ~$500+ |
-| Kinesis Data Stream | ON_DEMAND mode | ~$15–50 |
-| Amazon Data Firehose | 5 MB buffer, 300s interval | ~$5–20 |
-| S3 | Standard, a few GB | ~$1–10 |
-| Lambda | 1000 invocations/day, 256 MB, 90s | ~$5–15 |
-| Bedrock (Claude) | 1000 invocations/day | ~$10–100 |
-| Glue Crawler | 1 run/day | ~$30/month |
-| SNS | Hundreds of messages/month | <$1 |
-| **Total (with FSx for ONTAP)** | | **~$570–730** |
-| **Total (without FSx for ONTAP)** | | **~$70–230** |
+**FSx for ONTAP is the only thing here whose order of magnitude will hurt you.**
+
+| Resource | Configuration | Monthly |
+|----------|--------------|---------|
+| FSx for ONTAP | 1 TiB SSD, 128 MBps, Multi-AZ | **$500.61** |
+
+The formula is `1024 GiB × $0.300/GB-month + 128 MBps × $1.511/MBps-month`. Region
+ap-northeast-1; rates retrieved 2026-08-19 from the AWS Price List Query API (effectiveDate
+2026-07-01). Storage and throughput only — backups and provisioned IOPS add to it.
+
+Everything else is single or double-digit dollars at PoC scale. What drives those costs, the
+model-rate formula, and how to emit the `CostPerImage` metric are in the
+[cost model](./cost-model.md).
 
 > **Cost reduction tips:**
-> - Delete the FSx for ONTAP stack after PoC completion
+> - Delete the FSx for ONTAP stack after PoC completion ([`scripts/teardown.sh`](../../scripts/teardown.sh))
 > - Switch Kinesis from ON_DEMAND to PROVISIONED for low-traffic workloads
-> - Change Glue Crawler schedule from daily to weekly
-> - Restrict Bedrock calls to Haiku only (use Sonnet only for low-confidence cases)
+> - Change the Glue Crawler schedule from daily to weekly
+> - Lengthen the capture interval (acts directly on the model call count)
 
-> **AWS Free Tier eligibility (new accounts, first 12 months):**
-> - S3: 5 GB standard storage
-> - Lambda: 1M requests/month + 400,000 GB-seconds
-> - Kinesis: not eligible (ON_DEMAND has no free tier)
-> - SNS: 1,000 email notifications/month
+> **Free tier**: what it covers and on what terms changes. New-account plans changed in 2025,
+> and copying the conditions here would date them. Check
+> [AWS Free Tier](https://aws.amazon.com/free/) for the current terms. FSx for ONTAP is not
+> included.
 
 ---
 

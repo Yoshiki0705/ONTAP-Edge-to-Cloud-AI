@@ -16,7 +16,8 @@ Parameters:
     Default: ManagedAD
     Description: >
       AD deployment pattern.
-      ManagedAD: AWS Managed Microsoft AD (simplest, ~$0.15/hr).
+      ManagedAD: AWS Managed Microsoft AD (simplest; billed per hour, see
+      https://aws.amazon.com/directoryservice/pricing/).
       SelfManagedEC2: Windows Server DC on EC2 (simulates on-prem).
       ExistingAD: Use existing AD — only DNS/domain params needed.
 

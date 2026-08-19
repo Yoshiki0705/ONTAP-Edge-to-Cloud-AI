@@ -49,7 +49,9 @@
 | `PrintQuality/AnomalyRate` | Percent | 異常検出率 (直近1時間) | > 30% で通知 (プリンター問題の可能性) |
 | `PrintQuality/QualityScore` | None (0-100) | 平均品質スコア (直近1時間) | < 50 で通知 |
 | `PrintQuality/CaptureGap` | Seconds | 最後のキャプチャからの経過時間 | > 300秒 (5分) でデバイス停止アラート |
-| `PrintQuality/CostPerImage` | USD | 1画像あたりの分析コスト | > $0.02 でコスト異常アラート |
+| `PrintQuality/InputTokens` | Count | 1画像あたりの入力トークン数 | 単価に関係なく常に出る |
+| `PrintQuality/OutputTokens` | Count | 1画像あたりの出力トークン数 | 同上 |
+| `PrintQuality/CostPerImage` | USD | 1画像あたりの分析コスト。**`*_USD_PER_MTOK` を 4 つ設定したときだけ出る**（[コストモデル](cost-model.md)） | 閾値は自分の単価から決める。設計例は > $0.02 |
 | `ONTAP/CapacityUsedPercent` | Percent | ボリューム使用率 | > 80% で容量警告 |
 | `ONTAP/LatencyP95` | Microseconds | レイテンシ p95 | > 5000μs で性能警告 |
 

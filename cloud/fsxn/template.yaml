@@ -2,7 +2,8 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: >
   FSx for ONTAP infrastructure for edge-to-cloud data sync.
   Creates VPC, FSx for ONTAP file system, and S3 Access Point.
-  NOTE: FSx for ONTAP costs ~$500+/month. Deploy only when needed.
+  NOTE: this configuration costs $500.61/month and up. See docs/ja/cost-model.md for the
+  formula and the pricing date. Deploy only when needed, and remove it with scripts/teardown.sh.
 
 Parameters:
   Environment:

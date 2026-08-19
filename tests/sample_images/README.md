@@ -35,12 +35,18 @@ present the two as one visual-accuracy result.
 
 **Accuracy: 4/4 (100%) — All defects correctly detected by both stages**
 
-| Image | Source | Stage 1 (Haiku) | Stage 2 (Sonnet) | Score | Cost |
-|-------|--------|----------------|-----------------|-------|------|
-| real_stringing.png | Bambu Lab Wiki | ✅ has_defect=True (0.95) | ✅ anomaly: stringing (high) | 45/100 | $0.009 |
-| real_delamination.png | Bambu Lab Wiki | ✅ has_defect=True (0.85) | ✅ anomaly: delamination (medium) | 45/100 | $0.011 |
-| real_stringing_prusa.jpg | Prusa Help | ✅ has_defect=True (0.85) | ✅ anomaly: stringing (high) | 35/100 | $0.005 |
-| real_stringing_detail.jpg | Prusa Help | ✅ has_defect=True (0.85) | ✅ anomaly: stringing (high) | 62/100 | $0.009 |
+| Image | Source | Stage 1 (Haiku) | Stage 2 (Sonnet) | Score |
+|-------|--------|----------------|-----------------|-------|
+| real_stringing.png | Bambu Lab Wiki | ✅ has_defect=True (0.95) | ✅ anomaly: stringing (high) | 45/100 |
+| real_delamination.png | Bambu Lab Wiki | ✅ has_defect=True (0.85) | ✅ anomaly: delamination (medium) | 45/100 |
+| real_stringing_prusa.jpg | Prusa Help | ✅ has_defect=True (0.85) | ✅ anomaly: stringing (high) | 35/100 |
+| real_stringing_detail.jpg | Prusa Help | ✅ has_defect=True (0.85) | ✅ anomaly: stringing (high) | 62/100 |
+
+> The per-image cost column that used to sit here — $0.005 to $0.011 — was withdrawn. It was
+> hand-calculated from list prices, not observed: this run recorded no token counts, because
+> the handler discarded them. Sitting between measured verdicts and measured latencies, it
+> read as measured. The formula is in [the cost model](../../docs/ja/cost-model.md), and
+> `InputTokens` / `OutputTokens` now make the counts available to put into it.
 
 ### Two-Stage Analysis Validation
 
@@ -51,25 +57,31 @@ present the two as one visual-accuracy result.
 | Stage 2 provided actionable recommendations | ✅ 4/4 |
 | Average Haiku latency | 1,417ms |
 | Average Sonnet latency | 7,186ms |
-| Average total cost per image | $0.0085 |
 
 ## Key Findings
 
 1. **Two-stage works correctly**: Haiku reliably flags defects (confidence 0.85-0.95), triggering Sonnet for detail
 2. **Real images produce richer analysis**: Multiple defect types detected per image (stringing + under-extrusion)
 3. **Actionable recommendations**: "Increase retraction distance", "Reduce nozzle temperature" — specific and useful
-4. **Cost per real image**: $0.005-$0.011 (within budget at 60-second intervals)
-5. **Latency acceptable**: Haiku ~1.4s + Sonnet ~7.2s = ~8.6s total (well within 60s interval)
+4. **Latency acceptable**: Haiku ~1.4s + Sonnet ~7.2s = ~8.6s total (well within 60s interval)
 
 ## Cost Projection (Real Images)
 
-| Scenario | Monthly Cost | Calculation |
-|----------|-------------|-------------|
-| All images have defects (worst case) | ~$12/day = $360/month | 1440/day × $0.0085 |
-| 10% defect rate (typical) | ~$2.5/day = $75/month | 1440 × $0.001 (Haiku) + 144 × $0.008 (Sonnet) |
-| 5% defect rate (good printer) | ~$1.8/day = $54/month | 1440 × $0.001 + 72 × $0.008 |
+The monthly figures that used to be here were withdrawn. They rested on a per-image cost this
+run did not measure, and at the same 10% defect rate they gave $75/month while the rest of the
+repository said $40/month — two answers from one assumption. What survives is the shape of the
+calculation, which does not depend on a rate:
 
-> Note: Real-world defect rate for a well-tuned printer is typically 2-5%. Cost will be closer to $40-55/month.
+| Scenario | Calls per day |
+|----------|---------------|
+| All images have defects (worst case) | 1440 screening + 1440 detail |
+| 10% defect rate (typical) | 1440 screening + 144 detail |
+| 5% defect rate (good printer) | 1440 screening + 72 detail |
+
+At 60-second intervals, 1440 captures a day. Multiply each stage's call count by that stage's
+per-call cost and sum; [the cost model](../../docs/ja/cost-model.md) has the formula, the
+pricing date and the current rates. A well-tuned printer typically sits at a 2-5% defect rate,
+which is the left end of this table.
 
 ## Files
 

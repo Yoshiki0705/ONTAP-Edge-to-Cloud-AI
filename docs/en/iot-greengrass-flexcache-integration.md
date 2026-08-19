@@ -28,9 +28,9 @@
 
 | Challenge | Details | IoT Impact |
 |-----------|---------|------------|
-| Per-object billing | PUT $0.005/1000 requests, GET $0.0004/1000 | 1 write/sec × 100 devices = ~$13/month (PUT only) + reads |
+| Per-object billing | Charged per request, at different rates for PUT and GET ([S3 pricing](https://aws.amazon.com/s3/pricing/), Region-dependent) | 1 write/sec × 100 devices = 260M requests/month. Request charges can exceed storage charges |
 | Small file inefficiency | Object metadata overhead, consistency checks | 1KB telemetry × millions = metadata ratio exceeds payload |
-| Cross-region transfer | $0.02/GB (S3 cross-region replication) | Per-object transfer costs for multi-site distribution |
+| Cross-region transfer | Charged per GB transferred, depending on the Region pair ([S3 pricing](https://aws.amazon.com/s3/pricing/)) | Per-object transfer costs for multi-site distribution |
 | Double storage | S3 + FSx for ONTAP holding same data → DataSync copy needed | 2x storage cost + transfer latency |
 | LIST performance degradation | LIST response latency increases with object count per prefix | Time-series IoT data exploration degrades |
 | No filesystem semantics | No locking/directories/ACLs/multiprotocol | NFS/SMB clients require translation layer |
@@ -140,7 +140,7 @@
 - Amazon Data Firehose requires an S3 bucket ARN. **Unverified** ([compatibility and constraints](./s3ap-compatibility-matrix.md) §4),
   so this design does not use it
 
-> **Cost optimization note**: Avoiding Amazon Data Firehose eliminates processing fees ($0.029/GB). Lambda costs are invocation-based, optimizable via IoT Core Basic Ingest + batch window aggregation.
+> **Cost note**: avoiding Amazon Data Firehose removes its per-GB ingest charge. Lambda is billed per invocation, so pair it with IoT Core rule aggregation (Basic Ingest + a batch window). Rates and formulas are in the [cost model](./cost-model.md).
 
 ### Tier 2: FlexCache Write-Back (Edge Local Write → Async Origin Flush)
 

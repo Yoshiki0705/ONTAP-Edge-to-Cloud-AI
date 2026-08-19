@@ -359,17 +359,13 @@ fi
 # 9. Cost Warning
 # ---------------------------------------------------------------------------
 header "9. Cost Awareness"
-
-info "Estimated monthly costs (on-demand, ${REGION}):"
-printf "       %-40s %s\n" "Resource" "Est. Cost"
-printf "       %-40s %s\n" "----------------------------------------" "----------"
-printf "       %-40s %s\n" "FSx for ONTAP (1 TiB, 128 MBps, Multi-AZ)" "~\$500+"
-printf "       %-40s %s\n" "Kinesis Data Stream (on-demand)" "~\$15-50"
-printf "       %-40s %s\n" "Amazon Data Firehose" "~\$5-20"
-printf "       %-40s %s\n" "S3 (depends on volume)" "~\$1-10"
-printf "       %-40s %s\n" "Lambda + Bedrock (per invocation)" "Pay-per-use"
-printf "       %-40s %s\n" "Glue Crawler (per run)" "~\$1/run"
-warn "FSx for ONTAP costs ~\$500+/month minimum. Deploy only when needed."
+# No figures here beyond the warning. This block used to reprint the cost table from
+# docs/{ja,en}/deployment-guide.md, and the two had already drifted: the guide said the Glue
+# crawler was ~$30/month while this said ~$1/run. Two copies of a number that changes is one
+# copy that gets updated and one that misleads, so the figures live in one document now.
+warn "FSx for ONTAP dominates the bill for this stack. Deploy it only when needed, and"
+warn "delete it afterwards with scripts/teardown.sh."
+info "Figures, formulas and the pricing date: docs/en/cost-model.md (ja: docs/ja/cost-model.md)"
 info "Use 'Environment=poc' and delete stacks after testing."
 
 # ---------------------------------------------------------------------------

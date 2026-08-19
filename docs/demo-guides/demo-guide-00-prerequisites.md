@@ -33,10 +33,10 @@
 
 | Service | Purpose | Estimated Cost (PoC) |
 |---------|---------|---------------------|
-| FSx for ONTAP | Origin storage + S3 AP endpoint | ~$500/month (1TB, 128 MBps) |
-| AWS IoT Core | MQTT broker + rules engine | $1/million messages |
-| AWS Lambda | Telemetry aggregation → S3 AP | $0.20/million invocations |
-| Amazon Athena | Query verification via S3 AP | $5/TB scanned |
+| FSx for ONTAP | Origin storage + S3 AP endpoint | $500.61/month and up (1 TiB SSD, 128 MBps, Multi-AZ, ap-northeast-1; see the [cost model](../en/cost-model.md)) |
+| AWS IoT Core | MQTT broker + rules engine | Per message ([pricing](https://aws.amazon.com/iot-core/pricing/)) |
+| AWS Lambda | Telemetry aggregation → S3 AP | Per invocation and GB-second ([pricing](https://aws.amazon.com/lambda/pricing/)) |
+| Amazon Athena | Query verification via S3 AP | Per byte scanned ([pricing](https://aws.amazon.com/athena/pricing/)) |
 | AWS IoT Greengrass | Edge runtime (Demo 02) | Free (device-side) |
 
 ## Common Environment Variables

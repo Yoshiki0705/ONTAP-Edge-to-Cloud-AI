@@ -173,7 +173,9 @@ aws lambda update-function-code \
 
 ### 4.1 FSx for ONTAP スタック（任意）
 
-> **コスト注意**: FSx for ONTAP は最低 ~$500+/月。PoC 完了後は速やかに削除すること。
+> **コスト注意**: この構成（1 TiB SSD / 128 MBps / Multi-AZ）で月 $500.61 以上。
+> ap-northeast-1、2026-08-19 取得の単価から計算（[コストモデル](./cost-model.md)）。
+> PoC 完了後は [`scripts/teardown.sh`](../../scripts/teardown.sh) で速やかに削除すること。
 
 ```bash
 # パラメータファイルをコピーして編集
@@ -405,32 +407,33 @@ aws cloudformation wait stack-create-complete \
 
 ## 8. コスト概算
 
-### 月額コスト目安（ap-northeast-1、PoC 構成）
+金額の正典は [コストモデル](./cost-model.md) です。ここには置きません。以前この節にあった
+月額の合計表（~$570–730 / ~$70–230）は、各行の幅を足しただけで計算式がなく、価格の基準日も
+出典もありませんでした。撤回しています。
 
-| リソース | 構成 | 概算月額 |
-|---------|------|---------|
-| FSx for ONTAP | 1 TiB SSD, 128 MBps, Multi-AZ | ~$500+ |
-| Kinesis Data Stream | ON_DEMAND モード | ~$15–50 |
-| Amazon Data Firehose | 5 MB バッファ, 300s 間隔 | ~$5–20 |
-| S3 | Standard, 数 GB | ~$1–10 |
-| Lambda | 1000 回/日, 256 MB, 90s | ~$5–15 |
-| Bedrock (Claude) | 1000 回/日 | ~$10–100 |
-| Glue Crawler | 1 回/日 | ~$30/月 |
-| SNS | 数百通/月 | <$1 |
-| **合計（FSx 込み）** | | **~$570–730** |
-| **合計（FSx 無し）** | | **~$70–230** |
+**桁を間違えると事故るのは FSx for ONTAP だけです。**
+
+| リソース | 構成 | 月額 |
+|---------|------|------|
+| FSx for ONTAP | 1 TiB SSD, 128 MBps, Multi-AZ | **$500.61** |
+
+計算式は `1024 GiB × $0.300/GB-月 + 128 MBps × $1.511/MBps-月`。
+ap-northeast-1、単価は 2026-08-19 に AWS Price List Query API から取得（effectiveDate
+2026-07-01）。ストレージとスループットの 2 軸のみで、バックアップとプロビジョンド IOPS は
+別途加算されます。
+
+他のサービスは PoC 規模では数ドルから数十ドルです。何が費用を動かすか、モデル料金の計算式、
+`CostPerImage` メトリクスの出し方は [コストモデル](./cost-model.md) にあります。
 
 > **コスト削減ポイント:**
-> - PoC 完了後は FSx for ONTAP スタックを削除する
+> - PoC 完了後は FSx for ONTAP スタックを削除する（[`scripts/teardown.sh`](../../scripts/teardown.sh)）
 > - Kinesis を ON_DEMAND → PROVISIONED（低トラフィック時）に切り替える
 > - Glue Crawler のスケジュールを週次に変更する
-> - Lambda の Bedrock 呼び出しを Haiku のみに絞る（Sonnet は確信度が低い時だけ）
+> - 撮影間隔を延ばす（モデル呼び出し回数に直接効く）
 
-> **AWS 無料利用枠の適用（新規アカウント 12 か月以内）:**
-> - S3: 5 GB 標準ストレージ
-> - Lambda: 100 万リクエスト/月 + 40 万 GB-秒
-> - Kinesis: 対象外（ON_DEMAND は無料枠なし）
-> - SNS: 1,000 メール通知/月
+> **無料利用枠**: 対象と条件は変わります。2025 年に新規アカウントのプランが変わっており、
+> ここに条件を書き写すと古くなります。[AWS 無料利用枠](https://aws.amazon.com/free/)で
+> 現行の条件を確認してください。FSx for ONTAP は対象外です。
 
 ---
 
