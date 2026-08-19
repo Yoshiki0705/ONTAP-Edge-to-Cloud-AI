@@ -28,11 +28,13 @@ PYTEST      := $(PY) -m pytest
 # ---------------------------------------------------------------------------
 
 # Directories pytest must collect. scripts/tests holds the gate self-tests.
+#
+# There is one suite per subject, in tests/. usecases/*/tests/ used to hold
+# near-copies of three of these files and both sets ran, so the older assertions
+# passed alongside the newer ones and nothing reported the divergence.
 TEST_DIRS := \
 	tests \
-	scripts/tests \
-	usecases/3d-print-quality/tests \
-	usecases/ontap-telemetry-analytics/tests
+	scripts/tests
 
 # Python that ships or runs: linted and scanned.
 PY_DIRS := cloud edge scripts shared usecases local-demo

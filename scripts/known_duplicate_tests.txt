@@ -1,23 +1,18 @@
-# Test file basenames that exist at more than one path.
+# Test file basenames that are allowed to exist at more than one path.
 #
-# This is recorded debt, not an approval. scripts/check_test_coverage_drift.py
-# blocks any duplicate that is not listed here, so new ones cannot appear
-# quietly, and it also fails if an entry here stops being duplicated — the list
-# has to shrink as the debt is paid.
+# Empty, and meant to stay that way. scripts/check_test_coverage_drift.py blocks
+# any duplicate basename not listed here, and also fails if an entry here stops
+# being duplicated — so the file cannot quietly outlive the debt it records.
 #
-# The three below are near-copies of the same tests: usecases/*/tests/ differ
-# from tests/ only in the sys.path expression, and they have already drifted.
-# tests/test_ontap_e2e.py was changed to use `ontap.test.invalid` and named
-# constants to stop gitleaks matching a literal RFC 5737 address; the copy under
-# usecases/ontap-telemetry-analytics/tests/ still carries `192.0.2.10` inline.
-# Both run in CI today, so the older assertions pass alongside the newer ones and
-# nothing reports the divergence.
+# It previously held three entries. usecases/3d-print-quality/tests/ and
+# usecases/ontap-telemetry-analytics/tests/ carried near-copies of
+# test_simple_capture.py, test_ontap_e2e.py and test_ontap_telemetry.py, with the
+# same test inventory as the tests/ versions and only the sys.path expression
+# differing. They had already drifted: tests/test_ontap_e2e.py was changed to use
+# `ontap.test.invalid` and named constants so gitleaks would stop matching a
+# literal address, and the copy never received it. Both sets ran in CI, so the
+# older assertions passed next to the newer ones and nothing reported the gap.
+# The copies were removed rather than kept in sync.
 #
-# Resolving them means picking one location per suite. That is a change to what
-# gets tested, so it is left as an explicit decision rather than folded into an
-# audit: deleting the usecases/ copies loses nothing measurable, but it should be
-# a deliberate commit.
-
-test_ontap_e2e.py
-test_ontap_telemetry.py
-test_simple_capture.py
+# Format if an entry is ever genuinely needed: one basename per line, with a
+# comment saying why two copies have to exist.

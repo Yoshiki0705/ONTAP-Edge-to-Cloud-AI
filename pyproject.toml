@@ -9,14 +9,12 @@
 testpaths = [
     "tests",
     "scripts/tests",
-    "usecases/3d-print-quality/tests",
-    "usecases/ontap-telemetry-analytics/tests",
 ]
-# Three test files exist under both tests/ and usecases/*/tests/ with the same
-# basename. importmode=importlib lets pytest import same-named modules from
-# different directories without the "import file mismatch" error that the
-# default prepend mode raises. The duplication itself is tracked separately by
-# scripts/check_test_coverage_drift.py.
+# importlib import mode, so two directories may hold same-named modules without
+# the "import file mismatch" error the default prepend mode raises. No such pair
+# exists now — scripts/check_test_coverage_drift.py fails on a new one — but the
+# mode is also what lets scripts/tests/ coexist with tests/ without __init__.py
+# bookkeeping.
 addopts = "--import-mode=importlib"
 
 [tool.ruff]
@@ -36,7 +34,7 @@ ignore = [
 # Tests assert on hardcoded fixture credentials and use assert by design.
 "tests/**" = ["S101", "S105", "S106", "S107", "S108"]
 "scripts/tests/**" = ["S101", "S603", "S607"]
-"usecases/*/tests/**" = ["S101", "S105", "S106", "S107", "S108"]
+
 # Guard scripts shell out to git and to the pinned tools on purpose.
 "scripts/check_*.py" = ["S603", "S607"]
 
