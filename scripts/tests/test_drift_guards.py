@@ -19,6 +19,7 @@ it means a guard cannot be tested by breaking this repository.
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import sys
@@ -248,7 +249,24 @@ def _pins_fixture(root: Path, requirements: str, runtime: str, ci_python: str) -
     )
 
 
-PINNED = "bandit==1.9.4\ncfn-lint==1.55.1\npytest==9.1.1\nruff==0.16.3\n"
+def _gate_tools() -> list[str]:
+    """Read GATE_TOOLS from the guard rather than restating it here.
+
+    A hardcoded list drifted the moment pre-commit was added to the guard: the
+    fixture still pinned four tools, the guard wanted five, and two tests failed
+    in CI on a change that had nothing to do with them. Deriving the fixture means
+    adding a gate tool cannot break these tests.
+    """
+    source = (SCRIPTS / "check_dependency_pins.py").read_text(encoding="utf-8")
+    match = re.search(r"^GATE_TOOLS\s*=\s*\{(.*?)\}", source, re.S | re.M)
+    assert match, "GATE_TOOLS not found in check_dependency_pins.py"
+    tools = re.findall(r'"([^"]+)"', match.group(1))
+    assert tools, "GATE_TOOLS parsed to zero entries"
+    return sorted(tools)
+
+
+# Every gate tool, pinned. Versions are arbitrary; only the `==` matters here.
+PINNED = "".join(f"{tool}==1.0.0\n" for tool in _gate_tools())
 
 
 def test_pins_allow_exact_pins_and_matching_python(tmp_path):
@@ -269,7 +287,9 @@ def test_pins_warn_when_the_local_interpreter_differs(tmp_path):
 
 
 def test_pins_block_a_range(tmp_path):
-    _pins_fixture(tmp_path, PINNED.replace("cfn-lint==1.55.1", "cfn-lint>=0.87.0"), "3.12", "3.12")
+    ranged = PINNED.replace("cfn-lint==1.0.0", "cfn-lint>=0.87.0")
+    assert ranged != PINNED, "the substitution did not apply; the fixture format changed"
+    _pins_fixture(tmp_path, ranged, "3.12", "3.12")
     result = run_guard(tmp_path, "check_dependency_pins.py")
     assert result.returncode == 1
     assert "Use == so local and CI resolve to the same build" in result.stderr
