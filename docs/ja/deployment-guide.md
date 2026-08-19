@@ -512,7 +512,18 @@ aws cloudformation wait stack-delete-complete --stack-name edge-to-cloud-ai-poc
 
 ## 11. クリーンアップ
 
-スタックの削除は作成と**逆順**で行う。
+スタックの削除は作成と**逆順**で行う。順序は強制される: ユースケーススタックは共有スタックの
+Export を `Fn::ImportValue` で参照しているため、共有スタックを先に削除しようとすると
+export-in-use エラーで失敗する。
+
+順序を符号化したスクリプトがある。既定は計画の表示のみで、何も削除しない:
+
+```bash
+./scripts/teardown.sh              # 削除順を表示するだけ
+./scripts/teardown.sh --confirm    # 実際に削除する
+```
+
+手で実行する場合:
 
 ```bash
 # ③ ユースケーススタック（どの順番でも可）
@@ -524,6 +535,10 @@ aws cloudformation delete-stack --stack-name edge-to-cloud-telemetry-poc
 aws cloudformation wait stack-delete-complete --stack-name edge-to-cloud-visual-inspection-poc
 aws cloudformation wait stack-delete-complete --stack-name edge-to-cloud-print-quality-poc
 aws cloudformation wait stack-delete-complete --stack-name edge-to-cloud-telemetry-poc
+
+# ②' IoT ingestion スタック（デプロイした場合のみ）
+aws cloudformation delete-stack --stack-name edge-to-cloud-iot-ingestion-poc
+aws cloudformation wait stack-delete-complete --stack-name edge-to-cloud-iot-ingestion-poc
 
 # ② Ingestion スタック
 aws cloudformation delete-stack --stack-name edge-to-cloud-ai-poc

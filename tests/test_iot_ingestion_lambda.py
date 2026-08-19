@@ -244,3 +244,100 @@ class TestErrorHandling:
 
         assert result["statusCode"] == 500
         assert "error" in result["body"]
+
+
+class TestParquetFallbackIsAudible:
+    """BatchMode=true with no PyArrow layer writes NDJSON. It must say so.
+
+    `PyArrowLayerArn` defaults to empty and nothing requires it, so this combination
+    is a deploy CloudFormation accepts. Until the warning was added the only trace
+    was the response `format` field, which nothing reads: a Glue table with a Parquet
+    SerDe returns zero rows over a prefix full of NDJSON, and no invocation fails.
+    """
+
+    @staticmethod
+    def _batch_event():
+        return {
+            "Records": [
+                {"body": json.dumps({"device_id": "rpi5-001", "temp": 23.5})},
+                {"body": json.dumps({"device_id": "rpi5-001", "temp": 24.0})},
+            ]
+        }
+
+    def test_warns_and_writes_ndjson_when_pyarrow_is_missing(
+        self, monkeypatch, mock_s3, caplog
+    ):
+        monkeypatch.setenv("BATCH_MODE", "true")
+        if "handler" in sys.modules:
+            del sys.modules["handler"]
+        import handler
+
+        handler.s3_client = mock_s3
+        monkeypatch.setattr(handler, "_parquet_available", lambda: False)
+        handler._parquet_fallback_warned = False
+
+        with caplog.at_level("WARNING"):
+            result = handler.handler(self._batch_event(), None)
+
+        assert result["body"]["format"] == "ndjson"
+        assert mock_s3.put_object.call_args[1]["ContentType"] == "application/x-ndjson"
+        messages = " ".join(record.getMessage() for record in caplog.records)
+        assert "pyarrow" in messages
+        assert "PyArrowLayerArn" in messages, "the warning must name the fix"
+
+    def test_warns_once_per_container(self, monkeypatch, mock_s3, caplog):
+        """The import cannot start succeeding mid-container; repeating adds no signal."""
+        monkeypatch.setenv("BATCH_MODE", "true")
+        if "handler" in sys.modules:
+            del sys.modules["handler"]
+        import handler
+
+        handler.s3_client = mock_s3
+        monkeypatch.setattr(handler, "_parquet_available", lambda: False)
+        handler._parquet_fallback_warned = False
+
+        with caplog.at_level("WARNING"):
+            for _ in range(3):
+                handler.handler(self._batch_event(), None)
+
+        fallback = [r for r in caplog.records if "pyarrow" in r.getMessage()]
+        assert len(fallback) == 1, f"expected one warning, got {len(fallback)}"
+
+    def test_stays_quiet_when_parquet_is_available(self, monkeypatch, mock_s3, caplog):
+        """No warning when the layer is attached and Parquet is actually written."""
+        monkeypatch.setenv("BATCH_MODE", "true")
+        if "handler" in sys.modules:
+            del sys.modules["handler"]
+        import handler
+
+        handler.s3_client = mock_s3
+        monkeypatch.setattr(handler, "_parquet_available", lambda: True)
+        monkeypatch.setattr(
+            handler,
+            "_write_parquet_batch",
+            lambda *a, **k: {"statusCode": 200, "body": {"format": "parquet"}},
+        )
+        handler._parquet_fallback_warned = False
+
+        with caplog.at_level("WARNING"):
+            result = handler.handler(self._batch_event(), None)
+
+        assert result["body"]["format"] == "parquet"
+        assert not [r for r in caplog.records if "pyarrow" in r.getMessage()]
+
+    def test_stays_quiet_when_batch_mode_is_off(self, monkeypatch, mock_s3, caplog):
+        """NDJSON with BatchMode=false is the configured outcome, not a degradation."""
+        monkeypatch.setenv("BATCH_MODE", "false")
+        if "handler" in sys.modules:
+            del sys.modules["handler"]
+        import handler
+
+        handler.s3_client = mock_s3
+        monkeypatch.setattr(handler, "_parquet_available", lambda: False)
+        handler._parquet_fallback_warned = False
+
+        with caplog.at_level("WARNING"):
+            result = handler.handler(self._batch_event(), None)
+
+        assert result["body"]["format"] == "ndjson"
+        assert not [r for r in caplog.records if "pyarrow" in r.getMessage()]

@@ -512,7 +512,18 @@ aws cloudformation wait stack-delete-complete --stack-name edge-to-cloud-ai-poc
 
 ## 11. Cleanup
 
-Delete stacks in **reverse order** of creation.
+Delete stacks in **reverse order** of creation. The order is forced: the use-case stacks
+resolve `Fn::ImportValue` against the shared stack's exports, so asking for the shared stack
+first fails with an export-in-use error.
+
+A script encodes the order. It shows the plan and deletes nothing unless told to:
+
+```bash
+./scripts/teardown.sh              # print the deletion order only
+./scripts/teardown.sh --confirm    # carry it out
+```
+
+By hand:
 
 ```bash
 # ③ Use-case stacks (any order among themselves)
@@ -524,6 +535,10 @@ aws cloudformation delete-stack --stack-name edge-to-cloud-telemetry-poc
 aws cloudformation wait stack-delete-complete --stack-name edge-to-cloud-visual-inspection-poc
 aws cloudformation wait stack-delete-complete --stack-name edge-to-cloud-print-quality-poc
 aws cloudformation wait stack-delete-complete --stack-name edge-to-cloud-telemetry-poc
+
+# ②' IoT ingestion stack (only if deployed)
+aws cloudformation delete-stack --stack-name edge-to-cloud-iot-ingestion-poc
+aws cloudformation wait stack-delete-complete --stack-name edge-to-cloud-iot-ingestion-poc
 
 # ② Ingestion stack
 aws cloudformation delete-stack --stack-name edge-to-cloud-ai-poc

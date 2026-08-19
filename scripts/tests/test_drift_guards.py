@@ -19,6 +19,7 @@ it means a guard cannot be tested by breaking this repository.
 
 from __future__ import annotations
 
+import json
 import re
 import shutil
 import subprocess
@@ -32,6 +33,7 @@ SCRIPTS = REPO_ROOT / "scripts"
 
 GUARDS = [
     "check_agent_context_budget.py",
+    "check_cfn_params_contract.py",
     "check_dependency_pins.py",
     "check_diagram_assets.py",
     "check_doc_parity.py",
@@ -1113,3 +1115,160 @@ def test_env_contract_reads_multiline_environ_calls(tmp_path):
     result = run_guard(tmp_path, "check_lambda_env_contract.py")
     assert result.returncode == 1
     assert "SPLIT_ACROSS_LINES" in result.stderr
+
+
+# --------------------------------------------------------------------------------------
+# check_cfn_params_contract.py
+# --------------------------------------------------------------------------------------
+
+_PARAMS_TEMPLATE = """\
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  Environment:
+    Type: String
+    Default: poc
+  AccessPointArn:
+    Type: String
+Resources:
+  Thing:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref Environment
+"""
+
+_PARAMS_ENTRIES = [
+    {"ParameterKey": "Environment", "ParameterValue": "poc"},
+    {"ParameterKey": "AccessPointArn", "ParameterValue": "arn:aws:s3:::ap/x"},
+]
+
+
+def _params_fixture(
+    root: Path,
+    entries: object = None,
+    template: str = _PARAMS_TEMPLATE,
+    readme: str | None = None,
+    extra_files: dict[str, str] | None = None,
+) -> None:
+    """A repository with one template under cloud/ and its parameter file."""
+    (root / "cloud" / "demo").mkdir(parents=True, exist_ok=True)
+    (root / "cloud" / "demo" / "template.yaml").write_text(template, encoding="utf-8")
+
+    params = root / "cfn-params"
+    params.mkdir(parents=True, exist_ok=True)
+    body = _PARAMS_ENTRIES if entries is None else entries
+    (params / "demo.example.json").write_text(
+        body if isinstance(body, str) else json.dumps(body, indent=2), encoding="utf-8"
+    )
+
+    names = ["demo.example.json", *(extra_files or {})]
+    default_readme = "# Parameter Files\n\n| File |\n|---|\n" + "".join(
+        f"| `{name}` |\n" for name in names
+    )
+    (params / "README.md").write_text(
+        default_readme if readme is None else readme, encoding="utf-8"
+    )
+    for name, text in (extra_files or {}).items():
+        (params / name).write_text(text, encoding="utf-8")
+
+
+def test_cfn_params_allows_a_file_that_agrees_with_its_template(tmp_path):
+    _params_fixture(tmp_path)
+    result = run_guard(tmp_path, "check_cfn_params_contract.py")
+    assert result.returncode == 0, result.stderr
+    assert "OK" in result.stdout
+
+
+def test_cfn_params_blocks_a_key_the_template_does_not_declare(tmp_path):
+    _params_fixture(
+        tmp_path,
+        entries=[*_PARAMS_ENTRIES, {"ParameterKey": "Ghost", "ParameterValue": "x"}],
+    )
+    result = run_guard(tmp_path, "check_cfn_params_contract.py")
+    assert result.returncode == 1
+    assert "Ghost" in result.stderr
+
+
+def test_cfn_params_blocks_use_previous_value(tmp_path):
+    """aws cloudformation deploy throws on it; copied from describe-stacks output."""
+    entries = [dict(_PARAMS_ENTRIES[0], UsePreviousValue=False), _PARAMS_ENTRIES[1]]
+    _params_fixture(tmp_path, entries=entries)
+    result = run_guard(tmp_path, "check_cfn_params_contract.py")
+    assert result.returncode == 1
+    assert "UsePreviousValue" in result.stderr
+
+
+def test_cfn_params_blocks_a_missing_parameter_with_no_default(tmp_path):
+    _params_fixture(tmp_path, entries=[_PARAMS_ENTRIES[0]])
+    result = run_guard(tmp_path, "check_cfn_params_contract.py")
+    assert result.returncode == 1
+    assert "AccessPointArn" in result.stderr
+    assert "no Default" in result.stderr
+
+
+def test_cfn_params_blocks_an_empty_value_for_a_parameter_with_no_default(tmp_path):
+    """Measured elsewhere: an empty access-point name deploys, then denies everything."""
+    entries = [_PARAMS_ENTRIES[0], {"ParameterKey": "AccessPointArn", "ParameterValue": ""}]
+    _params_fixture(tmp_path, entries=entries)
+    result = run_guard(tmp_path, "check_cfn_params_contract.py")
+    assert result.returncode == 1
+    assert "empty" in result.stderr
+
+
+def test_cfn_params_allows_an_empty_value_when_the_template_has_a_default(tmp_path):
+    """An optional parameter may legitimately be blank to fall back to the Default."""
+    entries = [{"ParameterKey": "Environment", "ParameterValue": ""}, _PARAMS_ENTRIES[1]]
+    _params_fixture(tmp_path, entries=entries)
+    result = run_guard(tmp_path, "check_cfn_params_contract.py")
+    assert result.returncode == 0, result.stderr
+
+
+def test_cfn_params_blocks_a_placeholder_value(tmp_path):
+    entries = [_PARAMS_ENTRIES[0], {"ParameterKey": "AccessPointArn", "ParameterValue": "<your-arn>"}]
+    _params_fixture(tmp_path, entries=entries)
+    result = run_guard(tmp_path, "check_cfn_params_contract.py")
+    assert result.returncode == 1
+    assert "placeholder" in result.stderr
+
+
+def test_cfn_params_blocks_a_template_with_no_parameter_file(tmp_path):
+    _params_fixture(tmp_path)
+    (tmp_path / "usecases" / "orphan").mkdir(parents=True)
+    (tmp_path / "usecases" / "orphan" / "template.yaml").write_text(
+        _PARAMS_TEMPLATE, encoding="utf-8"
+    )
+    result = run_guard(tmp_path, "check_cfn_params_contract.py")
+    assert result.returncode == 1
+    assert "nothing to copy" in result.stderr
+
+
+def test_cfn_params_blocks_a_parameter_file_matching_no_template(tmp_path):
+    _params_fixture(
+        tmp_path,
+        extra_files={"ghost.example.json": '[{"ParameterKey":"A","ParameterValue":"b"}]'},
+    )
+    result = run_guard(tmp_path, "check_cfn_params_contract.py")
+    assert result.returncode == 1
+    assert "ghost.example.json" in result.stderr
+
+
+def test_cfn_params_blocks_a_file_absent_from_the_readme_table(tmp_path):
+    """The index a reader is pointed at omitted a stack when this guard was written."""
+    _params_fixture(tmp_path, readme="# Parameter Files\n\nNo table here.\n")
+    result = run_guard(tmp_path, "check_cfn_params_contract.py")
+    assert result.returncode == 1
+    assert "no row for demo.example.json" in result.stderr
+
+
+def test_cfn_params_blocks_invalid_json(tmp_path):
+    _params_fixture(tmp_path, entries="{not json")
+    result = run_guard(tmp_path, "check_cfn_params_contract.py")
+    assert result.returncode == 1
+    assert "invalid JSON" in result.stderr
+
+
+def test_cfn_params_blocks_a_tree_with_no_templates(tmp_path):
+    """A guard that finds nothing to check must not report success."""
+    (tmp_path / "cfn-params").mkdir(parents=True)
+    result = run_guard(tmp_path, "check_cfn_params_contract.py")
+    assert result.returncode == 1
+    assert "vacuously" in result.stderr
