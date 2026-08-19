@@ -1,0 +1,12 @@
+# Bilingual pairs whose heading structure already differed when
+# scripts/check_doc_parity.py was written. Recorded so the guard blocks new drift
+# without asserting that this debt is repaired.
+#
+# One path per line, naming the primary-language file. A trailing comment should
+# say what the gap is and how it gets closed. The guard reports entries that no
+# longer drift, so removing a line is not optional once the pair agrees.
+#
+# Empty as of 2026-08-19: both original entries were closed rather than carried.
+# iot-greengrass-flexcache-integration.md gained its missing English subsection,
+# and s3ap-service-gap-analysis-and-feature-request.md was replaced by
+# s3ap-compatibility-matrix.md, which removed the pair.

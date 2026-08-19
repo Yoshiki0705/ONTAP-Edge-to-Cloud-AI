@@ -22,7 +22,10 @@ A: テスト段階で 9/9 正解（公開画像 + テキスト記述シナリオ
 
 **Q: 2段階分析の仕組みは？**
 
-A: Stage 1 で Claude Haiku（安価・高速）が「欠陥あり/なし」を判定。「欠陥あり」の場合のみ Stage 2 で Claude Sonnet（高精度）が詳細分析。正常画像が多い環境ではコストを 85% 削減できます。
+A: Stage 1 で Claude Haiku（安価・高速）が「欠陥あり/なし」を判定。「欠陥あり」の場合のみ
+Stage 2 で Claude Sonnet（高精度）が詳細分析します。正常画像が大半を占める環境では、
+異常率 10% の前提でコストが約 85% 下がる**試算**になります（実測ではありません）。
+異常率が高い環境では削減幅は小さくなります。
 
 **Q: 3Dプリント以外の検査にも使えますか？**
 
@@ -34,7 +37,10 @@ A: FPolicy は対象ファイル操作にレイテンシを追加します（同
 
 **Q: FSx for ONTAP S3 Access Points の制約は？**
 
-A: 条件付き書き込み非対応（Iceberg/Delta Lake 直接書き込み不可）、S3 イベント通知非対応（Lambda トリガー不可）、ListObjectsV2 が 30-80倍遅い、ONTAP 9.17.1+ 必須。詳細は [use-case-research.md](use-case-research.md) のセクション5.1 および [互換性マトリクス（完全版）](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/docs/en/compatibility-matrix.md) を参照。
+A: 主なものは、条件付き書き込み非対応（Iceberg / Delta Lake の直接書き込みができない）、
+S3 イベント通知非対応（オブジェクト作成での Lambda トリガーができない）、ListObjectsV2 が
+ネイティブ S3 より遅い、ONTAP 9.17.1 以降が必要。制約の一覧と各項目の根拠は
+[S3 AP 互換性と制約](./s3ap-compatibility-matrix.md) に集約している。
 
 ## コスト
 

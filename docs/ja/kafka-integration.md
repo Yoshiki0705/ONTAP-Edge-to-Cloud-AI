@@ -15,18 +15,18 @@ Kafka + ClickHouse は managed open source platform (オンプレミス VM デ�
 ## 2. デプロイメントトポロジー
 
 ```
-[Tokyo Lab LAN]
+[Edge Site LAN]
 +------------------------------------------------------+
 |                                                      |
-|  [Pi 5]        [ESXi Host (DL380G10)]               |
-|  10.x.x.x     +---------------------------+         |
-|     |          | Kafka VM    (managed)     |         |
+|  [Pi 5]        [Hypervisor host]                     |
+|     |          +---------------------------+         |
+|     |          | Kafka VM      (managed)   |         |
 |     |          | ClickHouse VM (managed)   |         |
 |     |          +---------------------------+         |
 |     |                    |                           |
 |     +----[LAN]-----------+                           |
 |                          |                           |
-|  [ONTAP FAS2750]         |                           |
+|  [ONTAP storage system]  |                           |
 |  NFS: vol_images   ------+                           |
 |  S3: backup bucket (ClickHouse backup)               |
 |                                                      |
@@ -102,7 +102,7 @@ ClickHouse:
 ClickHouse のバックアップ先として ONTAP S3 protocol を使用:
 
 ```
-# ONTAP 側設定 (FAS2750)
+# ONTAP 側設定
 # 1. S3 用 SVM 作成
 vserver create -vserver svm-s3 -subtype default
 
@@ -159,7 +159,7 @@ KAFKA_ENABLED=true S3_BUCKET=<bucket> \
 
 | 項目 | 状態 | 依存 |
 |------|------|------|
-| Kafka VM IP アドレス | 待ち | Instaclustr デプロイ |
+| Kafka VM IP アドレス | 待ち | マネージドプラットフォームのデプロイ |
 | TLS 証明書 | 待ち | PoC ドキュメント承認後 |
-| ONTAP S3 バケット作成 | 進行中 | FAS2750 アクセス |
+| ONTAP S3 バケット作成 | 進行中 | ONTAP へのアクセス |
 | ClickHouse テーブル DDL | Lakehouse プロジェクトで設計中 | v3 schema 確定 |

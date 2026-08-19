@@ -40,6 +40,8 @@ in `scripts/` and run from `make drift`, `.githooks/pre-commit` and CI.
 | `check_git_hooks_wiring.py` | `core.hooksPath` overriding `.githooks/`; a `.pre-commit-config.yaml` nothing runs |
 | `check_dependency_pins.py` | ranges in `requirements-dev.txt`; CI Python version vs Lambda runtime; inline `pip install` in CI |
 | `check_sql_interpolation.py` | a SQL construction site missing from `scripts/reviewed_sql_sites.txt`, and entries that no longer match code |
+| `check_doc_parity.py` | heading-level sequences diverging between a JA/EN pair, one-sided files, and stale entries in `scripts/known_doc_parity_gaps.txt` |
+| `check_sunset_services.py` | a document naming a service closed to new customers without a note about its status |
 
 Their self-tests are in `scripts/tests/` and run under `make test`.
 
@@ -55,6 +57,8 @@ gate until it has failed on an input that should fail it.**
 | gitleaks default rules were off for 700 KB | `[allowlist] paths` listed `*.md`, `*.sh`, workflows and infrastructure templates. A gitleaks allowlist `paths` entry **skips the file**, so silencing two custom rules also disabled AWS-key, GitHub-token and private-key detection. `matchCondition = "AND"` does not narrow this |
 | gitleaks reported 218 findings and make succeeded | `command -v gitleaks && gitleaks detect ... \|\| echo "skipped"`. gitleaks exits 1 on a finding, so the `\|\|` branch ran, printed "skipped", and make returned 0 |
 | `# nosec` had no effect | bandit reads the comment on the **reported line only**. Placed a line above, the run shows `Total lines skipped (#nosec): 0` |
+| A newly added parity gate never compared one of the pairs | it walked `*_en.md` only, so `edge/soracom/README.md` ↔ `README_ja.md` — the reversed suffix — was out of scope. Not walking a path does not show up in the output |
+| A newly added sunset gate reported one of two identical defects | `maintenance` was in the list of status phrases as a bare word, so a document containing `predictive maintenance` passed. 7 of 60 documents carry that word |
 | `pytest` and CI checked different sets | no `testpaths`. `scripts/tests/` was in neither, and `edge/raspberry-pi/camera/test_prompt.py` is a CLI script with zero test functions that looked like a suite |
 
 ## Adding a gate

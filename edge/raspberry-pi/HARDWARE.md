@@ -257,7 +257,7 @@ Switch# write memory
 
 ## NetApp ONTAP
 
-### 初期設定（FAS2820 等）
+### 初期設定
 
 → 各ユースケースの `ontap-setup.sh` に詳細コマンドあり:
 - [3d-print-quality/ontap-setup.sh](../../usecases/3d-print-quality/ontap-setup.sh)
@@ -315,7 +315,7 @@ fpolicy enable -vserver svm-iot -policy-name print-monitor
 | AWS Glue | S3 AP → Glue Crawler/ETL | データカタログ、ETL | [チュートリアル](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/tutorial-transform-data-with-glue.html) |
 | Amazon Bedrock | S3 AP → Lambda → Bedrock | 画像AI、レポート生成 | [AWS ブログ](https://aws.amazon.com/blogs/storage/enabling-ai-powered-analytics-on-enterprise-file-data-configuring-s3-access-points-for-amazon-fsx-for-netapp-ontap-with-active-directory/) |
 | Amazon SageMaker | S3 AP → SageMaker | ML モデル学習・推論 | [FSx for ONTAP × AWS サービス](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/using-access-points-with-aws-services.html) |
-| Amazon QuickSight | Athena → QuickSight | BI ダッシュボード | Athena 経由で接続 |
+| Amazon Quick Sight | Athena → Quick Sight | BI ダッシュボード | Athena 経由で接続 |
 
 ### Lambda 直接連携
 

@@ -14,10 +14,9 @@ IoT データのサイロ化を解消し、ONTAP に集約したデータを AWS
 
 | # | ユースケース | 概要 | 関連パターン |
 |---|------------|------|-------------|
-| 3 | Visual Inspection (Manufacturing) | 製造ライン外観検査 → 欠陥分類 | Pattern A (FPolicy) |
-| 4 | Inventory AI Stocktaking | 倉庫棚画像 → 在庫カウント | Pattern A (FPolicy) |
-| 5 | Environmental Sensor Monitoring | 環境センサー → 時系列分析 | Pattern B (SnapMirror) |
-| 6 | Equipment Predictive Maintenance | 振動センサー → 故障予測 | Pattern B (SnapMirror) |
+| 1 | Inventory AI Stocktaking | 倉庫棚画像 → 在庫カウント | Pattern A (FPolicy) |
+| 2 | Environmental Sensor Monitoring | 環境センサー → 時系列分析 | Pattern B (SnapMirror) |
+| 3 | Equipment Predictive Maintenance | 振動センサー → 故障予測 | Pattern B (SnapMirror) |
 
 ## アーキテクチャパターン
 

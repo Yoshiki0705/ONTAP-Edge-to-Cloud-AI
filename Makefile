@@ -117,6 +117,8 @@ drift: venv-check ## Every guard that detects a silently-disabled gate
 	$(PY) scripts/check_git_hooks_wiring.py
 	$(PY) scripts/check_dependency_pins.py
 	$(PY) scripts/check_sql_interpolation.py
+	$(PY) scripts/check_doc_parity.py
+	$(PY) scripts/check_sunset_services.py
 
 agent-config: ## Report unreachable global/workspace steering, skills and hooks
 	@python3 "$$HOME/.kiro/hooks/scripts/validate_agent_config.py"

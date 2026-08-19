@@ -2,7 +2,7 @@
 
 > Created: 2026-06-16
 > Scope: 3D Print Quality Monitoring PoC
-> Goal: Convey value to stakeholders (internal engineers, partners, data platform teams)
+> Goal: Convey value to stakeholders (engineers, architects, data platform teams)
 
 ---
 
@@ -21,7 +21,7 @@ Show in 30 seconds: "When an anomaly occurs on an unattended 3D printer, AI auto
 
 ### Cast
 - Presenter (operates)
-- Audience (internal engineers / partners / customers)
+- Audience (engineers / architects / data platform teams)
 
 ### Preparation
 | Item | Status |

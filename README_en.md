@@ -7,148 +7,155 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Yoshiki0705/ontap-edge-to-cloud-ai/badge)](https://scorecard.dev/viewer/?uri=github.com/Yoshiki0705/ontap-edge-to-cloud-ai)
 
-**TL;DR**: IoT devices (cameras, sensors, etc.) at field sites generate data that tends to be scattered and siloed per device or per site. This project validates an approach to aggregate that data into ONTAP and connect it to AWS AI/analytics services via S3 Access Points, enabling cross-organizational data utilization.
+**TL;DR**: designs and **deployable code** for aggregating the data that IoT devices produce at a
+factory or site into one place, analysing it with Kafka and ClickHouse, and connecting it to AWS AI
+services. FSx for ONTAP is the storage layer in the worked example; the differences when using S3 or
+EFS are stated alongside it.
 
-> **Disclaimer**: This is a personal technical exploration project and does not represent official views or recommendations of any organization. It does not recommend purchasing any specific product.
+## What is here
 
-## The Problem
+Three maturity levels per row. **Implemented** means deployable code exists in this repository.
+**Design only** means the design is written but there is no code. **Concept** means an outline only.
 
-At factories and field sites, IoT devices (cameras, sensors, control PCs, etc.) generate data daily. In most cases, this data is scattered per device or per site, creating silos.
+| Area | Contents | Maturity | Location |
+|------|----------|----------|----------|
+| Edge collection | Camera capture, sensor reads, Kafka publish, local buffering during disconnection with replay on recovery | Implemented | [`edge/raspberry-pi/`](edge/raspberry-pi/) |
+| Event schema | The v3 schema shared across Kafka, ClickHouse and Databricks | Implemented | [`edge/raspberry-pi/common/event_schema.py`](edge/raspberry-pi/common/event_schema.py) |
+| ONTAP telemetry collection | REST API polling for performance, capacity and health | Implemented (not verified on hardware) | [`edge/raspberry-pi/sensors/ontap_telemetry.py`](edge/raspberry-pi/sensors/ontap_telemetry.py) |
+| Two-stage AI image analysis | Screen with a cheap model, escalate only suspected anomalies | Implemented | [`cloud/ai/image_analyzer/`](cloud/ai/image_analyzer/) |
+| Feedback recording | Human labels against AI verdicts | Implemented | [`cloud/ai/feedback_recorder/`](cloud/ai/feedback_recorder/) |
+| MQTT ingestion | IoT Core → Lambda → S3 access point | Implemented | [`cloud/iot_ingestion/`](cloud/iot_ingestion/) |
+| Shared infrastructure (CFn) | S3, Kinesis, IAM, Glue, SNS | Implemented | [`cloud/ingestion/template.yaml`](cloud/ingestion/template.yaml) |
+| FSx for ONTAP (CFn) | File system, SVM, volumes | Implemented | [`cloud/fsxn/`](cloud/fsxn/) |
+| ClickHouse schema | Kafka engine tables, materialized views, rollups, dead letter | Implemented | [`cloud/clickhouse/ddl/`](cloud/clickhouse/ddl/) |
+| Use case: 3D print quality monitoring | Template, Lambda, Athena queries, ONTAP setup | Implemented | [`usecases/3d-print-quality/`](usecases/3d-print-quality/) |
+| Use case: visual inspection | The above with a different prompt | Implemented | [`usecases/visual-inspection/`](usecases/visual-inspection/) |
+| Use case: ONTAP telemetry analytics | Glue crawler and Athena queries | Implemented | [`usecases/ontap-telemetry-analytics/`](usecases/ontap-telemetry-analytics/) |
+| Local demo | Run the event path with no physical hardware | Implemented | [`local-demo/`](local-demo/) |
+| Kafka / ClickHouse placement | Topology and topic design. No IaC | Design only | [kafka-integration](docs/en/kafka-integration.md) |
+| Databricks integration | Four connection paths and Unity Catalog design | Design only | [databricks-integration](docs/en/databricks-integration.md) |
+| FlexCache / SnapMirror | Edge write paths and read delivery | Design only | [iot-greengrass-flexcache-integration](docs/en/iot-greengrass-flexcache-integration.md) |
+| Greengrass custom S3 client | Direct PutObject to an S3 access point | Design only (walkthrough exists) | [demo-guide-02](docs/demo-guides/demo-guide-02-greengrass-s3ap-client.md) |
 
-**Common situations:**
-- Camera images in printer's built-in cloud, sensor data on Pi's SD card, equipment logs on Windows PC — all in different places
-- No way to cross-analyze data between Site A and Site B
-- Individual device data is visible, but the big picture (correlation, trends) is not
-- Want to use AI for analysis, but data is too scattered to build a pipeline
-
-Additionally, on the edge/on-premises side:
-- Analysis infrastructure and tools for cross-organizational data utilization are insufficient or nonexistent
-- Governance mechanisms (access control, data catalog, lineage) for cross-organizational data use need to be built from scratch
-- Building analysis infrastructure itself takes time and cost, preventing teams from starting data utilization
-
-## This Project's Approach
-
-Aggregate scattered IoT data into ONTAP, then leverage cloud/SaaS tools and services to enable cross-organizational data analysis and AI utilization.
-
-**Key points:**
-- Edge devices simply write to ONTAP via NFS/SMB (device-side implementation stays simple)
-- ONTAP becomes the data aggregation point, eliminating silos
-- **Delegate analysis, AI, and governance to cloud services** (instead of building on-prem analysis infrastructure, use AWS Athena/Bedrock/Glue etc. to start data utilization immediately)
-- S3 Access Points provide direct AWS service access to aggregated data (no data copying)
-- SnapMirror for inter-site and edge→cloud data synchronization
-- FPolicy triggers automated analysis on file arrival
-
-### Target Audience
-
-- **IoT/Edge developers**: Looking for ways to aggregate and utilize device-generated data
-- **Data utilization advocates**: Want to break down data silos and enable cross-organizational analysis
-- **Existing ONTAP users**: Want to use ONTAP as an IoT data aggregation point
-- **AWS users**: Want to use Athena/Bedrock/SageMaker with non-S3 storage sources
-
-### What If I Don't Have ONTAP?
-
-This architecture assumes ONTAP, but the core pattern (edge collection → aggregation → AI analysis) works with other storage:
-
-| Storage | Data Flow | Characteristics | Constraints |
-|---------|-----------|----------------|-------------|
-| **S3 direct** | Edge → S3 → Athena/Bedrock | Simplest. Easy setup. Native AWS integration. S3 Object Lock for tamper protection. CloudFront for edge cache delivery | No NFS/SMB access. Integrating with existing file workflows requires extra work. Event-driven via S3 Event Notifications |
-| **EFS** | Edge → NFS → EFS → Lambda/Bedrock | NFS mountable. Good affinity with Linux devices. Auto-scaling. AWS Backup for protection | No SMB. No direct S3 API access. Event-driven requires Lambda + CloudWatch. Cross-region via EFS Replication |
-| **ONTAP** | Edge → NFS/SMB → ONTAP → S3 AP → AWS AI | NFS + SMB + S3 on same data. FPolicy file-arrival triggers. SnapMirror incremental sync. FlexCache for low-latency remote site delivery. ARP/AI ransomware anomaly detection with automatic Snapshot protection | Requires ONTAP environment. S3 AP has no conditional writes. Needs ONTAP operational knowledge |
-
-**Which to choose:**
-- No existing data / greenfield → **S3 direct** is simplest
-- Linux devices writing NFS / VPC-contained → **EFS**
-- Already have ONTAP/NAS with data / need NFS+SMB / want to avoid data copying → **ONTAP**
+What has and has not been verified on hardware is collected under
+[About this repository](#about-this-repository).
 
 ## Architecture
 
 ```
-[Edge Devices]              [ONTAP (Aggregation)]           [AI / Analytics]
-                            FAS/AFF | ONTAP Select | FSx for ONTAP
+[Edge Devices]              [ONTAP (Aggregation)]       [Real-Time Ops]       [AI / Analytics]
+                            FAS/AFF|Select|FSx for ONTAP  On-prem VMs           AWS Cloud
 +------------------+        +----------------------+        +---------------------+
 | Raspberry Pi 5   |--NFS-->|                      |        | AWS                 |
 |   Camera         |        |  Inspection images   |--S3 AP>|   Bedrock (GenAI)   |
 |   Sensors        |        |  Sensor CSV          |        |   SageMaker (ML)    |
 +------------------+        |  Equipment logs      |--SM--->|   Athena (SQL)      |
 | 3D Printer       |--SMB-->|  3D models           |        |   Glue (ETL)        |
-+------------------+        |                      |        |   QuickSight (BI)   |
++------------------+        |                      |        |   Quick Sight (BI)  |
 | USB Camera       |--NFS-->|  FPolicy (events)    |        +---------------------+
 +------------------+        |  REST API (telemetry)|        | Local AI            |
                             |  ARP/AI (protection) |        |   GPU Server        |
 [Connectivity]              |  Snapshot (preserve) |        |   Pi Edge Inference |
 |- Wired LAN (10GbE)        +----------------------+        +---------------------+
 |- Wi-Fi
-|- SORACOM Cellular (option)
-|- SORACOM S+ Camera (option)
-
-SM = SnapMirror --> FSx for ONTAP --> S3 AP
+|- Cellular (option)
 ```
 
-### Edge Devices (Options)
+**Data paths:**
+- **Payload** (images, CSV, logs): edge → NFS → ONTAP (stored)
+- **Events** (metadata): edge → Kafka → ClickHouse (analytics)
+- **AI analysis**: ONTAP → S3 AP → Bedrock / Lambda (quality verdict)
+- **Backup**: ClickHouse → ONTAP S3 (S3-compatible storage)
 
-| Device | Connection | Purpose |
-|--------|-----------|---------|
+## The problem
+
+Factories and sites generate data continuously from IoT devices — cameras, sensors, control PCs.
+In most cases that data ends up scattered per device and per site.
+
+**What this looks like:**
+- Camera images in the printer vendor's cloud, sensor data on the Pi's SD card, equipment logs on a Windows PC
+- No way to analyse data from site A alongside site B
+- Individual device data is visible, but the whole picture — correlation, trends — is not
+- Analysis with AI is wanted, but the data is scattered and no pipeline can be built
+
+On the edge and on-premises side:
+- The platform and tooling for cross-cutting analysis are not in place
+- Governance, cataloguing and access control have to be built from nothing
+- Building the analytics platform itself costs enough time and money that data work never starts
+
+## Approach
+
+A hybrid pipeline: aggregate scattered IoT data into a storage layer, analyse with Kafka and
+ClickHouse, and run image analysis on AWS AI services.
+
+**Data flow:**
+1. Edge devices write to storage over NFS (payload: images, CSV)
+2. In parallel, they publish a structured event to Kafka (metadata: when, where, what)
+3. ClickHouse ingests from Kafka and serves dashboards and anomaly detection
+4. Amazon Bedrock (via Lambda) analyses images and returns a quality verdict
+5. Databricks manages curated datasets and produces AI training data
+
+**Before → After:**
+
+| | Before | After |
+|---|--------|-------|
+| Data | Siloed per device | Aggregated, distributed over Kafka |
+| Analysis | No means (tooling has to be built first) | Dashboards in ClickHouse |
+| Anomaly detection | Human inspection (impossible unattended) | AI detects and alerts (target: within 60 seconds of capture; not measured on hardware) |
+| Cross-site analysis | Impossible | Quality trends across sites in Databricks |
+
+### Who this is for
+
+- **IoT / edge developers** looking for how to aggregate and use the data devices produce
+- **Data practitioners** wanting to break device-level silos and analyse across an organisation
+- **Existing ONTAP users** wanting to use ONTAP as the aggregation point for IoT data
+- **AWS users** wanting to use Athena, Bedrock or SageMaker against a source other than S3
+
+### Storage layer options
+
+The core pattern — edge collection, aggregation, AI analysis — holds with a different aggregation
+point.
+
+| Storage | Data flow | Characteristics | Constraints |
+|---------|-----------|-----------------|-------------|
+| **S3 directly** | Edge → S3 → Athena/Bedrock | Simplest. Easy setup. Native AWS integration. S3 Object Lock for tamper protection. Edge caching via CloudFront | No NFS/SMB access. Integrating with existing file workflows takes extra work. Event-driven via S3 Event Notifications |
+| **EFS** | Edge → NFS → EFS → Lambda/Bedrock | NFS mountable. Good fit for Linux devices. Auto-scaling. Protected by AWS Backup | No SMB. No direct S3 API access. Event-driven has to be built with Lambda + CloudWatch. Cross-Region via EFS Replication |
+| **ONTAP** | Edge → NFS/SMB → ONTAP → S3 AP → AWS AI | NFS, SMB and S3 over the same data. FPolicy for file-arrival triggers. SnapMirror for differential sync. FlexCache for low-latency delivery to remote sites. ARP/AI for ransomware anomaly detection with automatic Snapshot protection | Requires an ONTAP environment. S3 AP does not support conditional writes, and [has other constraints](docs/en/s3ap-compatibility-matrix.md). Operating it requires ONTAP knowledge |
+
+**How to choose:**
+- No data yet, building fresh → **S3 directly** is simplest
+- Writing over NFS from Linux devices, staying inside a VPC → **EFS**
+- Data already on ONTAP/NAS, both NFS and SMB needed, avoiding a copy → **ONTAP**
+
+### Edge devices (options)
+
+| Device | Connection | Use |
+|--------|------------|-----|
 | Raspberry Pi 5 | Wired LAN (NFS) | Camera capture, sensor collection, edge inference |
-| USB Camera (4K) | Via Pi | Visual inspection, quality monitoring |
-| CSI Camera (NoIR V2) | Via Pi | Low-light, near-infrared |
-| 3D Printer | Wired LAN (SMB) | Print data storage |
+| USB camera (4K) | Via Pi | Visual inspection, quality monitoring |
+| CSI camera (NoIR V2) | Via Pi | Low-light and near-infrared capture |
+| 3D printer | Wired LAN (SMB) | Print data storage |
 | SORACOM S+ Camera | Cellular (option) | Sites without wired LAN |
-| SORACOM Air + Pi | Cellular (option) | Connectivity for sites without LAN |
-| Industrial Sensors | Pi GPIO / I2C / SPI | Temperature, vibration, current |
+| SORACOM Air + Pi | Cellular (option) | Connectivity for sites without wired LAN |
+| Industrial sensors | Pi GPIO / I2C / SPI | Temperature, humidity, vibration, current |
 
-### ONTAP Platforms (Options)
+### ONTAP platforms (options)
 
-| Platform | Deployment | Characteristics |
-|----------|-----------|----------------|
+| Platform | Placement | Characteristics |
+|----------|-----------|-----------------|
 | FAS/AFF | On-premises | Hardware appliance |
-| ONTAP Select | On-premises / VM | Software-defined. Runs on commodity servers or VMs |
-| FSx for ONTAP | AWS Cloud | Fully managed. SnapMirror destination, S3 AP support |
+| ONTAP Select | On-premises / VM | Software-defined, runs on general-purpose servers or VMs |
+| FSx for ONTAP | AWS cloud | Fully managed. SnapMirror destination, supports S3 AP (ONTAP 9.17.1 or later) |
 
-## Motivation
-
-As an SA/SE visiting customer sites, I repeatedly heard "IoT device and sensor data is scattered per site and per device — we can't analyze it across the organization." The data is being generated, but silos prevent utilization. Additionally, the on-premises side lacks analysis infrastructure and governance tools, making "needing to build tools first" a barrier to getting started.
-
-With the following technologies maturing in 2024-2025, I believe "aggregation → cross-analysis" became achievable at low cost, and started this validation:
-
-- **FSx for ONTAP S3 Access Points** (2025 GA): S3 API access to aggregated data without copying
-- **Claude Vision / Multimodal AI**: Industrial image judgment at practical accuracy with generic prompts
-- **Raspberry Pi 5 (16GB)**: Edge pre-processing and lightweight inference at practical performance
-
-The first PoC is **3D print quality monitoring** (visually compelling, failures happen frequently for easy test data collection).
-
-## Current Limitations
-
-- **No hardware testing yet**: Edge devices (Raspberry Pi, camera) have not arrived. End-to-end hardware testing is pending. Cloud side (Lambda, Bedrock) is verified.
-- **AI accuracy tested with synthetic data only**: Prompt testing used public and synthetic images (9/9 correct). Real-environment accuracy (lighting, camera angle, filament color) is unverified.
-- **ONTAP integration is design-only**: FPolicy, SnapMirror, S3 AP integration code is implemented but untested against real ONTAP (mock tests only).
-- **Single-device configuration**: Multi-device concurrent operation and scale-out are untested.
-
-## What I've Learned So Far
-
-- **Two-stage AI analysis cuts cost by 85%**: Analyzing all images with the high-accuracy model costs ~$259/month. Screening with Haiku and routing only suspected anomalies to Sonnet brings it to ~$40/month. This pattern applies to other AI pipelines.
-- **Prompts alone achieve practical accuracy for industrial image judgment**: Without custom model training, Claude Vision prompts correctly identified 3D print defects in 9/9 test cases. Real-environment validation is pending.
-- **FSx for ONTAP S3 Access Points constraints**: No conditional writes, no event notifications. Direct Iceberg/Delta Lake writes aren't possible. FPolicy-based complementary design is needed.
-- **ONTAP REST API works well for IoT telemetry collection**: Performance metrics, capacity, and health can be collected at 1-minute intervals. Polling-based but sufficient for PoC.
-
-## Current Status
-
-| Component | Status | Notes |
-|-----------|--------|-------|
-| AWS Infrastructure (CFn) | ✅ Deployed | S3, Kinesis, Lambda, IAM, Glue, SNS |
-| Lambda (Two-Stage AI) | ✅ Deployed | Haiku screening + Sonnet detail (85% cost reduction) |
-| ONTAP Telemetry Collector | ✅ Implemented | REST API polling (mock E2E tested) |
-| Edge Camera Code | ✅ Implemented | Awaiting Pi arrival |
-| Design Documents | ✅ Complete | 8 documents, ja/en synced |
-| Hardware Testing | 📋 Pending | After Pi + camera + ONTAP arrival |
-
-## Quick Start
+## Quick start
 
 ### Prerequisites
 
-- AWS CLI v2 + credentials configured
+- AWS CLI v2 with credentials configured
 - Python 3.12+
 - Bedrock model access enabled
-- ONTAP 9.13.1+ (FPolicy, REST API). **9.17.1+** required for S3 Access Points
+- ONTAP 9.13.1+ (FPolicy, REST API). **9.17.1 or later** for S3 Access Points
+  ([source](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/access-point-for-fsxn-restrictions-limitations-naming-rules.html))
 
 ### Deploy
 
@@ -161,25 +168,97 @@ aws cloudformation deploy \
   --capabilities CAPABILITY_NAMED_IAM \
   --region ap-northeast-1
 
-# Edge device → edge/raspberry-pi/SETUP.md
+# Edge device → edge/raspberry-pi/SETUP_en.md
 ```
+
+The event path can be run without any physical hardware via [`local-demo/`](local-demo/).
+The full procedure is in the [deployment guide](docs/en/deployment-guide.md).
 
 ## Documentation
 
 | Document | 日本語 | English |
 |----------|--------|---------|
-| Use Case Research | [docs/ja/use-case-research.md](docs/ja/use-case-research.md) | [docs/en/use-case-research.md](docs/en/use-case-research.md) |
-| Data Schema Design | [docs/ja/data-schema-design.md](docs/ja/data-schema-design.md) | [docs/en/data-schema-design.md](docs/en/data-schema-design.md) |
-| Security Design | [docs/ja/security-design.md](docs/ja/security-design.md) | [docs/en/security-design.md](docs/en/security-design.md) |
-| Operations Design | [docs/ja/operations-design.md](docs/ja/operations-design.md) | [docs/en/operations-design.md](docs/en/operations-design.md) |
-| FAQ | [docs/ja/faq.md](docs/ja/faq.md) | [docs/en/faq.md](docs/en/faq.md) |
+| Deployment guide | [deployment-guide](docs/ja/deployment-guide.md) | [deployment-guide](docs/en/deployment-guide.md) |
+| S3 AP compatibility and constraints | [s3ap-compatibility-matrix](docs/ja/s3ap-compatibility-matrix.md) | [s3ap-compatibility-matrix](docs/en/s3ap-compatibility-matrix.md) |
+| Use case research | [use-case-research](docs/ja/use-case-research.md) | [use-case-research](docs/en/use-case-research.md) |
+| Data schema design | [data-schema-design](docs/ja/data-schema-design.md) | [data-schema-design](docs/en/data-schema-design.md) |
+| Kafka integration design | [kafka-integration](docs/ja/kafka-integration.md) | [kafka-integration](docs/en/kafka-integration.md) |
+| Greengrass + FlexCache integration | [iot-greengrass-flexcache-integration](docs/ja/iot-greengrass-flexcache-integration.md) | [iot-greengrass-flexcache-integration](docs/en/iot-greengrass-flexcache-integration.md) |
+| Databricks integration | [databricks-integration](docs/ja/databricks-integration.md) | [databricks-integration](docs/en/databricks-integration.md) |
+| Security design | [security-design](docs/ja/security-design.md) | [security-design](docs/en/security-design.md) |
+| Operations design | [operations-design](docs/ja/operations-design.md) | [operations-design](docs/en/operations-design.md) |
+| Demo scenarios | [demo-scenarios](docs/ja/demo-scenarios.md) | [demo-scenarios](docs/en/demo-scenarios.md) |
+| FAQ | [faq](docs/ja/faq.md) | [faq](docs/en/faq.md) |
 
-## Related Projects
+Demo walkthroughs (English only): [prerequisites](docs/demo-guides/demo-guide-00-prerequisites.md) /
+[IoT Core → Lambda → S3 AP](docs/demo-guides/demo-guide-01-iot-core-lambda-s3ap.md) /
+[Greengrass → S3 AP client](docs/demo-guides/demo-guide-02-greengrass-s3ap-client.md)
 
-- [fsxn-lakehouse-integrations](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations) — FSx for ONTAP S3 AP × Lakehouse integrations (**Kafka + ClickHouse + Databricks implementation lives here**)
-  - Integration entry point: [integrations/manufacturing-data-platform](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/tree/main/integrations/manufacturing-data-platform) — Manufacturing data platform integration
-  - Sync document: [Edge ↔ Lakehouse sync](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/en/14_edge_lakehouse_sync.md) ([日本語](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/ja/14_edge_lakehouse_sync.md)) — Schema / topic / responsibility-matrix sync record
-- [FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns) — FSx for ONTAP S3 AP serverless patterns (17 use cases)
+For maintainers: [quality gates](docs/agent/quality-gates_en.md) /
+[supply chain security](docs/agent/supply-chain-security_en.md) /
+[reference doc quality bar](docs/agent/reference-doc-quality_en.md) /
+[testing](TESTING_en.md) / [contributing](CONTRIBUTING.md)
+
+## About this repository
+
+> **Disclaimer**: this project is personal technical exploration. It does not represent the official
+> position or recommendation of any employer, and it does not recommend purchasing any product.
+
+### Current limits
+
+- **Hardware testing incomplete**: the edge devices (Raspberry Pi, cameras) have not arrived, so
+  no end-to-end test on hardware has run. The cloud side (Lambda, Bedrock) is verified
+- **AI accuracy is from synthetic tests only**: prompt testing used public and synthetic images
+  (9 of 9 correct). Accuracy under real conditions — lighting, camera angle, filament colour — is
+  unverified
+- **ONTAP integration is design only**: the FPolicy, SnapMirror and S3 AP code is written, but has
+  not run against a real ONTAP system (mock tests only)
+- **Single device**: concurrent operation of multiple devices and scale-out are unverified
+- **Kafka / ClickHouse pending**: awaiting a managed platform deployment. The path is exercised
+  through [`local-demo/`](local-demo/) in the meantime
+
+### What has been learned so far
+
+- **Two-stage AI analysis can lower cost (calculated)**: analysing every image with the
+  high-accuracy model works out to ~$259/month, while screening with a cheap model and escalating
+  only suspected anomalies works out to ~$40/month. These are **calculations**, not measurements:
+  they assume 60-second intervals, continuous operation, a 10% anomaly rate and model pricing in
+  one Region. A lower anomaly rate narrows the gap
+  ([figures at a realistic defect rate](tests/sample_images/README.md)). The pattern itself applies
+  to other AI pipelines
+- **Prompting alone reaches usable accuracy for industrial image checks**: 9 of 9 correct on 3D
+  print defects with Claude Vision prompts and no custom model training. Verification under real
+  conditions is still ahead
+- **FSx for ONTAP S3 Access Points carry constraints**: no conditional writes and no event
+  notifications, so Iceberg and Delta Lake cannot be written directly and FPolicy has to fill the
+  gap. The full list, with the basis for each item, is in
+  [S3 AP compatibility and constraints](docs/en/s3ap-compatibility-matrix.md)
+- **The ONTAP REST API is usable for IoT telemetry**: performance metrics, capacity and health at
+  one-minute intervals. Polling-based, but sufficient for a proof of concept
+
+### Why this exists
+
+Visiting sites as an SA/SE, one comment kept recurring: data from IoT devices and sensors sits
+separately per site and per device, and cannot be analysed across them. The data is being produced;
+the silos are what prevent using it. On the on-premises side there was also no analytics platform or
+governance tooling in place, so "we would have to build the tools first" became the reason nothing
+started.
+
+Three things arriving together made "aggregate, then analyse across" cheap enough to attempt:
+
+- **FSx for ONTAP S3 Access Points**: S3 API access to aggregated data without a copy
+- **Multimodal AI maturity**: general-purpose prompts reaching usable accuracy on industrial images
+- **Raspberry Pi 5 (16GB)**: enough capacity for preprocessing and light inference at the edge
+
+**3D print quality monitoring** was chosen as the first subject: visually legible, and failures
+happen often enough to gather test data.
+
+## Related projects
+
+- [fsxn-lakehouse-integrations](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations) — FSx for ONTAP S3 AP × lakehouse integration (**the Kafka, ClickHouse and Databricks side lives here**)
+  - The integration itself: [integrations/manufacturing-data-platform](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/tree/main/integrations/manufacturing-data-platform)
+  - Sync record: [Edge ↔ Lakehouse sync](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/en/14_edge_lakehouse_sync.md) ([日本語](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/ja/14_edge_lakehouse_sync.md)) — schema, topics and division of responsibility
+- [FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns) — serverless patterns for FSx for ONTAP S3 AP (17 use cases)
 
 ## License
 

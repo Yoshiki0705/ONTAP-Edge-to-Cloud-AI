@@ -126,16 +126,18 @@
 ```
 
 **Stream Manager を使わない理由:**
-- Greengrass Stream Manager は S3 バケット ARN のみ対応 — FSx for ONTAP S3 AP ARN を直接指定できない
+- Greengrass Stream Manager は S3 バケット名を要求する（access point ARN を受け付ける記述が
+  見つからない）。**このプロジェクトでは未検証**（[互換性と制約](./s3ap-compatibility-matrix.md) §4）
 - カスタムコンポーネントで boto3 (Python) / AWS SDK を使い、S3 AP ARN を直接ターゲットに PutObject を実行
 - ローカルディスクバッファ + エクスポネンシャルバックオフでオフライン耐性を自前実装
 
 **IoT Core MQTT → Lambda → S3 AP 経路:**
 - テレメトリ（小容量・高頻度）は IoT Core MQTT で送信
 - IoT Core ルールエンジン → Lambda 関数 → Lambda 内で PutObject to S3 AP
-- Kinesis Firehose は S3 AP ARN 非対応のため使用しない
+- Amazon Data Firehose は S3 バケット ARN を要求する。**未検証**（[互換性と制約](./s3ap-compatibility-matrix.md) §4）のため、
+  この構成では使わない
 
-> **コスト最適化に関する補足**: Kinesis Firehose を使わないことで Firehose の処理料金 ($0.029/GB) を回避。Lambda のコストは呼び出し回数ベースだが、IoT Core ルールで集約バッチ処理（Basic Ingest + バッチウィンドウ）と組み合わせることでコスト最適化可能。
+> **コスト最適化に関する補足**: Amazon Data Firehose を使わないことで Firehose の処理料金 ($0.029/GB) を回避。Lambda のコストは呼び出し回数ベースだが、IoT Core ルールで集約バッチ処理（Basic Ingest + バッチウィンドウ）と組み合わせることでコスト最適化可能。
 
 ### Tier 2: FlexCache Write-Back（エッジローカル書き込み → 非同期 Origin フラッシュ）
 
@@ -156,7 +158,7 @@
 │ (非同期、ブロックレベル差分)            │         (WAN / VPN / Direct Connect)
 │                                         │
 │ ┌─────────────────────────────────────┐ │
-│ │ ローカル書き込み応答: ~1ms (LAN)    │ │
+│ │ 応答: エッジで確定（未計測）        │ │
 │ │ Origin フラッシュ: 非同期 (30-90s)  │ │
 │ │ オフライン時: ローカル書き込み継続   │ │
 │ │ 再接続後: 差分フラッシュ自動再開    │ │
@@ -177,7 +179,7 @@
 
 | 特性 | 効果 |
 |------|------|
-| ローカル書き込み応答 (~1ms) | エッジデバイスはネットワーク遅延を意識せず書き込み可能 |
+| ローカル書き込み応答 | WAN の往復を待たずに応答が返る（LAN 内の書き込み応答時間。この構成では未計測） |
 | 非同期 Origin フラッシュ | WAN 帯域が限られていてもローカル書き込み性能に影響なし |
 | オフライン耐性 | ネットワーク断でもローカルキャッシュへの書き込み継続 |
 | ブロックレベル差分転送 | オブジェクト単位転送の S3 レプリケーションより遥かに効率的 |
@@ -186,10 +188,19 @@
 
 **要件:**
 - Origin (FSx for ONTAP) と Cache (エッジ ONTAP) の両方が ONTAP 9.15.1 以上
+  （[FlexCache write-back の相互運用性](https://docs.netapp.com/us-en/ontap/flexcache-writeback/flexcache-write-back-interoperability.html)）
+- ただし NetApp は **9.15.1 では write-back に必要な修正が揃っておらず本番ワークロードには推奨しない**としており、
+  最新の P リリースの利用を推奨している（[ガイドライン](https://docs.netapp.com/us-en/ontap/flexcache-writeback/flexcache-write-back-guidelines.html) /
+  [FAQ](https://docs.netapp.com/us-en/ontap/flexcache-writeback/faq-flexcache-write-back.html)）。バージョン選定時は 9.15.1 を下限として扱い、実際にはより新しい版を選ぶ
 - SVM 間ピアリング + クラスタ間ネットワーク (VPN / Direct Connect)
 - 同一ファイルへの同時書き込みは XLD により 1 Cache のみ許可 — デバイス分離ディレクトリ設計で回避
 
-> **オフライン耐性に関する補足**: S3 標準バケットへの書き込みはネットワーク断で即座に失敗する。FlexCache write-back ではエッジ ONTAP のローカルディスクに書き込みが確定するため、ネットワーク断が発生してもデータロスなし。再接続後にブロックレベル差分で効率的に Origin にフラッシュされる。
+> **オフライン耐性に関する補足**: S3 標準バケットへの書き込みはネットワーク断で失敗する。
+> FlexCache write-back では書き込みがエッジ ONTAP の安定ストレージに確定した時点で
+> クライアントに応答が返るため、ネットワーク断中も書き込みを継続できる。再接続後は
+> ブロックレベルの差分で Origin にフラッシュされる。ただし Origin に届く前のデータは
+> エッジ側にしか存在しないため、キャッシュ側のディスク障害では失われる。エッジ側の
+> RAID / HA 構成が前提になる。
 
 ### Tier 3: SnapMirror（エッジ独立ストレージ → クラウド同期）
 
@@ -255,7 +266,11 @@ Origin (FSx for ONTAP) に集約されたデータを、複数拠点のワーク
 | エッジ AI デバイス | ML モデルファイル (GGUF等) | 数十 GB モデルをアクセスブロック単位で効率配信 |
 | QA チーム WS | 品質画像データベース | ローカル速度で画像ブラウジング |
 
-> **モデル配信に関する補足**: FlexCache はファイル全体ではなくアクセスされたブロックのみをキャッシュする。数十 GB の GGUF/ONNX モデルファイルでも、実際にロードされる部分のみがネットワーク転送される。OTA デプロイの代替としてNFS マウント経由でモデルを参照すれば、ストレージ二重持ちを回避。
+> **モデル配信に関する補足**: FlexCache はファイル全体ではなくアクセスされたブロック単位で
+> キャッシュする。この性質から、大きなモデルファイルでも実際に読まれた範囲だけが転送される
+> ことが期待できる。ただし推論ランタイムがモデルをどう読むか（全体を mmap するか、
+> 逐次読むか）で転送量は変わり、**この構成では未計測**。OTA デプロイの代替として NFS 経由で
+> 参照する設計自体は、ストレージの二重持ちを避けられる。
 
 ---
 
@@ -270,7 +285,7 @@ Origin (FSx for ONTAP) に集約されたデータを、複数拠点のワーク
 | ローカル処理 | S3 GET でクラウドから取得 | NFS ローカルマウントで即座にアクセス | Greengrass ML Inference |
 | 帯域制約 | オブジェクト全体転送 | FlexCache ブロック差分 / SnapMirror 差分 | SORACOM Canal (閉域接続) |
 | マルチプロトコル | S3 API のみ | NFS + SMB + S3 同時アクセス | IoT SiteWise (OPC-UA → 構造化) |
-| データ重力 | クラウド↔エッジ往復 | エッジ ONTAP でローカル処理完結 | SageMaker Edge Manager |
+| データ重力 | クラウド↔エッジ往復 | エッジ ONTAP でローカル処理完結 | Greengrass コンポーネントによるモデル配布 |
 
 ### 5.2 追加サービスの位置づけ
 
@@ -454,8 +469,8 @@ graph TD
 | パターン | 問題 | 対策 |
 |----------|------|------|
 | S3 標準バケットを Landing Zone として経由 | オブジェクト課金 + ストレージ二重持ち + DataSync 遅延 | FSx for ONTAP S3 AP に直接 PutObject |
-| Greengrass Stream Manager で S3 AP に書き込み | Stream Manager は S3 バケット ARN のみ対応 | カスタム S3 クライアントコンポーネント (boto3) |
-| Kinesis Firehose → S3 AP | Firehose S3 Destination は S3 AP ARN 非対応 | IoT Core → Lambda → PutObject to S3 AP |
+| Greengrass Stream Manager で S3 AP に書き込み | S3 バケット名を要求する（未検証、[詳細](./s3ap-compatibility-matrix.md) §4） | カスタム S3 クライアントコンポーネント (boto3) |
+| Amazon Data Firehose → S3 AP | S3 バケット ARN を要求する（未検証、[詳細](./s3ap-compatibility-matrix.md) §4） | IoT Core → Lambda → PutObject to S3 AP |
 | FlexCache Cache 側に S3 AP を attach | ONTAP S3 NAS バケットは Origin FlexVol/FlexGroup のみ対応 | S3 AP は Origin 側にのみ付与 |
 | 同一ファイルを複数 Cache から write-back | XLD 競合 → パフォーマンス劣化 | デバイスごとにディレクトリ分離設計 |
 | 全デバイスを単一ディレクトリに書き込み | FlexGroup constituent 偏り + FlexCache キャッシュ効率低下 | デバイスID + 時間パーティションで分散 |
@@ -469,19 +484,31 @@ graph TD
 
 ### Q1: Greengrass Stream Manager で FSx for ONTAP S3 AP に直接アップロードできますか?
 
-**A**: いいえ。Stream Manager は S3 バケット ARN のみをサポートしており、S3 AP ARN (FSx for ONTAP) を直接ターゲットにできない。代わりに Greengrass カスタムコンポーネントで boto3 / AWS SDK を使い、S3 AP ARN に PutObject を発行する実装が必要。ローカルディスクバッファ + リトライロジックは自前実装する。
+**A**: **確認できていない。** Stream Manager の `S3ExportTaskDefinition` は S3 バケット名を
+要求し、access point ARN を受け付けるという記述は見つかっていないが、このプロジェクトでは
+実際に試していない（[互換性と制約](./s3ap-compatibility-matrix.md) §4）。この構成では Greengrass カスタムコンポーネントで
+boto3 を使い S3 AP ARN に PutObject する経路を採っている。その場合、ローカルディスクバッファと
+リトライは自前実装になる。
 
 ### Q2: IoT Core ルールから直接 FSx for ONTAP S3 AP に書き込めますか?
 
 **A**: IoT Core の S3 ルールアクションは S3 バケット名を指定する形式で、S3 AP ARN を直接指定する機能は現時点でドキュメントに記載がない。推奨は Lambda ルールアクション経由: IoT Core → Lambda → boto3 PutObject to S3 AP ARN。
 
-### Q3: Kinesis Data Firehose から FSx for ONTAP S3 AP に配信できますか?
+### Q3: Amazon Data Firehose から FSx for ONTAP S3 AP に配信できますか?
 
-**A**: いいえ。Firehose の S3 Destination は BucketARN を要求し、FSx for ONTAP S3 AP ARN は受け付けない。Firehose を使う場合は一旦 S3 バケットに出力する必要があるが、これは本アーキテクチャの目的（S3 バケット排除）に反する。Lambda 集約 → S3 AP PutObject が推奨経路。
+**A**: **確認できていない。** Firehose の S3 Destination は `BucketARN` を要求しており、
+access point ARN が通るかは未検証（[互換性と制約](./s3ap-compatibility-matrix.md) §4）。この構成では Lambda で集約して
+S3 AP に PutObject する経路を採っている。Kafka を経由する場合は、MSK Express brokers の
+streaming tables で Iceberg テーブルとして materialize する経路も選択肢になる。
 
 ### Q4: FlexCache write-back はどの ONTAP バージョンから使えますか?
 
-**A**: ONTAP 9.15.1 以降。Origin と Cache の両方が 9.15.1+ である必要がある。FSx for ONTAP は ONTAP 9.15.1+ を選択可能。エッジ側に ONTAP Select を新規導入する場合、最新バージョンで問題なし。
+**A**: 下限は ONTAP 9.15.1 で、Origin と Cache の両方がその版以降である必要がある
+（[相互運用性](https://docs.netapp.com/us-en/ontap/flexcache-writeback/flexcache-write-back-interoperability.html)）。
+ただし下限を満たすだけでは足りない。NetApp は 9.15.1 について「write-back に必要な修正と改善が
+すべて入っておらず、本番ワークロードには推奨しない」と明記しており、最新の P リリースを推奨している
+（[ガイドライン](https://docs.netapp.com/us-en/ontap/flexcache-writeback/flexcache-write-back-guidelines.html)）。
+本番を想定するなら 9.15.1 ちょうどを選ばない。
 
 ### Q5: FlexCache write-back でネットワーク断が発生した場合、データは失われますか?
 

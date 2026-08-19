@@ -33,8 +33,10 @@ SCRIPTS = REPO_ROOT / "scripts"
 GUARDS = [
     "check_agent_context_budget.py",
     "check_dependency_pins.py",
+    "check_doc_parity.py",
     "check_git_hooks_wiring.py",
     "check_sql_interpolation.py",
+    "check_sunset_services.py",
     "check_test_coverage_drift.py",
 ]
 
@@ -518,3 +520,191 @@ def test_coverage_blocks_a_test_named_file_with_no_tests_being_counted(tmp_path)
         "a test_*.py file with no test functions was treated as an unreachable "
         f"test directory:\n{result.stderr}"
     )
+
+
+# ---------------------------------------------------------------------------
+# check_doc_parity.py
+# ---------------------------------------------------------------------------
+
+
+def _parity_fixture(
+    root: Path,
+    ja: str | None,
+    en: str | None,
+    known: str | None = None,
+    name: str = "guide.md",
+) -> None:
+    (root / "docs" / "ja").mkdir(parents=True, exist_ok=True)
+    (root / "docs" / "en").mkdir(parents=True, exist_ok=True)
+    if ja is not None:
+        (root / "docs" / "ja" / name).write_text(ja, encoding="utf-8")
+    if en is not None:
+        (root / "docs" / "en" / name).write_text(en, encoding="utf-8")
+    if known is not None:
+        (root / "scripts").mkdir(parents=True, exist_ok=True)
+        (root / "scripts" / "known_doc_parity_gaps.txt").write_text(known, encoding="utf-8")
+
+
+MATCHING_JA = "# 題\n\n## 概要\n\n### 詳細\n\n## まとめ\n"
+MATCHING_EN = "# Title\n\n## Overview\n\n### Details\n\n## Summary\n"
+
+
+def test_parity_allows_a_matching_pair(tmp_path):
+    _parity_fixture(tmp_path, MATCHING_JA, MATCHING_EN)
+    result = run_guard(tmp_path, "check_doc_parity.py")
+    assert result.returncode == 0, result.stderr
+    assert "doc parity: OK" in result.stdout
+
+
+def test_parity_blocks_a_missing_subsection(tmp_path):
+    """The defect measured in this repository: a `###` present in one language only."""
+    _parity_fixture(tmp_path, MATCHING_JA, "# Title\n\n## Overview\n\n## Summary\n")
+    result = run_guard(tmp_path, "check_doc_parity.py")
+    assert result.returncode == 1
+    assert "guide.md" in result.stderr
+    assert "diverge" in result.stderr or "extra trailing" in result.stderr
+
+
+def test_parity_blocks_a_one_sided_document(tmp_path):
+    _parity_fixture(tmp_path, MATCHING_JA, MATCHING_EN)
+    _parity_fixture(tmp_path, "# 片側だけ\n\n## 節\n", None, name="orphan.md")
+    result = run_guard(tmp_path, "check_doc_parity.py")
+    assert result.returncode == 1
+    assert "no counterpart" in result.stderr
+
+
+def test_parity_allows_a_recorded_gap(tmp_path):
+    _parity_fixture(
+        tmp_path,
+        MATCHING_JA,
+        "# Title\n\n## Overview\n\n## Summary\n",
+        known="docs/ja/guide.md  # missing subsection, tracked\n",
+    )
+    result = run_guard(tmp_path, "check_doc_parity.py")
+    assert result.returncode == 0, result.stderr
+    assert "1 known gaps" in result.stdout
+
+
+def test_parity_blocks_a_stale_recorded_gap(tmp_path):
+    """An allowlist entry for a pair that now agrees is how a guard stops guarding."""
+    _parity_fixture(
+        tmp_path, MATCHING_JA, MATCHING_EN, known="docs/ja/guide.md  # long since fixed\n"
+    )
+    result = run_guard(tmp_path, "check_doc_parity.py")
+    assert result.returncode == 1
+    assert "no longer drift" in result.stderr
+
+
+def test_parity_ignores_headings_inside_a_code_fence(tmp_path):
+    """A '### ' in fenced output is example text, not structure."""
+    ja = "# 題\n\n## 概要\n\n```\n### これは出力例\n```\n"
+    en = "# Title\n\n## Overview\n\n```\n### this is sample output\n### and another\n```\n"
+    _parity_fixture(tmp_path, ja, en)
+    result = run_guard(tmp_path, "check_doc_parity.py")
+    assert result.returncode == 0, result.stderr
+
+
+def test_parity_blocks_when_it_finds_no_pairs_at_all(tmp_path):
+    """Discovering nothing must fail, not report a clean tree."""
+    (tmp_path / "docs").mkdir()
+    result = run_guard(tmp_path, "check_doc_parity.py")
+    assert result.returncode == 1
+    assert "vacuous" in result.stderr
+
+
+def test_parity_checks_the_suffix_convention_too(tmp_path):
+    """Root README/TESTING and docs/agent/ pair as Y.md <-> Y_en.md."""
+    _parity_fixture(tmp_path, MATCHING_JA, MATCHING_EN)
+    (tmp_path / "README.md").write_text("# R\n\n## A\n\n### B\n", encoding="utf-8")
+    (tmp_path / "README_en.md").write_text("# R\n\n## A\n", encoding="utf-8")
+    result = run_guard(tmp_path, "check_doc_parity.py")
+    assert result.returncode == 1
+    assert "README.md" in result.stderr
+
+
+def test_parity_checks_the_reversed_suffix_convention(tmp_path):
+    """edge/soracom/ pairs as Y.md <-> Y_ja.md, with English as the primary file.
+
+    Regression: the first version of this guard walked `*_en.md` only, so this
+    pair was never compared and its absence did not show up anywhere in the
+    output.
+    """
+    _parity_fixture(tmp_path, MATCHING_JA, MATCHING_EN)
+    target = tmp_path / "edge" / "soracom"
+    target.mkdir(parents=True)
+    (target / "README.md").write_text("# S\n\n## A\n\n### B\n", encoding="utf-8")
+    (target / "README_ja.md").write_text("# S\n\n## A\n", encoding="utf-8")
+    result = run_guard(tmp_path, "check_doc_parity.py")
+    assert result.returncode == 1
+    assert "edge/soracom/README.md" in result.stderr
+
+
+# ---------------------------------------------------------------------------
+# check_sunset_services.py
+# ---------------------------------------------------------------------------
+
+
+def _sunset_fixture(root: Path, body: str, name: str = "docs/guide.md") -> None:
+    path = root / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(body, encoding="utf-8")
+    # The guard needs at least one document to avoid its vacuous-run failure.
+    (root / "README.md").write_text("# Reference\n\nNothing notable here.\n", encoding="utf-8")
+
+
+def test_sunset_allows_a_document_naming_nothing_affected(tmp_path):
+    _sunset_fixture(tmp_path, "# Guide\n\nUse Amazon Athena over an S3 access point.\n")
+    result = run_guard(tmp_path, "check_sunset_services.py")
+    assert result.returncode == 0, result.stderr
+    assert "sunset services: OK" in result.stdout
+
+
+def test_sunset_allows_a_mention_carrying_a_note(tmp_path):
+    _sunset_fixture(
+        tmp_path,
+        "# Guide\n\nAmazon Timestream for LiveAnalytics has been closed to new "
+        "customers since 2025-06-20; use Timestream for InfluxDB for new work.\n",
+    )
+    result = run_guard(tmp_path, "check_sunset_services.py")
+    assert result.returncode == 0, result.stderr
+
+
+def test_sunset_blocks_a_mention_with_no_note(tmp_path):
+    _sunset_fixture(
+        tmp_path, "# Guide\n\nSend the telemetry to Timestream for LiveAnalytics.\n"
+    )
+    result = run_guard(tmp_path, "check_sunset_services.py")
+    assert result.returncode == 1
+    assert "Timestream for LiveAnalytics" in result.stderr
+    assert "docs/guide.md" in result.stderr
+
+
+def test_sunset_still_blocks_when_the_word_maintenance_appears_unrelated(tmp_path):
+    """Regression: bare "maintenance" as a marker made this guard vacuous.
+
+    The English iot-greengrass-flexcache-integration.md names SageMaker Edge
+    Manager with no note and passed the first version of this guard, because
+    "predictive maintenance" appears elsewhere in it. Only one of two identical
+    defects was reported.
+    """
+    _sunset_fixture(
+        tmp_path,
+        "# Guide\n\nA predictive maintenance pipeline. Package the model with "
+        "SageMaker Edge Manager and deploy it to the fleet.\n",
+    )
+    result = run_guard(tmp_path, "check_sunset_services.py")
+    assert result.returncode == 1
+    assert "SageMaker Edge Manager" in result.stderr
+
+
+def test_sunset_reports_the_source_so_the_status_is_auditable(tmp_path):
+    _sunset_fixture(tmp_path, "# Guide\n\nUse AWS IoT Analytics for the channel.\n")
+    result = run_guard(tmp_path, "check_sunset_services.py")
+    assert result.returncode == 1
+    assert "https://" in result.stderr
+
+
+def test_sunset_blocks_when_it_finds_no_documents_at_all(tmp_path):
+    result = run_guard(tmp_path, "check_sunset_services.py")
+    assert result.returncode == 1
+    assert "vacuous" in result.stderr

@@ -38,6 +38,8 @@ make check           # lint + security + test + drift（CI と同じ）
 | `check_git_hooks_wiring.py` | `core.hooksPath` の上書きで `.githooks/` が死んでいる状態、実行されない `.pre-commit-config.yaml` |
 | `check_dependency_pins.py` | `requirements-dev.txt` のレンジ指定、CI の Python 版と Lambda ランタイムの不一致、CI のインライン `pip install` |
 | `check_sql_interpolation.py` | `scripts/reviewed_sql_sites.txt` に無い SQL 組み立て箇所、および実体を失った記載 |
+| `check_doc_parity.py` | JA/EN 対訳ペアの見出しレベル列の不一致、片側のみ存在するファイル、`scripts/known_doc_parity_gaps.txt` の実体を失った記載 |
+| `check_sunset_services.py` | 新規顧客に非開放のサービスを、状況の注記なしに挙げている doc |
 
 `scripts/tests/` に自己テストがある。`make test` で走る。
 
@@ -53,6 +55,8 @@ make check           # lint + security + test + drift（CI と同じ）
 | gitleaks が既定ルールを 700KB 分見ていない | `[allowlist] paths` に `*.md` / `*.sh` / workflows / infra テンプレートを一括登録。gitleaks の allowlist の `paths` は**ファイルごとスキップ**なので、自作 2 ルールの騒音を消すために AWS キー・GitHub トークン・秘密鍵の検出も同時に無効化していた。`matchCondition = "AND"` でも狭まらない |
 | gitleaks が 218 件検出したのに make が成功 | `command -v gitleaks && gitleaks detect ... \|\| echo "skipped"`。gitleaks は検出時に exit 1 を返すので `\|\|` 側が走り、「skipped」と表示して make は 0 を返していた |
 | `# nosec` が効かない | bandit は**報告行そのもの**のコメントしか見ない。前の行に書いた場合 `Total lines skipped (#nosec): 0` になる |
+| 新設の parity ゲートが対訳 1 組を検査していなかった | `*_en.md` だけを walk しており、`edge/soracom/README.md` ↔ `README_ja.md` という逆向きの接尾辞の組が対象外だった。検査していないことは出力に現れない |
+| 新設の sunset ゲートが同一欠陥 2 件のうち 1 件だけを報告 | 状況を示す語に `maintenance` を単語で入れたため、`predictive maintenance` を含む doc が通過した。60 doc のうち 7 件がこの語を持つ |
 | `pytest` と CI が別の集合を検査 | `testpaths` 未設定。`scripts/tests/` はどちらにも入っておらず、`edge/raspberry-pi/camera/test_prompt.py` は test 関数 0 個の CLI スクリプトなのに名前だけテストに見えていた |
 
 ## ゲートを足すときの手順

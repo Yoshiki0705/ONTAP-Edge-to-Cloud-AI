@@ -1,5 +1,5 @@
 # Local demo environment: Kafka + ClickHouse + Grafana
-# Runs the full event pipeline locally without physical hardware or Instaclustr.
+# Runs the full event pipeline locally without physical hardware or a managed cluster.
 #
 # Usage:
 #   docker compose up -d

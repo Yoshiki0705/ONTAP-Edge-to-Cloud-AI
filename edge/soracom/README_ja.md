@@ -15,13 +15,13 @@
 ## アーキテクチャ
 
 ```
-Raspberry Pi → SORACOM Air (セルラー) → SORACOM Funnel → AWS Kinesis
-                                        → SORACOM Flux  → AWS S3 + Bedrock
+Raspberry Pi → SORACOM Air (セルラー) → SORACOM Funnel → Amazon Kinesis
+                                        → SORACOM Flux  → Amazon S3 + Bedrock
 ```
 
 ## 1. SORACOM Funnel 設定（センサーデータ → Kinesis）
 
-Funnel はデバイスデータを AWS Kinesis に直接転送します。デバイス側のコード変更は不要です。
+Funnel はデバイスデータを Amazon Kinesis に直接転送します。デバイス側のコード変更は不要です。
 
 ### Step 1: IAM ロールの ExternalId 更新
 

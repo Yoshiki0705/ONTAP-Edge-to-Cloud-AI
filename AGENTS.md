@@ -42,8 +42,14 @@ use the native equivalent (CloudWatch, ONTAP REST API, FabricPool, AWS DataSync,
 Snapshot/FlexClone/SnapMirror). Verbatim external citation titles are the only
 exception, marked `allow:naming` on that line.
 
-**Vendor neutrality.** Present options, not rankings. State trade-offs
-symmetrically, including those of the recommended option.
+**Comparisons.** Present options, not rankings. State trade-offs symmetrically,
+including those of the recommended option. Describe other products factually;
+let the reader choose against their own constraints.
+
+**Service lifecycle.** A service closed to new customers, in maintenance, or
+sunset cannot be a recommendation for new work: a reader following it cannot
+build what the document describes. Check status before naming a service, and
+when a document mentions one, say so there and give a current alternative.
 
 **Public-output safety.** Never commit personal or persona names, email
 addresses, AWS account IDs, internal IPs or hostnames, support case numbers, or
@@ -64,6 +70,7 @@ SQL statement — see `cloud/iot_ingestion/identifiers.py`.
 |---|---|
 | Adding or changing a quality gate; a CI failure you do not recognise | [docs/agent/quality-gates.md](docs/agent/quality-gates.md) |
 | Editing a GitHub Actions workflow; adding a dependency | [docs/agent/supply-chain-security.md](docs/agent/supply-chain-security.md) |
+| Naming an AWS service in a design; correcting an existing mention | [docs/agent/service-lifecycle.md](docs/agent/service-lifecycle.md) |
 | Writing or revising a reference doc or guide | [docs/agent/reference-doc-quality.md](docs/agent/reference-doc-quality.md) |
 | Anything touching network boundaries, device identity or plant equipment | [docs/ja/security-design.md](docs/ja/security-design.md) |
 | Running or extending the test suites | [TESTING.md](TESTING.md) |

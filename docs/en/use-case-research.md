@@ -52,7 +52,7 @@ Raspberry Pi 5             On-premises              FSx for ONTAP
 |  - Current       |       | (incremental)    |     | Glue ETL                |
 |  - Pressure      |       +------------------+     | SageMaker (prediction)  |
 |                  |                                | CloudWatch (alerts)     |
-| Pre-process:     |                                | QuickSight (BI)         |
+| Pre-process:     |                                | Quick Sight (BI)        |
 |  - Aggregation   |                                +-------------------------+
 |  - Outlier filter|
 +------------------+
@@ -204,7 +204,7 @@ ONTAP                                               FSx for ONTAP
 |------|---------|
 | **Overview** | Real-time collection of per-floor temperature/humidity and power consumption to optimize HVAC control |
 | **Edge equipment** | Raspberry Pi 5 + temp/humidity sensor + CT current sensor + SORACOM SIM |
-| **Data flow** | Pi → NFS → ONTAP → SnapMirror → FSx for ONTAP → S3 AP → Athena + QuickSight |
+| **Data flow** | Pi → NFS → ONTAP → SnapMirror → FSx for ONTAP → S3 AP → Athena + Quick Sight |
 | **ONTAP integration** | Aggregate BMS (Building Management System) logs on ONTAP for long-term trend analysis |
 | **AI usage** | SageMaker: power demand forecasting; Bedrock: automated energy-saving report generation |
 | **Expected outcome** | Power cost reduction (10-30%), comfort maintenance, carbon footprint visibility |
@@ -287,23 +287,20 @@ ONTAP                                               FSx for ONTAP
 
 ### 5.1 FSx for ONTAP S3 Access Points Constraints
 
-Constraints verified in parent project (fsxn-lakehouse-integrations), confirmed with AWS Support (May 2026):
+The full list, with the basis for each item (AWS documentation, testing in a related
+project, or unverified), is collected in
+**[S3 AP compatibility and constraints](./s3ap-compatibility-matrix.md)**. Only the points
+that bear on this use case survey are repeated here.
 
-📋 **[FSx for ONTAP S3 AP Compatibility Matrix (Full)](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/docs/en/compatibility-matrix.md)**
+| Constraint that shapes a design | What it decides |
+|---|---|
+| No conditional writes | Updating Iceberg or Delta Lake tables directly on an S3 AP is not an option |
+| No S3 event notifications | File arrival has to be triggered by FPolicy or polling |
+| ONTAP 9.17.1 or later required | Depending on an existing file system's version, S3 AP may not be available at all |
+| Same account, same Region | Cross-account data sharing does not work through an S3 AP |
 
-| Constraint | Impact | Workaround |
-|-----------|--------|-----------|
-| No conditional writes (If-None-Match) | Delta Lake/Iceberg/Hudi transactional writes blocked | Read-only analytics or DataSync → S3 for write workloads |
-| No S3 Event Notifications | Snowpipe auto-ingest, Auto Loader file notification mode unavailable | FPolicy → Lambda, scheduled polling, or REST API |
-| No SnapMirror S3 | Cannot replicate ONTAP S3 bucket to AWS S3 | Use DataSync (NFS → S3) as validated sync mechanism |
-| ListObjectsV2 higher latency | 30-80x slower than native S3 for small directories | Pre-generate file lists, use larger file sizes, or cache results |
-| SSE-FSX encryption only | SSE-S3, SSE-KMS, SSE-C not supported | Use default SSE-FSX (transparent, AWS KMS managed) |
-| No Object Versioning | S3 versioning not available | Use ONTAP Snapshot for point-in-time recovery |
-| Presigned URLs: Not officially supported | Works in practice but not guaranteed | Use for non-critical paths only; prefer IAM-based access |
-| **ONTAP 9.17.1+ required** | Minimum version for S3 Access Points | Verify FSx file system ONTAP version before deployment |
-
-For the full matrix including platform-specific compatibility (Athena, Glue, EMR, Databricks, Snowflake, Bedrock), see the [complete document](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/docs/en/compatibility-matrix.md).
-
+For platform-specific compatibility (Athena, Glue, EMR, Databricks, Snowflake, Bedrock), see
+§1 and §3 of [compatibility and constraints](./s3ap-compatibility-matrix.md).
 ### 5.2 SORACOM Cellular Communication Constraints
 
 | Constraint | Impact | Mitigation |
@@ -329,7 +326,7 @@ For the full matrix including platform-specific compatibility (Athena, Glue, EMR
 | Service | Use Case | Protocol | Characteristics |
 |---------|----------|----------|----------------|
 | **Beam** | General protocol conversion | MQTT→MQTTS, HTTP→HTTPS | Offloads device-side encryption, forwards to any endpoint |
-| **Funnel** | Direct cloud service integration | UDP/TCP → AWS Kinesis, S3, etc. | Config-only AWS service delivery, minimal device code |
+| **Funnel** | Direct cloud service integration | UDP/TCP → Amazon Kinesis, S3, etc. | Config-only AWS service delivery, minimal device code |
 | **Harvest** | Data storage & visualization | HTTP/UDP | Store and graph data on SORACOM platform, ideal for prototyping |
 | **Flux** | AI-integrated workflows | Camera images + GenAI | Low-code camera → AI analysis → notification pipeline |
 
@@ -479,11 +476,11 @@ Phase 2 (1-2 weeks): Customization + accuracy improvement
 
 Phase 3 (2 weeks): Analytics foundation + production readiness
   Goal: Data analytics + operational readiness
-  Config: Phase 2 + SnapMirror → FSx for ONTAP + Athena + QuickSight
+  Config: Phase 2 + SnapMirror → FSx for ONTAP + Athena + Quick Sight
   Steps:
     1. SnapMirror: ONTAP → FSx for ONTAP sync configuration
     2. FSx for ONTAP S3 AP → Athena analysis (print success rate, failure patterns)
-    3. QuickSight dashboard
+    3. Quick Sight dashboard
     4. Operations runbook (device replacement, incident response)
     5. Health monitoring setup (Pi heartbeat → CloudWatch)
 ```
@@ -577,7 +574,7 @@ Phase 3 (2 weeks): AI prediction
 ### Community & Examples
 
 - [River Monitoring with IoT Flow Meter (Hackster.io)](https://hackster.io/rhammell/river-monitoring-with-an-iot-flow-meter-9af852)
-- [Raspberry Pi + AWS Rekognition Image Recognition](https://github.com/MatthiasGemelli/IntelliCam)
+- [Raspberry Pi + Amazon Rekognition Image Recognition](https://github.com/MatthiasGemelli/IntelliCam)
 - [Kinesis Video Streams + Rekognition Fire Detection](https://community.aws/content/2hTnRBhcqWU1nO7pHUw8fVKqQlN/how-to-detect-forest-fires-using-kinesis-video-streams-and-amazon-rekognition)
 - [Smart 3D Printing Surveillance (SCALE 21x)](https://www.socallinuxexpo.org/scale/21x/presentations/smart-3d-printing-surveillance-detecting-failures-computer-vision-and)
 - [Industrial Monitoring with Raspberry Pi (Industrial Shields)](https://www.industrialshields.com/blog/raspberry-pi-for-industry-26/industrial-monitoring-and-data-extraction-with-raspberry-pi-how-gateberry-raspberry-plc-and-touchberry-are-redefining-the-edge-675)

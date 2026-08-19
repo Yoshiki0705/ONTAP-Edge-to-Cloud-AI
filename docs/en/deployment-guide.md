@@ -395,7 +395,7 @@ VPC endpoints required for private-subnet connectivity. When integrating into an
 |----------|--------------|-------------------|
 | FSx for ONTAP | 1 TiB SSD, 128 MBps, Multi-AZ | ~$500+ |
 | Kinesis Data Stream | ON_DEMAND mode | ~$15–50 |
-| Kinesis Firehose | 5 MB buffer, 300s interval | ~$5–20 |
+| Amazon Data Firehose | 5 MB buffer, 300s interval | ~$5–20 |
 | S3 | Standard, a few GB | ~$1–10 |
 | Lambda | 1000 invocations/day, 256 MB, 90s | ~$5–15 |
 | Bedrock (Claude) | 1000 invocations/day | ~$10–100 |
