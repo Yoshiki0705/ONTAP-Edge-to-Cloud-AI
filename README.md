@@ -168,6 +168,7 @@ aws cloudformation deploy \
 | Flexible AI Data Layer（将来展望） | [flexible-ai-data-layer](docs/ja/flexible-ai-data-layer.md) | [flexible-ai-data-layer](docs/en/flexible-ai-data-layer.md) |
 | デプロイガイド | [deployment-guide](docs/ja/deployment-guide.md) | [deployment-guide](docs/en/deployment-guide.md) |
 | S3 AP 互換性と制約 | [s3ap-compatibility-matrix](docs/ja/s3ap-compatibility-matrix.md) | [s3ap-compatibility-matrix](docs/en/s3ap-compatibility-matrix.md) |
+| **検証状態**（どこまで実機で動かしたか） | [verification-status](docs/ja/verification-status.md) | [verification-status](docs/en/verification-status.md) |
 | ユースケース調査 | [use-case-research](docs/ja/use-case-research.md) | [use-case-research](docs/en/use-case-research.md) |
 | データスキーマ設計 | [data-schema-design](docs/ja/data-schema-design.md) | [data-schema-design](docs/en/data-schema-design.md) |
 | Kafka 統合設計 | [kafka-integration](docs/ja/kafka-integration.md) | [kafka-integration](docs/en/kafka-integration.md) |
@@ -197,9 +198,12 @@ aws cloudformation deploy \
 ### 現在の制約と限界
 
 - **実機テスト未完了**: エッジデバイス（Raspberry Pi、カメラ）が未到着のため、エンドツーエンドの
-  実機テストは未実施。クラウド側（Lambda、Bedrock）は動作確認済み
-- **AI 精度は合成テストのみ**: プロンプトテストは公開画像と合成画像で実施（9/9 正解）。
-  実環境（照明、カメラ角度、フィラメント色）での精度は未検証
+  実機テストは未実施。実 AWS で測定したのは Amazon Bedrock の 2 段階分析だけで、SAM テンプレートを
+  デプロイした記録はない。段ごとの状況は[検証状態](docs/ja/verification-status.md)にある
+- **AI 精度は 2 種類のテストの結果**: ベンダーが公開しているドキュメント中の実写 4 枚で 4/4、
+  テキストで書いた症状の記述 5 件で 5/5。合成画像（OpenCV 生成）は別ラウンドで、非実写として
+  正しく識別された。**この 2 つは測っているものが違うので合算しない**。実環境（照明、カメラ角度、
+  フィラメント色）での精度は未検証
 - **ONTAP 連携は設計のみ**: FPolicy、SnapMirror、S3 AP の連携コードは実装済みだが、
   実 ONTAP 環境での動作確認は未実施（モックテストのみ）
 - **単一デバイス構成**: 複数デバイスの同時運用、スケールアウトは未検証
@@ -214,7 +218,8 @@ aws cloudformation deploy \
   異常率が下がれば削減幅は小さくなる（[実際の欠陥率での試算](tests/sample_images/README.md)）。
   設計パターン自体は他の AI パイプラインにも応用できる
 - **プロンプトだけで産業用画像判定が実用精度に達する**: カスタムモデル学習なしで、
-  Claude Vision のプロンプトのみで 3D プリント欠陥を 9/9 正解。ただし実環境での検証はこれから
+  Claude Vision のプロンプトのみで、公開ドキュメント中の実写 4 枚を 4/4 判定。ただし実環境での
+  検証はこれから
 - **FSx for ONTAP S3 Access Points には制約がある**: 条件付き書き込み非対応、イベント通知非対応の
   ため、Iceberg / Delta Lake の直接書き込みはできず、FPolicy で補完する設計が必要。
   制約の一覧と各項目の根拠は [S3 AP 互換性と制約](docs/ja/s3ap-compatibility-matrix.md) にある

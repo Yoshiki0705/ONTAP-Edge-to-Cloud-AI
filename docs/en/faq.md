@@ -18,7 +18,7 @@ A: Requires a region where Bedrock Claude models are available. This project is 
 
 **Q: What's the AI accuracy?**
 
-A: 9/9 correct in testing (public images + text-described scenarios). Real-environment accuracy (lighting, camera angle, filament color) is unverified. The prompt is conservatively designed to flag only clear defects.
+A: 4/4 on four photographs from vendor documentation and 5/5 on five written descriptions of symptoms. They measure different things and are not added together ([verification status](verification-status.md)). Real-environment accuracy (lighting, camera angle, filament color) is unverified. The prompt is conservatively designed to flag only clear defects.
 
 **Q: How does two-stage analysis work?**
 

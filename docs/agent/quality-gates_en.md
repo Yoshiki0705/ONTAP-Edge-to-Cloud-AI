@@ -26,7 +26,7 @@ make check           # lint + security + test + drift (what CI runs)
 | `make hygiene` | every git-tracked file | a hook in `.pre-commit-config.yaml` had to rewrite something (final newline, trailing whitespace, YAML/JSON syntax, a file over 1 MB) |
 | `make bandit` | `PY_DIRS` | any finding, at any severity |
 | `make secrets` | working tree, via `.gitleaks.toml` | any finding |
-| `make drift` | the eight guards below | a gate is structurally able to go quiet |
+| `make drift` | the nine guards below | a gate is structurally able to go quiet |
 | `make agent-config` | global and workspace steering, skills, hooks | unreachable configuration |
 
 ## Drift guards
@@ -44,6 +44,7 @@ in `scripts/` and run from `make drift`, `.githooks/pre-commit` and CI.
 | `check_doc_parity.py` | heading-level sequences diverging between a JA/EN pair, one-sided files, and stale entries in `scripts/known_doc_parity_gaps.txt` |
 | `check_sunset_services.py` | a document naming a service closed to new customers without a note about its status |
 | `check_diagram_assets.py` | a committed icon-library file, a figure whose SVG or PNG was never re-exported, Japanese left in an English artifact |
+| `check_verification_ledger.py` | the verification ledger no longer describing what ships (a model ID cited as measured has left the code, a row was added to one language only, a basis link rotted, a tier outside the borrowed vocabulary appeared) |
 
 Their self-tests are in `scripts/tests/` and run under `make test`.
 
