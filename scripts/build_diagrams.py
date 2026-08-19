@@ -348,7 +348,9 @@ class Diagram:
     def write(self, path: Path) -> None:
         xml = self.to_xml()
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(xml, encoding="utf-8")
+        # Trailing newline: end-of-file-fixer rewrites the file without one, and a
+        # generated artifact that a hook wants to edit is a build that is never clean.
+        path.write_text(xml + "\n", encoding="utf-8")
         # A gate, not a formality: a dropped cell is invisible without it.
         ET.parse(path)  # nosec B314  # noqa: S314  our own generated file
         for cell in re.findall(r'id="([^"]+)"', xml):
@@ -387,7 +389,7 @@ def translate(diagram: Diagram) -> Diagram:
 
 def write_english(xml: str, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(xml, encoding="utf-8")
+    path.write_text(xml + "\n", encoding="utf-8")
     ET.parse(path)  # nosec B314  # noqa: S314  our own generated file
     residue = CJK.findall(path.read_text(encoding="utf-8"))
     if residue:
@@ -589,6 +591,11 @@ def run_export(source: Path, target: Path, extra: list[str]) -> None:
     if not target.is_file() or target.stat().st_size == 0:
         print(result.stdout, result.stderr, file=sys.stderr)
         raise SystemExit(f"export produced nothing: {target}")
+    # draw.io writes the SVG without a final newline; PNG is binary and left alone.
+    if target.suffix == ".svg":
+        body = target.read_bytes()
+        if not body.endswith(b"\n"):
+            target.write_bytes(body + b"\n")
     print(f"  {target.relative_to(REPO_ROOT)} ({target.stat().st_size // 1024} KB)")
 
 

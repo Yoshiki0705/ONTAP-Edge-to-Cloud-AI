@@ -21,6 +21,7 @@ PIP         := $(VENV)/bin/pip
 RUFF        := $(VENV)/bin/ruff
 BANDIT      := $(VENV)/bin/bandit
 CFN_LINT    := $(VENV)/bin/cfn-lint
+PRECOMMIT   := $(VENV)/bin/pre-commit
 PYTEST      := $(PY) -m pytest
 
 # ---------------------------------------------------------------------------
@@ -80,13 +81,20 @@ test-verbose: venv-check ## Run every test directory with -v
 # Lint and security
 # ---------------------------------------------------------------------------
 
-lint: lint-py lint-cfn ## Run all linters
+lint: lint-py lint-cfn hygiene ## Run all linters
 
 lint-py: venv-check ## ruff over PY_DIRS
 	$(RUFF) check $(PY_DIRS)
 
 lint-cfn: venv-check ## cfn-lint over CFN_TEMPLATES
 	$(CFN_LINT) $(CFN_TEMPLATES)
+
+# The hooks in .pre-commit-config.yaml used to run only in the CI job, so a missing
+# final newline in a generated file was invisible until a PR was opened. pre-commit
+# is already pinned in requirements-dev.txt and counted as a gate tool; this target
+# is what makes it reachable locally.
+hygiene: venv-check ## .pre-commit-config.yaml hooks over the whole tree
+	$(PRECOMMIT) run --all-files
 
 security: bandit secrets ## Static analysis and secret scan
 
@@ -137,4 +145,5 @@ clean: ## Remove caches and build output
 	find . -name __pycache__ -type d -not -path './$(VENV)/*' -prune -exec rm -rf {} +
 
 .PHONY: help venv-check dev-install tool-versions test test-verbose lint lint-py \
-	lint-cfn security bandit secrets drift agent-config check precommit-install clean
+	lint-cfn hygiene security bandit secrets drift agent-config check \
+	precommit-install clean
