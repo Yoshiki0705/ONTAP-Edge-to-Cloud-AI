@@ -41,7 +41,7 @@ in `scripts/` and run from `make drift`, `.githooks/pre-commit` and CI.
 | `check_git_hooks_wiring.py` | `core.hooksPath` overriding `.githooks/`; a `.pre-commit-config.yaml` nothing runs |
 | `check_dependency_pins.py` | ranges in `requirements-dev.txt`; CI Python version vs Lambda runtime; inline `pip install` in CI |
 | `check_sql_interpolation.py` | a SQL construction site missing from `scripts/reviewed_sql_sites.txt`, and entries that no longer match code |
-| `check_doc_parity.py` | heading-level sequences diverging between a JA/EN pair, one-sided files, and stale entries in `scripts/known_doc_parity_gaps.txt` |
+| `check_doc_parity.py` | heading-level sequences diverging between a JA/EN pair, **a diagram or example present in one language only** (differing fenced-block counts), one-sided files, and stale entries in `scripts/known_doc_parity_gaps.txt` |
 | `check_sunset_services.py` | a document naming a service closed to new customers without a note about its status |
 | `check_diagram_assets.py` | a committed icon-library file, a figure whose SVG or PNG was never re-exported, Japanese left in an English artifact |
 | `check_verification_ledger.py` | the verification ledger no longer describing what ships (a model ID cited as measured has left the code, a row was added to one language only, a basis link rotted, a tier outside the borrowed vocabulary appeared) |

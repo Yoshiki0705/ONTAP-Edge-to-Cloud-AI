@@ -80,6 +80,23 @@ def heading_levels(path: Path) -> list[int]:
     return levels
 
 
+def fenced_blocks(path: Path) -> int:
+    """How many fenced code or diagram blocks the document carries.
+
+    Headings can agree while a diagram exists in one language only, which is invisible
+    to a heading comparison and was: the flexcache document carried eight blocks in
+    Japanese and four in English, and the databricks document was missing a deploy
+    command. A reader of the thinner file gets prose where the other gets a picture.
+
+    Counting rather than comparing content: a translated block legitimately differs
+    inside (`-sync->` for `─sync─>`), so only its presence is checked.
+    """
+    return sum(
+        1 for line in path.read_text(encoding="utf-8").split("\n")
+        if line.startswith("```")
+    ) // 2
+
+
 def is_excluded(relative: str) -> bool:
     return any(relative.startswith(prefix) for prefix in EXCLUDED)
 
@@ -167,6 +184,20 @@ def main() -> int:
     drifted: set[str] = set()
 
     for relative, primary_path, mirror_path in pairs:
+        primary_blocks = fenced_blocks(primary_path)
+        mirror_blocks = fenced_blocks(mirror_path)
+        if primary_blocks != mirror_blocks:
+            # Recorded as drifting even when a known gap covers it, or the stale-entry
+            # check below would report the entry as no longer needed and demand its
+            # removal, which would then re-break the build.
+            drifted.add(relative)
+            if relative not in known:
+                problems.append(
+                    f"{relative}: {primary_blocks} fenced block(s) in the primary "
+                    f"language and {mirror_blocks} in the translation. A diagram or "
+                    f"example exists in one language only."
+                )
+
         primary = heading_levels(primary_path)
         mirror = heading_levels(mirror_path)
         if primary == mirror:
@@ -193,7 +224,11 @@ def main() -> int:
         )
 
     if not problems:
-        print(f"doc parity: OK ({len(pairs)} bilingual pairs, {len(known)} known gaps)")
+        blocks = sum(fenced_blocks(primary) for _, primary, _ in pairs)
+        print(
+            f"doc parity: OK ({len(pairs)} bilingual pairs, {blocks} fenced blocks "
+            f"matched, {len(known)} known gaps)"
+        )
         return 0
 
     print("Bilingual document pairs disagree:", file=sys.stderr)
