@@ -129,6 +129,19 @@ silver_features = spark.read.parquet("s3://<bucket>/clickhouse-export/training_f
 /vol_telemetry/*.csv          -sync->  s3://bucket/raw/csv/     -Auto Loader-> bronze.raw_telemetry
 ```
 
+**DataSync task** (reuses `datasync-task.yaml` from the lakehouse project):
+
+```bash
+aws cloudformation deploy \
+  --template-file datasync-task.yaml \
+  --stack-name edge-to-cloud-databricks-sync \
+  --parameter-overrides \
+    SvmArn=<SVM_ARN> \
+    TargetBucket=<BUCKET_NAME> \
+    SourceSubdirectory=/vol_images \
+  --capabilities CAPABILITY_IAM
+```
+
 ---
 
 ### 2.5 Path D: Kafka → Lakebase — LTAP (Future Candidate)

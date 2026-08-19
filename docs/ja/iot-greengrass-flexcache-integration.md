@@ -164,7 +164,7 @@
 │                                         │
 │ ┌─────────────────────────────────────┐ │
 │ │ 応答: エッジで確定（未計測）        │ │
-│ │ Origin フラッシュ: 非同期 (30-90s)  │ │
+│ │ Origin フラッシュ: 非同期（未計測） │ │
 │ │ オフライン時: ローカル書き込み継続   │ │
 │ │ 再接続後: 差分フラッシュ自動再開    │ │
 │ └─────────────────────────────────────┘ │
@@ -485,7 +485,7 @@ graph TD
 | FlexCache Cache 側に S3 AP を attach | ONTAP S3 NAS バケットは Origin FlexVol/FlexGroup のみ対応 | S3 AP は Origin 側にのみ付与 |
 | 同一ファイルを複数 Cache から write-back | XLD 競合 → パフォーマンス劣化 | デバイスごとにディレクトリ分離設計 |
 | 全デバイスを単一ディレクトリに書き込み | FlexGroup constituent 偏り + FlexCache キャッシュ効率低下 | デバイスID + 時間パーティションで分散 |
-| FlexCache write-back で TTL を極短設定 | Origin フラッシュ頻度増加 → WAN 帯域圧迫 | デフォルト設定 (30-90s) を活用 |
+| FlexCache write-back で TTL を極短設定 | Origin フラッシュ頻度増加 → WAN 帯域圧迫 | 既定の設定を使う（具体的な間隔は未確認） |
 | エッジ ONTAP なしで FlexCache write-back を計画 | FlexCache はエッジ側に ONTAP (Cache) が必須 | ONTAP Select / FAS / AFF C-Series を検討 |
 | GGUF モデルを OTA でデプロイ | 数十 GB のデプロイ = 長時間 + ストレージ二重持ち | FlexCache read cache 経由で NFS 参照 |
 

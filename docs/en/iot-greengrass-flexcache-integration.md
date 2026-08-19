@@ -107,6 +107,28 @@
 
 **Target**: Edge devices with stable network connectivity
 
+```
+[Edge Device]                             [AWS Cloud]
+┌───────────────────────────────┐          ┌────────────────────────────────┐
+│ IoT Greengrass V2             │          │ FSx for ONTAP                  │
+│ ┌───────────────────────────┐ │          │ Volume: /iot-data              │
+│ │ Custom S3 Client Component│ │   HTTPS  │   S3 AP: arn:aws:s3:region:    │
+│ │  - Sensor data read       │ │─────────>│       account:accesspoint/     │
+│ │  - Local buffer (disk)    │ │ PutObject│       iot-ingest-ap            │
+│ │  - Parquet/JSON serialize │ │          │                                │
+│ │  - boto3 PutObject        │ │          │   The same file is readable    │
+│ │    -> S3 AP ARN           │ │          │   over NFS / SMB at once       │
+│ │  - Retry with backoff     │ │          └────────────────────────────────┘
+│ └───────────────────────────┘ │
+│                               │
+│ ┌───────────────────────────┐ │
+│ │ ML Inference Component    │ │
+│ │  - Edge prediction        │ │
+│ │  - Results -> MQTT        │ │
+│ └───────────────────────────┘ │
+└───────────────────────────────┘
+```
+
 - Greengrass custom component uses boto3 / AWS SDK to PutObject directly to FSx for ONTAP S3 AP ARN
 - Local disk buffer + exponential backoff retry for resilience
 - Stream Manager is not used: it requires an S3 bucket name, and whether an access point ARN
@@ -123,6 +145,41 @@
 ### Tier 2: FlexCache Write-Back (Edge Local Write → Async Origin Flush)
 
 **Target**: Intermittent connectivity / low-latency local write requirements
+
+```
+[Edge Site (Factory / Field)]                   [AWS Cloud]
+┌─────────────────────────────────────────┐      ┌──────────────────────────────┐
+│ ONTAP (Select / FAS / AFF C-Series)     │      │ FSx for ONTAP (Origin)       │
+│                                         │      │                              │
+│ FlexCache Cache Volume (write-back)     │      │ Origin Volume: /iot-data     │
+│   /iot-cache                            │      │   ├── S3 AP -> Analytics     │
+│     ├── NFS mount <- IoT Devices        │      │   ├── NFS -> EC2 processing  │
+│     ├── NFS mount <- Greengrass         │      │   └── FlexCache Origin       │
+│     └── NFS mount <- SCADA / Ignition   │      └──────────────────────────────┘
+│                                         │
+│ Write-back flush ──────────────────────>│
+│ (asynchronous, block-level differential)│
+│                                         │
+│ ┌─────────────────────────────────────┐ │
+│ │ Response: acknowledged at the edge  │ │
+│ │   (not measured here)               │ │
+│ │ Origin flush: asynchronous          │ │
+│ │   (interval not measured here)      │ │
+│ │ Offline: local writes continue      │ │
+│ │ On reconnect: differential flush    │ │
+│ └─────────────────────────────────────┘ │
+└─────────────────────────────────────────┘
+         ▲
+         │ NFS mount
+┌────────┴───────────────────────────────┐
+│ IoT Devices / Greengrass / PLCs        │
+│  - Sensors (temperature / vibration /  │
+│    current)                            │
+│  - Cameras (quality inspection images) │
+│  - SCADA Historian (CSV / Parquet)     │
+│  - 3D printer (Gcode + quality logs)   │
+└────────────────────────────────────────┘
+```
 
 - Edge ONTAP (ONTAP Select / FAS / AFF C-Series) hosts FlexCache Cache Volume in write-back mode
 - IoT devices write via NFS to the local cache and are acknowledged from the edge, without
@@ -158,6 +215,20 @@
 
 **Target**: Fully independent edge storage (long-term offline, large local processing)
 
+```
+[Edge Site]                               [AWS Cloud]
+┌──────────────────────────────┐          ┌──────────────────────────────┐
+│ ONTAP Select / FAS           │          │ FSx for ONTAP (SnapMirror    │
+│                              │          │  destination -> break -> RW) │
+│ Source Volume: /edge-data    │          │                              │
+│   ├── NFS <- IoT Devices     │SnapMirror│ Dest Volume: /edge-sync      │
+│   ├── Local ML inference     │─────────>│   ├── S3 AP -> Analytics     │
+│   └── Local analytics        │ (5 min+) │   └── FlexCache -> sites     │
+│                              │          └──────────────────────────────┘
+│ SnapMirror schedule: 5-60 min│
+└──────────────────────────────┘
+```
+
 - Edge ONTAP operates as independent source → SnapMirror async replication to FSx for ONTAP
 - Suitable when edge is the authoritative data master
 - FSx for ONTAP destination requires SnapMirror break before S3 AP attachment
@@ -178,6 +249,28 @@
 ## 4. Read Delivery (Burst) — FlexCache Read Cache
 
 Delivers Origin-aggregated data to workloads at multiple sites with low latency.
+
+```
+                           FSx for ONTAP (Origin)
+                           Volume: /iot-data
+                           ├── S3 AP -> Athena / Glue / SageMaker / Bedrock
+                           └── FlexCache Origin
+                               │
+           ┌───────────────────┼───────────────────┬───────────────────┐
+           ▼                   ▼                   ▼                   ▼
+  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐
+  │ On-prem ONTAP  │  │ FSx for ONTAP  │  │ CVO (GCP)      │  │ Edge ONTAP     │
+  │ (factory A)    │  │ (ap-north-1)   │  │ GPU cluster    │  │ (Jetson + NFS) │
+  │ Cache Vol      │  │ Cache Vol      │  │ Cache Vol      │  │ Cache Vol      │
+  │ write-around   │  │ write-around   │  │ write-around   │  │ write-around   │
+  │  -> GPU infer  │  │  -> analytics  │  │  -> ML training│  │  -> model ref  │
+  └────────────────┘  └────────────────┘  └────────────────┘  └────────────────┘
+```
+
+> **On SageMaker in the diagram**: connecting it through an S3 access point is
+> unverified. AWS publishes walkthroughs for Athena, AWS Lambda, AWS Glue, Bedrock
+> Knowledge Bases, EMR Serverless, CloudFront and Transfer Family; SageMaker is not
+> on that list ([S3 AP compatibility and limits](./s3ap-compatibility-matrix.md)).
 
 | Delivery Target | Data Type | FlexCache Effect |
 |----------------|-----------|-----------------|
@@ -391,7 +484,7 @@ graph TD
 | Attach S3 AP to FlexCache Cache Volume | ONTAP S3 NAS bucket only supports Origin FlexVol/FlexGroup | Attach S3 AP to Origin side only |
 | Write-back from multiple Caches to same file | XLD conflict → performance degradation | Per-device directory isolation |
 | All devices write to single directory | FlexGroup constituent skew + FlexCache cache inefficiency | Device ID + time partition distribution |
-| Extremely short TTL on FlexCache write-back | Increased Origin flush frequency → WAN bandwidth pressure | Use defaults (30-90s) |
+| Extremely short TTL on FlexCache write-back | Increased Origin flush frequency → WAN bandwidth pressure | Use the default (the interval itself is unconfirmed) |
 | Plan FlexCache write-back without edge ONTAP | FlexCache requires ONTAP (Cache) on edge side | Consider ONTAP Select / FAS / AFF C-Series |
 | Deploy GGUF models via OTA | Multi-GB deploy = long time + double storage | FlexCache read cache via NFS reference |
 

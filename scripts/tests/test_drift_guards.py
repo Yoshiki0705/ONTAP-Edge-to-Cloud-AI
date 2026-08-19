@@ -1272,3 +1272,56 @@ def test_cfn_params_blocks_a_tree_with_no_templates(tmp_path):
     result = run_guard(tmp_path, "check_cfn_params_contract.py")
     assert result.returncode == 1
     assert "vacuously" in result.stderr
+
+
+# --------------------------------------------------------------------------------------
+# check_doc_parity.py — fenced-block parity
+#
+# Headings agreeing does not mean both languages carry the same figures. Measured before
+# this check existed: the flexcache document had eight diagrams in Japanese and four in
+# English, and the databricks document was missing a deploy command, with heading
+# structures that matched exactly.
+# --------------------------------------------------------------------------------------
+
+_BLOCKS_JA = "# 題\n\n## 概要\n\n```\n図\n```\n\n## まとめ\n\n```\nもう一つ\n```\n"
+_BLOCKS_EN = "# Title\n\n## Overview\n\n```\nfigure\n```\n\n## Summary\n\n```\nanother\n```\n"
+
+
+def test_parity_allows_equal_block_counts(tmp_path):
+    _parity_fixture(tmp_path, _BLOCKS_JA, _BLOCKS_EN)
+    result = run_guard(tmp_path, "check_doc_parity.py")
+    assert result.returncode == 0, result.stderr
+    assert "fenced blocks matched" in result.stdout
+
+
+def test_parity_blocks_a_diagram_present_in_one_language_only(tmp_path):
+    thinner = _BLOCKS_EN.replace("```\nanother\n```", "prose instead")
+    _parity_fixture(tmp_path, _BLOCKS_JA, thinner)
+    result = run_guard(tmp_path, "check_doc_parity.py")
+    assert result.returncode == 1
+    assert "fenced block" in result.stderr
+    assert "one language only" in result.stderr
+
+
+def test_parity_block_check_is_not_the_heading_check(tmp_path):
+    """The headings agree in the fixture above, so the block count is what fails."""
+    thinner = _BLOCKS_EN.replace("```\nanother\n```", "prose instead")
+    _parity_fixture(tmp_path, _BLOCKS_JA, thinner)
+    result = run_guard(tmp_path, "check_doc_parity.py")
+    assert result.returncode == 1
+    assert "headings" not in result.stderr, result.stderr
+
+
+def test_parity_counts_translated_block_content_as_equal(tmp_path):
+    """A translated diagram differs inside; only its presence is compared."""
+    translated = _BLOCKS_EN.replace("figure", "-sync-> box").replace("another", "second")
+    _parity_fixture(tmp_path, _BLOCKS_JA, translated)
+    result = run_guard(tmp_path, "check_doc_parity.py")
+    assert result.returncode == 0, result.stderr
+
+
+def test_parity_block_drift_can_be_recorded_as_a_known_gap(tmp_path):
+    thinner = _BLOCKS_EN.replace("```\nanother\n```", "prose instead")
+    _parity_fixture(tmp_path, _BLOCKS_JA, thinner, known="docs/ja/guide.md\n")
+    result = run_guard(tmp_path, "check_doc_parity.py")
+    assert result.returncode == 0, result.stderr
