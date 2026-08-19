@@ -1,9 +1,36 @@
-#!/bin/bash
-# Pre-commit hook: email check + gitleaks + zizmor
-
+#!/usr/bin/env bash
+# Pre-commit: global hook (if any) + repository-specific checks.
+#
+# Enable with: make precommit-install   (git config core.hooksPath .githooks)
+#
+# Why this delegates first
+# ------------------------
+# core.hooksPath is a single value. Before this file was wired up, a global
+# core.hooksPath pointed at ~/.config/git/hooks and this hook had never run, so
+# the author-email check and the workflow lint below were dead. Pointing
+# core.hooksPath at .githooks fixes that but would, on its own, disable the
+# global hook — which blocks staged paths this one does not know about (.kiro/,
+# .private/, .env, keys, samconfig.toml, params.json).
+#
+# So it runs the global hook first and stops if that hook stops. Neither gate
+# replaces the other.
 set -euo pipefail
 
-# 1. Author email verification
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+# --- 0. Delegate to the user's global hook, if one exists ------------------
+# Resolved from the global config only, so this cannot recurse into itself.
+GLOBAL_HOOKS_PATH="$(git config --global core.hooksPath || true)"
+if [[ -n "$GLOBAL_HOOKS_PATH" ]]; then
+  GLOBAL_HOOK="${GLOBAL_HOOKS_PATH/#\~/$HOME}/pre-commit"
+  if [[ -x "$GLOBAL_HOOK" && "$(cd "$(dirname "$GLOBAL_HOOK")" && pwd)" != "$REPO_ROOT/.githooks" ]]; then
+    echo "→ global pre-commit hook"
+    "$GLOBAL_HOOK"
+  fi
+fi
+
+# --- 1. Author email verification ------------------------------------------
 AUTHOR_EMAIL=$(git config user.email)
 if [[ ! "$AUTHOR_EMAIL" =~ @(netapp\.com|gmail\.com)$ ]]; then
   echo "❌ ERROR: Author email must be @netapp.com or @gmail.com"
@@ -12,19 +39,40 @@ if [[ ! "$AUTHOR_EMAIL" =~ @(netapp\.com|gmail\.com)$ ]]; then
   exit 1
 fi
 
-# 2. Gitleaks secret scanning (staged files only)
-if command -v gitleaks &> /dev/null; then
-  echo "🔍 Running gitleaks on staged files..."
-  gitleaks protect --staged --config .gitleaks.toml --no-banner
+# --- 2. Secret scan of staged content, with this repo's config -------------
+# `protect --staged` reads the index, so it sees what is about to be committed
+# rather than the working tree. The global hook may also scan, with a different
+# config; this one is what .gitleaks.toml in this repository describes.
+if command -v gitleaks &>/dev/null; then
+  echo "🔍 gitleaks (staged, .gitleaks.toml)"
+  gitleaks protect --staged --config .gitleaks.toml --no-banner --redact
 else
-  echo "⚠️  gitleaks not installed — skipping secret scan"
+  echo "⚠️  gitleaks not installed — staged secret scan skipped (brew install gitleaks)"
 fi
 
-# 3. Zizmor lint (only if workflow files changed)
-WORKFLOW_FILES=$(git diff --cached --name-only -- '.github/workflows/*.yml' '.github/workflows/*.yaml' 2>/dev/null || true)
-if [[ -n "$WORKFLOW_FILES" ]] && command -v zizmor &> /dev/null; then
-  echo "🔍 Running zizmor on changed workflow files..."
-  echo "$WORKFLOW_FILES" | xargs zizmor
+# --- 3. Workflow lint, only when a workflow changed ------------------------
+WORKFLOW_FILES=$(git diff --cached --name-only --diff-filter=ACMR \
+  -- '.github/workflows/*.yml' '.github/workflows/*.yaml' || true)
+if [[ -n "$WORKFLOW_FILES" ]]; then
+  if command -v zizmor &>/dev/null; then
+    echo "🔍 zizmor $WORKFLOW_FILES"
+    # shellcheck disable=SC2086
+    zizmor $WORKFLOW_FILES
+  else
+    echo "⚠️  zizmor not installed — workflow lint skipped (CI still runs it)"
+  fi
+fi
+
+# --- 4. Drift guards -------------------------------------------------------
+# Cheap, and they are the checks that notice when another gate goes quiet.
+if [[ -x .venv/bin/python ]]; then
+  echo "🔍 drift guards"
+  .venv/bin/python scripts/check_agent_context_budget.py
+  .venv/bin/python scripts/check_test_coverage_drift.py
+  .venv/bin/python scripts/check_dependency_pins.py
+  .venv/bin/python scripts/check_sql_interpolation.py
+else
+  echo "⚠️  .venv missing — drift guards skipped (run: make dev-install)"
 fi
 
 echo "✅ Pre-commit checks passed"

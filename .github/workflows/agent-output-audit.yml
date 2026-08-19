@@ -37,6 +37,13 @@ jobs:
 
       - name: Determine changed files
         id: changed
+        env:
+          # Files that state the rules necessarily quote the strings the rules
+          # forbid. AGENTS.md was already exempt for that reason; docs/agent/ and
+          # scripts/ hold the same kind of content (the naming policy, the
+          # neutrality word list, and the guard scripts that grep for them), so a
+          # scan of those files reports the policy as a violation of itself.
+          EXCLUDE: '^(\.github/|AGENTS\.md|CONTRIBUTING|\.kiro/|docs/agent/|scripts/)'
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE="${{ github.event.pull_request.base.sha }}"
@@ -47,9 +54,9 @@ jobs:
           fi
 
           if [ -n "$BASE" ] && git cat-file -e "$BASE" 2>/dev/null; then
-            ALL_CHANGED=$(git diff --name-only --diff-filter=ACMR "$BASE" HEAD | grep -vE '^(\.github/|AGENTS\.md|CONTRIBUTING|\.kiro/)' || true)
+            ALL_CHANGED=$(git diff --name-only --diff-filter=ACMR "$BASE" HEAD | grep -vE "$EXCLUDE" || true)
           else
-            ALL_CHANGED=$(git ls-files | grep -vE '^(\.github/|AGENTS\.md|CONTRIBUTING|\.kiro/)' || true)
+            ALL_CHANGED=$(git ls-files | grep -vE "$EXCLUDE" || true)
           fi
 
           MD_FILES=$(echo "$ALL_CHANGED" | grep -E '\.md$' || true)

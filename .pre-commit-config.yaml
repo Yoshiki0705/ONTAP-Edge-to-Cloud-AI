@@ -1,20 +1,27 @@
+# File-hygiene checks, run by the `pre-commit` job in .github/workflows/test.yml
+# and, locally, by whoever installs the CLI.
+#
+# gitleaks and zizmor used to be listed here as well. They were removed rather
+# than kept, because each already has a dedicated workflow that uses this
+# repository's own configuration: .github/workflows/gitleaks.yml with
+# .gitleaks.toml over full history, and .github/workflows/zizmor.yml. The
+# pre-commit versions would have run with their default configuration, so the two
+# copies would disagree about what counts as a finding — which is the failure this
+# audit was about. .githooks/pre-commit covers the same ground before a commit.
+#
+# Everything below runs nowhere else.
+
 repos:
-  - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.22.1
-    hooks:
-      - id: gitleaks
-
-  - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: v1.4.1
-    hooks:
-      - id: zizmor
-
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+        # CloudFormation short forms (!Ref, !Sub, !GetAtt) are not valid YAML tags.
+        args: ['--unsafe']
       - id: check-json
       - id: check-added-large-files
         args: ['--maxkb=1024']
+      - id: check-merge-conflict
+      - id: check-executables-have-shebangs

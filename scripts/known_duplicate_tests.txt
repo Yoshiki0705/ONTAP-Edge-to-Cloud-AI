@@ -1,0 +1,23 @@
+# Test file basenames that exist at more than one path.
+#
+# This is recorded debt, not an approval. scripts/check_test_coverage_drift.py
+# blocks any duplicate that is not listed here, so new ones cannot appear
+# quietly, and it also fails if an entry here stops being duplicated — the list
+# has to shrink as the debt is paid.
+#
+# The three below are near-copies of the same tests: usecases/*/tests/ differ
+# from tests/ only in the sys.path expression, and they have already drifted.
+# tests/test_ontap_e2e.py was changed to use `ontap.test.invalid` and named
+# constants to stop gitleaks matching a literal RFC 5737 address; the copy under
+# usecases/ontap-telemetry-analytics/tests/ still carries `192.0.2.10` inline.
+# Both run in CI today, so the older assertions pass alongside the newer ones and
+# nothing reports the divergence.
+#
+# Resolving them means picking one location per suite. That is a change to what
+# gets tested, so it is left as an explicit decision rather than folded into an
+# audit: deleting the usecases/ copies loses nothing measurable, but it should be
+# a deliberate commit.
+
+test_ontap_e2e.py
+test_ontap_telemetry.py
+test_simple_capture.py

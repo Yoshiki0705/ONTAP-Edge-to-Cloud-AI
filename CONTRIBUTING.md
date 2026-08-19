@@ -13,19 +13,28 @@ Thank you for your interest in contributing to this project.
 ```bash
 git clone https://github.com/Yoshiki0705/ontap-edge-to-cloud-ai.git
 cd ontap-edge-to-cloud-ai
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-pip install pytest
-pytest tests/
+python3 -m venv .venv
+make dev-install          # pinned tooling into .venv
+make precommit-install    # point core.hooksPath at .githooks
+make check                # lint + security + test + drift, same as CI
 ```
+
+`pytest tests/` runs a subset. `make test` runs every directory in the
+Makefile's `TEST_DIRS`, which is the list CI uses. Do not invoke `ruff`,
+`bandit`, `cfn-lint` or `pytest` directly for a final check: a bare command
+resolves to whatever is on PATH, which is not the version pinned in
+`requirements-dev.txt`.
 
 ## Code Standards
 
 - Python 3.12, type hints, docstrings
 - Conventional commits: `feat:`, `fix:`, `docs:`, `chore:`
-- All tests must pass before merge
-- CloudFormation templates must pass `cfn-lint`
+- `make check` must pass before merge
 - No secrets or credentials in code (use environment variables)
+- Validate any identifier that arrives in an event before it reaches a path, an
+  S3 key or a SQL statement — see `cloud/iot_ingestion/identifiers.py`
+- A new query has to be classified in `scripts/reviewed_sql_sites.txt`; the
+  build fails on a construction site that is not listed there
 
 ## Documentation
 

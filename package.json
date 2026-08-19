@@ -4,8 +4,9 @@
   "description": "Edge-to-cloud data collection, analytics, and AI pipelines from Raspberry Pi and SORACOM to AWS services",
   "private": true,
   "scripts": {
-    "test": "pytest",
-    "lint": "cfn-lint cloud/**/*.yaml"
+    "test": "make test",
+    "lint": "make lint",
+    "check": "make check"
   },
   "keywords": [
     "iot",
