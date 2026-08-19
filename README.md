@@ -178,6 +178,7 @@ aws cloudformation deploy \
 | ドキュメント | 日本語 | English |
 |------------|--------|---------|
 | **AWS パターンカタログ**（9 パターン） | [aws-patterns](docs/ja/aws-patterns/README.md) | [aws-patterns](docs/en/aws-patterns/README.md) |
+| **デプロイメントモデル**（規模・業種別の差分） | [deployment-models](docs/ja/deployment-models/README.md) | [deployment-models](docs/en/deployment-models/README.md) |
 | Agentic AI on AWS | [agentic-ai-on-aws](docs/ja/agentic-ai-on-aws.md) | [agentic-ai-on-aws](docs/en/agentic-ai-on-aws.md) |
 | Flexible AI Data Layer（将来展望） | [flexible-ai-data-layer](docs/ja/flexible-ai-data-layer.md) | [flexible-ai-data-layer](docs/en/flexible-ai-data-layer.md) |
 | デプロイガイド | [deployment-guide](docs/ja/deployment-guide.md) | [deployment-guide](docs/en/deployment-guide.md) |

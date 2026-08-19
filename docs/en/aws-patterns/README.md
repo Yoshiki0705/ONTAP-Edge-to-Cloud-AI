@@ -64,6 +64,7 @@ Common constraints, not repeated in each document.
 - **Event schema**: [data schema design](../data-schema-design.md)
 - **Design questions for agentic workflows**: [Agentic AI on AWS](../agentic-ai-on-aws.md)
 - **Candidate future configurations**: [Flexible AI Data Layer](../flexible-ai-data-layer.md)
+- **Differences by scale and industry**: [deployment models](../deployment-models/README.md)
 
 ## Mapping to the repository layout
 
