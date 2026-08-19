@@ -26,7 +26,7 @@ the [deployment guide](../deployment-guide.md). It carries no unmeasured perform
 | # | Pattern | Path | Maturity |
 |---|---------|------|----------|
 | [01](01-edge-ai-bedrock.md) | Edge AI + Amazon Bedrock | Edge → local storage → FSx for ONTAP → Bedrock → agentic workflow | Implemented (partly) |
-| [02](02-edge-ai-sagemaker.md) | Edge AI + SageMaker | Edge cameras → ONTAP → FSx for ONTAP → SageMaker training → inference | Design only |
+| [02](02-edge-ai-sagemaker.md) | Edge AI + SageMaker | Edge cameras → ONTAP → FSx for ONTAP → SageMaker training (via an S3 AP, unverified) → inference | Design only |
 | [03](03-industrial-iot-analytics.md) | Industrial IoT analytics | Sensors → Kafka → MSK → data lake → Glue → Athena | Implemented (partly) |
 | [04](04-near-realtime-manufacturing.md) | Near real-time manufacturing analytics | Kafka → ClickHouse → object storage → Databricks | Implemented (partly) |
 | [05](05-agentic-rag.md) | Agentic RAG | Documents → ONTAP → FSx for ONTAP → Bedrock Knowledge Bases → retrieval | Design only (official walkthrough) |
@@ -58,7 +58,12 @@ Common constraints, not repeated in each document.
 
 - **S3 access point constraints**: no conditional writes, no event notifications, no object
   versioning; ONTAP 9.17.1 or later; same Region, same account, junction path required. The list
-  and its basis are in [S3 AP compatibility and constraints](../s3ap-compatibility-matrix.md)
+  and its basis are in [S3 AP compatibility and constraints](../s3ap-compatibility-matrix.md).
+  That document's list of AWS services usable through an S3 AP is a **closed list**: a service
+  absent from it is one AWS publishes no walkthrough for
+- **How far it has run on real infrastructure**: a maturity label says whether code exists in
+  this repository. Whether that code has actually run on AWS is a separate axis, and the
+  [verification status](../verification-status.md) is authoritative for it
 - **Security controls**: IAM, network isolation, encryption and audit are collected in the
   [security design](../security-design.md)
 - **Event schema**: [data schema design](../data-schema-design.md)
@@ -86,6 +91,7 @@ Also stated in each pattern's constraints; collected here where they cut across.
 | Item | Patterns affected |
 |---|---|
 | Whether Greengrass Stream Manager, Data Firehose, the IoT Core S3 action or SiteWise accept an S3 access point | 01, 03, 07, 08 |
+| Whether SageMaker can handle an S3 AP ARN or alias. It is not on the AWS list of supported services | 02 |
 | Whether an S3 access point can be registered as a Unity Catalog external location | 04 |
 | How block-granularity FlexCache caching behaves for model delivery | 02, 09 |
 | ListObjectsV2 latency in this configuration | 03, 05, 06 |

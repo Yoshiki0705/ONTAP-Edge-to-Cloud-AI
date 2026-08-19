@@ -48,7 +48,8 @@ graph LR
    時間窓でまとめる
 4. 大きなペイロード（波形、画像）はファイルストレージに置き、イベントには参照だけを持たせる
 5. Glue でスキーマを起こし、Athena で SQL を書く
-6. 可視化は Amazon Quick Sight（ap-northeast-1 で利用可能）
+6. 可視化は Amazon Quick Sight（ap-northeast-1 で利用可能。2026-08-19 時点。
+   [リージョン別の提供状況](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services/)で確認）
 
 ## ストレージ
 

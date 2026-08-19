@@ -31,7 +31,7 @@ graph LR
   end
   subgraph Cloud["AWS"]
     LS -->|同期| FSX[(FSx for ONTAP)]
-    FSX -->|S3 Access Point| TR[SageMaker<br/>学習]
+    FSX -->|S3 Access Point<br/>※未検証| TR[SageMaker<br/>学習]
     TR --> MDL[(モデル)]
     MDL --> EP[SageMaker<br/>推論エンドポイント]
     MDL -->|配信| FSX
@@ -42,7 +42,8 @@ graph LR
 
 1. 複数のカメラがローカルストレージに書き込む
 2. 集約先へ同期する
-3. SageMaker が S3 Access Point 経由で学習データを読む。データのコピーを作らない
+3. SageMaker が S3 Access Point 経由で学習データを読む。データのコピーを作らない。
+   **この段は未検証です**（下記「前提と制約」）
 4. 学習済みモデルを集約先の所定パスに書き戻す
 5. クラウド推論はエンドポイント、エッジ推論はストレージ経由でモデルを参照する
 6. 推論結果を戻し、次の学習データにする
@@ -105,10 +106,17 @@ graph LR
 ## 前提と制約
 
 - **このリポジトリに実装はありません。** 設計として読んでください
-- **S3 Access Point 経由で SageMaker が学習データを読む構成は、AWS の対応サービス一覧に
-  含まれています**（[出典](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/using-access-points-with-aws-services.html)）。
-  ただし S3 AP 側の制約（条件付き書き込み不可、イベント通知なし）は学習パイプラインの
-  組み方に影響します
+- **S3 Access Point 経由で SageMaker が学習データを読めるかは未検証です。** この doc は以前
+  「AWS の対応サービス一覧に含まれている」と書いていましたが、誤りでした。引いていた
+  [対応サービス一覧](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/using-access-points-with-aws-services.html)
+  が挙げているのは Athena / AWS Lambda / AWS Glue / Bedrock Knowledge Bases /
+  EMR Serverless / CloudFront / Transfer Family で、SageMaker はここにありません。
+  「使えない」ではなく「AWS が手順を公開しておらず、このプロジェクトでも試していない」
+  状態です（[閉じた一覧としての読み方](../s3ap-compatibility-matrix.md)）。
+  設計の根拠にする前に、access point の ARN または alias を SageMaker が扱えるかを
+  自分の環境で確認してください
+- **S3 AP 側の制約は学習パイプラインの組み方に影響します。** 条件付き書き込み不可、
+  イベント通知なし（[制約一覧](../s3ap-compatibility-matrix.md)）
 - **エッジ推論の実行基盤は別に決める必要があります。** Greengrass のコンポーネントとして
   動かす場合の詳細は [Pattern 09](09-edge-agentic-ai.md) にあります
 - **モデル配信のキャッシュ効率は未計測です。** 「読まれた範囲だけ転送される」は仕組みからの

@@ -31,7 +31,7 @@ graph LR
   end
   subgraph Cloud["AWS"]
     LS -->|sync| FSX[(FSx for ONTAP)]
-    FSX -->|S3 access point| TR[SageMaker<br/>training]
+    FSX -->|S3 access point<br/>*unverified| TR[SageMaker<br/>training]
     TR --> MDL[(Model)]
     MDL --> EP[SageMaker<br/>endpoint]
     MDL -->|delivery| FSX
@@ -42,7 +42,8 @@ graph LR
 
 1. Several cameras write to local storage
 2. Data syncs to the aggregation point
-3. SageMaker reads training data through an S3 access point, without making a copy
+3. SageMaker reads training data through an S3 access point, without making a copy.
+   **This step is unverified** (see the constraints below)
 4. The trained model is written back to a known path at the aggregation point
 5. Cloud inference uses an endpoint; edge inference references the model through storage
 6. Inference results return and become the next round of training data
@@ -109,10 +110,17 @@ edge is the typical combination here. For inference spanning on-premises storage
 ## Assumptions and constraints
 
 - **There is no implementation here.** Read it as a design
-- **SageMaker reading training data through an S3 access point is in the AWS list of supported
-  services** ([source](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/using-access-points-with-aws-services.html)),
-  but the S3 AP constraints — no conditional writes, no event notifications — shape how the
-  training pipeline can be assembled
+- **Whether SageMaker can read training data through an S3 access point is unverified.**
+  This document previously said it was in the AWS list of supported services. That was
+  wrong. The
+  [list it cited](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/using-access-points-with-aws-services.html)
+  names Athena, AWS Lambda, AWS Glue, Bedrock Knowledge Bases, EMR Serverless, CloudFront
+  and Transfer Family. SageMaker is not on it. That is not "unusable" but "AWS publishes no
+  walkthrough and this project has not tried it"
+  ([how to read the list](../s3ap-compatibility-matrix.md)). Before designing around it,
+  confirm in your own environment that SageMaker can handle an access point ARN or alias
+- **The S3 AP constraints shape how the training pipeline can be assembled.** No conditional
+  writes, no event notifications ([the list](../s3ap-compatibility-matrix.md))
 - **The edge inference runtime is a separate decision.** For running it as a Greengrass component,
   see [Pattern 09](09-edge-agentic-ai.md)
 - **Model delivery cache efficiency is not measured.** "Only the ranges read are transferred" is an

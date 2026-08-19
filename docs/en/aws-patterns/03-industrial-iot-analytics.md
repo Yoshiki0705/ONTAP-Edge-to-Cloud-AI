@@ -49,7 +49,8 @@ graph LR
    count, so batch by time window
 4. Large payloads (waveforms, images) stay in file storage; the event carries only a reference
 5. Glue derives the schema and Athena answers SQL
-6. Visualization with Amazon Quick Sight (available in ap-northeast-1)
+6. Visualization with Amazon Quick Sight (available in ap-northeast-1 as of 2026-08-19;
+   check [regional availability](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services/))
 
 ## Storage
 

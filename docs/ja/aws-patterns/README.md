@@ -25,7 +25,7 @@
 | # | パターン | 経路 | 成熟度 |
 |---|---------|------|--------|
 | [01](01-edge-ai-bedrock.md) | エッジ AI + Amazon Bedrock | エッジ → ローカルストレージ → FSx for ONTAP → Bedrock → エージェント処理 | 実装あり（一部） |
-| [02](02-edge-ai-sagemaker.md) | エッジ AI + SageMaker | エッジカメラ → ONTAP → FSx for ONTAP → SageMaker 学習 → 推論 | 設計のみ |
+| [02](02-edge-ai-sagemaker.md) | エッジ AI + SageMaker | エッジカメラ → ONTAP → FSx for ONTAP → SageMaker 学習（S3 AP 経由は未検証）→ 推論 | 設計のみ |
 | [03](03-industrial-iot-analytics.md) | 産業 IoT 分析 | センサー → Kafka → MSK → データレイク → Glue → Athena | 実装あり（一部） |
 | [04](04-near-realtime-manufacturing.md) | 準リアルタイム製造分析 | Kafka → ClickHouse → オブジェクトストレージ → Databricks | 実装あり（一部） |
 | [05](05-agentic-rag.md) | エージェント型 RAG | 文書 → ONTAP → FSx for ONTAP → Bedrock Knowledge Bases → 検索 | 設計のみ（公式手順あり） |
@@ -57,7 +57,11 @@
 
 - **S3 Access Point の制約**: 条件付き書き込み・イベント通知・オブジェクトバージョニングが
   使えず、ONTAP 9.17.1 以降が必要。同一リージョン・同一アカウント・junction path 必須。
-  一覧と根拠は [S3 AP 互換性と制約](../s3ap-compatibility-matrix.md)
+  一覧と根拠は [S3 AP 互換性と制約](../s3ap-compatibility-matrix.md)。同 doc の
+  「S3 AP 経由で使える AWS サービス」は**閉じた一覧**で、そこに無いサービスは
+  「AWS が手順を公開していない」状態です
+- **どこまで実機で動かしたか**: 成熟度ラベルは「このリポジトリにコードがあるか」を表します。
+  コードが実際に AWS で走ったかは別の軸で、[検証状態](../verification-status.md)が正典です
 - **セキュリティ統制**: IAM、ネットワーク分離、暗号化、監査は
   [セキュリティ設計](../security-design.md) に集約
 - **イベントスキーマ**: [データスキーマ設計](../data-schema-design.md)
@@ -85,6 +89,7 @@
 | 項目 | 影響するパターン |
 |---|---|
 | S3 AP に対する Greengrass Stream Manager / Data Firehose / IoT Core S3 アクション / SiteWise の対応 | 01, 03, 07, 08 |
+| SageMaker が S3 AP の ARN / alias を扱えるか。AWS の対応サービス一覧には無い | 02 |
 | Unity Catalog の External Location に S3 AP を登録できるか | 04 |
 | FlexCache のブロック単位キャッシュがモデル配信でどう効くか | 02, 09 |
 | ListObjectsV2 のレイテンシがこの構成でどの程度か | 03, 05, 06 |

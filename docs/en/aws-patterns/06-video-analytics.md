@@ -30,7 +30,7 @@ graph LR
   end
   subgraph Cloud["AWS"]
     LS -->|sync| FSX[(FSx for ONTAP)]
-    FSX -->|S3 access point| EV[Event-driven<br/>processing]
+    FSX -->|read via S3 access point<br/>triggered by FPolicy / a call / polling| EV[Recognition]
     EV --> RK[Rekognition]
     RK -->|labels / text / people| META[Metadata]
     META --> OS[(OpenSearch)]

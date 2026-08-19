@@ -30,7 +30,7 @@ graph LR
   end
   subgraph Cloud["AWS"]
     LS -->|同期| FSX[(FSx for ONTAP)]
-    FSX -->|S3 access point| EV[イベント駆動<br/>処理]
+    FSX -->|S3 access point で読む<br/>起動は FPolicy / 呼び出し / ポーリング| EV[認識処理]
     EV --> RK[Rekognition]
     RK -->|ラベル / テキスト / 人物| META[メタデータ]
     META --> OS[(OpenSearch)]

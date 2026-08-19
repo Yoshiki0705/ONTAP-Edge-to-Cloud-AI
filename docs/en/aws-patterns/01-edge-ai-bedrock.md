@@ -107,9 +107,12 @@ Figures live in the [deployment guide](../deployment-guide.md). Here, only what 
 
 ## Assumptions and constraints
 
-- **AWS publishes a walkthrough for using Lambda and Bedrock through an S3 access point**
-  ([Lambda](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/using-access-points-with-aws-services.html)),
-  but it requires ONTAP 9.17.1 or later, the same Region and the same account
+- **AWS publishes a walkthrough for using AWS Lambda through an S3 access point**
+  ([source](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/tutorial-process-files-with-lambda.html)).
+  In this design it is Lambda that calls Bedrock, not the access point. What the list of
+  supported services names is Bedrock Knowledge Bases, which is a different thing from model
+  invocation ([how to read the list](../s3ap-compatibility-matrix.md)). It requires ONTAP
+  9.17.1 or later, the same Region and the same account
   ([constraint list](../s3ap-compatibility-matrix.md))
 - **File arrival cannot start the flow as an event.** S3 access points do not support event
   notifications, so the trigger is FPolicy, an explicit call from the writer, or polling. This

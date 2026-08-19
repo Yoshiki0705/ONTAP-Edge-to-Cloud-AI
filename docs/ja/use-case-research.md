@@ -14,7 +14,7 @@
 
 1. **ONTAP の多層的活用**: FPolicy によるイベント駆動連携、SnapMirror によるエッジ→クラウド同期、FlexCache による低遅延キャッシュ、ARP/AI によるセキュリティ、S3 Access Points による AWS サービス直接連携の5つの軸で活用可能
 2. **FPolicy イベント駆動パイプライン**: エッジデバイスが NFS/SMB で ONTAP に書き込むだけで、FPolicy が Lambda をトリガーし Bedrock 分析を自動実行。デバイス側にクラウド連携コードが不要
-3. **FSx for ONTAP S3 AP の活用パターン**: エッジで収集したデータの集約先として FSx for ONTAP を使い、S3 AP 経由で Athena/Glue/Bedrock/SageMaker に直接接続することで、データコピーなしに横断分析が可能
+3. **FSx for ONTAP S3 AP の活用パターン**: エッジで収集したデータの集約先として FSx for ONTAP を使い、S3 AP 経由で Athena / Glue / Bedrock Knowledge Bases に直接接続することで、データコピーなしに横断分析が可能（SageMaker は AWS の対応サービス一覧に無く未検証。[S3 AP 互換性と制約](s3ap-compatibility-matrix.md)）
 4. **PoC 構成例**: Raspberry Pi 5 + カメラ + 3Dプリンター + ONTAP の組み合わせで、データ集約 → AI 分析の一連のフローを小規模に検証可能
 
 ---
@@ -132,7 +132,7 @@ ONTAP                                               FSx for ONTAP
 |------|------|
 | **概要** | ONTAPストレージのディスクシェルフ振動や設備の振動をセンサーで収集し、異常パターンを学習 |
 | **エッジ機材** | Raspberry Pi 5 + ADXL345加速度センサー + SORACOM SIM |
-| **データフロー** | Pi → NFS → ONTAP → SnapMirror → FSx for ONTAP → S3 AP → SageMaker |
+| **データフロー** | Pi → NFS → ONTAP → SnapMirror → FSx for ONTAP → S3 AP（SageMaker 接続は未検証）→ SageMaker |
 | **ONTAP連携** | ONTAP REST API でディスクIOPS/レイテンシを同時収集、相関分析 |
 | **AI活用** | SageMaker: 時系列異常検知モデル (Random Cut Forest)、Bedrock: 根本原因診断レポート生成 |
 | **期待される効果** | 計画外ダウンタイム削減、部品交換の最適タイミング予測 |
@@ -215,7 +215,7 @@ ONTAP                                               FSx for ONTAP
 |------|------|
 | **概要** | 空調機器・エレベーター等の動作音をマイクで収集し、異常音を検知 |
 | **エッジ機材** | Raspberry Pi 5 + USBマイク |
-| **データフロー** | Pi (エッジ推論: 異常スコア算出) → NFS → ONTAP → SnapMirror → FSx for ONTAP → S3 AP → SageMaker |
+| **データフロー** | Pi (エッジ推論: 異常スコア算出) → NFS → ONTAP → SnapMirror → FSx for ONTAP → S3 AP（SageMaker 接続は未検証）→ SageMaker |
 | **ONTAP連携** | 音声データアーカイブをONTAPに保存、正常/異常パターンの学習データとして活用 |
 | **AI活用** | エッジ: TensorFlow Lite (異常スコア)、クラウド: SageMaker (モデル再学習) |
 | **期待される効果** | 設備故障の予兆検知、保守コスト削減、テナント満足度向上 |
@@ -337,7 +337,7 @@ ONTAP                                               FSx for ONTAP
 
 **有線LANがある場合の推奨経路**:
 - 画像データ: Pi → NFS → ONTAP → FPolicy → Lambda → Bedrock
-- センサーデータ: Pi → NFS → ONTAP → SnapMirror → FSx for ONTAP → S3 AP → Athena/SageMaker
+- センサーデータ: Pi → NFS → ONTAP → SnapMirror → FSx for ONTAP → S3 AP → Athena / SageMaker（SageMaker 接続は未検証）
 - 遠隔管理: SORACOM Napter（SSH アクセス用、データ転送には使用しない）
 
 ### 5.5 セキュリティアーキテクチャ考慮事項

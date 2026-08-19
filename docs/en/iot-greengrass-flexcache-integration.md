@@ -94,6 +94,11 @@
 └────────────────────────────────────────────────────────┘
 ```
 
+> **On SageMaker in the diagram**: connecting it through an S3 access point is
+> unverified. AWS publishes walkthroughs for Athena, AWS Lambda, AWS Glue, Bedrock
+> Knowledge Bases, EMR Serverless, CloudFront and Transfer Family; SageMaker is not
+> on that list ([S3 AP compatibility and limits](./s3ap-compatibility-matrix.md)).
+
 ---
 
 ## 3. Write Paths (Ingest Tier) Details
@@ -281,7 +286,7 @@ IoT data access frequency decreases over time. FabricPool automatically tiers da
 | Edge device | Raspberry Pi 5 + ADXL345/MAX6675/ACS712 |
 | Telemetry path | MQTT → IoT Core → Lambda (30s batch + Parquet) → PutObject to S3 AP |
 | Bulk data | Greengrass Custom Component → PutObject to S3 AP (waveform data) |
-| Cloud training | SageMaker accesses Origin data directly via S3 AP |
+| Cloud training | SageMaker reads Origin data for retraining. **Whether an S3 AP can be its data source directly is unverified**; fall back to Glue or EMR Serverless |
 | Model delivery | New model → Origin `/models/` → FlexCache read cache → edge NFS reference |
 
 ### 6.3 OPC-UA / SCADA Integration (Ignition + SiteWise)
@@ -292,7 +297,7 @@ IoT data access frequency decreases over time. FabricPool automatically tiers da
 | Edge gateway | SiteWise Edge (on Greengrass) + Ignition OPC-UA |
 | Edge storage | ONTAP FAS (on-prem) — Ignition Historian DB + NFS file store |
 | Cloud sync | SnapMirror (edge ONTAP → FSx for ONTAP) / FlexCache write-back |
-| Cloud analysis | S3 AP → Athena (stats) + SageMaker (predictive) + Bedrock (anomaly explanation) |
+| Cloud analysis | S3 AP → Athena (stats) + Bedrock (anomaly explanation). SageMaker (predictive) has an unverified S3 AP connection |
 
 ### 6.4 Edge AI Agent (GGUF Model Delivery)
 
@@ -359,7 +364,7 @@ graph TD
   │   └── {use-case}/
   │       └── year={YYYY}/month={MM}/
   │           └── *.parquet
-  ├── models/                           ← ML models (SageMaker → S3 AP write)
+  ├── models/                           ← ML models (written via the S3 AP; directly from SageMaker is unverified)
   │   └── {model-name}/
   │       ├── latest.gguf              ← FlexCache read cache delivers to edge
   │       └── v{X.Y.Z}/
@@ -382,6 +387,7 @@ graph TD
 | Route through S3 standard bucket as Landing Zone | Per-object billing + double storage + DataSync delay | PutObject directly to FSx for ONTAP S3 AP |
 | Use Greengrass Stream Manager for S3 AP | Requires an S3 bucket name (unverified, [detail](./s3ap-compatibility-matrix.md) §4) | Custom S3 client component (boto3) |
 | Amazon Data Firehose → S3 AP | Requires an S3 bucket ARN (unverified, [detail](./s3ap-compatibility-matrix.md) §4) | IoT Core → Lambda → PutObject to S3 AP |
+| Naming an S3 AP directly as a SageMaker data source | Not on the AWS list of supported services (unverified, [detail](./s3ap-compatibility-matrix.md)) | Read with Glue or EMR Serverless and build the training dataset |
 | Attach S3 AP to FlexCache Cache Volume | ONTAP S3 NAS bucket only supports Origin FlexVol/FlexGroup | Attach S3 AP to Origin side only |
 | Write-back from multiple Caches to same file | XLD conflict → performance degradation | Per-device directory isolation |
 | All devices write to single directory | FlexGroup constituent skew + FlexCache cache inefficiency | Device ID + time partition distribution |
@@ -465,7 +471,7 @@ Do not pick 9.15.1 exactly for production.
 
 ### Phase 4: ML Feedback Loop (2-4 weeks)
 
-- [ ] SageMaker reads training data via S3 AP → model training
+- [ ] Confirm whether SageMaker can read training data through the S3 AP (unverified; fall back to Glue or EMR Serverless if not)
 - [ ] Write trained model to Origin `/models/` via S3 AP
 - [ ] FlexCache read cache → edge ONTAP → NFS mount → Jetson model load verification
 - [ ] Greengrass ML Inference → IoT Core → Lambda → S3 AP feedback verification

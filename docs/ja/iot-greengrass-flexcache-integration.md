@@ -95,6 +95,11 @@
 └────────────────────────────────────────────────────────┘
 ```
 
+> **図中の SageMaker について**: S3 Access Point 経由の接続は未検証です。AWS が手順を
+> 公開しているのは Athena / AWS Lambda / AWS Glue / Bedrock Knowledge Bases /
+> EMR Serverless / CloudFront / Transfer Family で、SageMaker はこの一覧にありません
+> （[S3 AP 互換性と制約](./s3ap-compatibility-matrix.md)）。
+
 ---
 
 ## 3. 書き込み経路 (Ingest Tier) 詳細
@@ -256,6 +261,11 @@ Origin (FSx for ONTAP) に集約されたデータを、複数拠点のワーク
   └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘
 ```
 
+> **図中の SageMaker について**: S3 Access Point 経由の接続は未検証です。AWS が手順を
+> 公開しているのは Athena / AWS Lambda / AWS Glue / Bedrock Knowledge Bases /
+> EMR Serverless / CloudFront / Transfer Family で、SageMaker はこの一覧にありません
+> （[S3 AP 互換性と制約](./s3ap-compatibility-matrix.md)）。
+
 **Read Cache の IoT ユースケース:**
 
 | 配信先 | データ種別 | FlexCache 効果 |
@@ -365,7 +375,7 @@ IoT データは時間経過とともにアクセス頻度が低下する。Fabr
 | テレメトリ経路 | MQTT → IoT Core → Lambda (30s バッチ集約 + Parquet 化) → PutObject to S3 AP |
 | 大容量データ | Greengrass Custom Component → PutObject to S3 AP (波形データ等) |
 | エッジ推論 | Greengrass ML Inference (SageMaker Neo モデル) → 異常スコア → MQTT |
-| クラウド学習 | SageMaker が S3 AP 経由で Origin データに直接アクセスして再学習 |
+| クラウド学習 | SageMaker が Origin データを読んで再学習。**S3 AP を直接データソースにできるかは未検証**で、通らない場合は Glue / EMR Serverless で読む |
 | モデル配信 | 新モデル → Origin `/models/` → FlexCache read cache → エッジ NFS 参照 |
 
 ### 6.3 OPC-UA / SCADA データ統合（Ignition + SiteWise）
@@ -376,7 +386,7 @@ IoT データは時間経過とともにアクセス頻度が低下する。Fabr
 | エッジゲートウェイ | SiteWise Edge (Greengrass 上) + Ignition OPC-UA |
 | エッジストレージ | ONTAP FAS (on-prem) — Ignition Historian DB + NFS ファイルストア |
 | クラウド同期 | SnapMirror (エッジ ONTAP → FSx for ONTAP) / FlexCache write-back |
-| クラウド分析 | S3 AP 経由で Athena (統計分析) + SageMaker (予知保全) + Bedrock (異常説明) |
+| クラウド分析 | S3 AP 経由で Athena (統計分析) + Bedrock (異常説明)。SageMaker (予知保全) は S3 AP 接続が未検証 |
 | マルチサイト | FlexCache read cache で他工場のエンジニアリング部門にデータ配信 |
 
 ### 6.4 エッジ AI エージェント（GGUF モデル配信）
@@ -447,7 +457,7 @@ graph TD
   │   └── {use-case}/
   │       └── year={YYYY}/month={MM}/
   │           └── *.parquet
-  ├── models/                           ← ML モデル (SageMaker → S3 AP 経由書き込み)
+  ├── models/                           ← ML モデル (S3 AP 経由で書き込み。SageMaker から直接は未検証)
   │   └── {model-name}/
   │       ├── latest.gguf              ← FlexCache read cache でエッジ配信
   │       └── v{X.Y.Z}/
@@ -471,6 +481,7 @@ graph TD
 | S3 標準バケットを Landing Zone として経由 | オブジェクト課金 + ストレージ二重持ち + DataSync 遅延 | FSx for ONTAP S3 AP に直接 PutObject |
 | Greengrass Stream Manager で S3 AP に書き込み | S3 バケット名を要求する（未検証、[詳細](./s3ap-compatibility-matrix.md) §4） | カスタム S3 クライアントコンポーネント (boto3) |
 | Amazon Data Firehose → S3 AP | S3 バケット ARN を要求する（未検証、[詳細](./s3ap-compatibility-matrix.md) §4） | IoT Core → Lambda → PutObject to S3 AP |
+| SageMaker のデータソースに S3 AP を直接指定 | AWS の対応サービス一覧に無い（未検証、[詳細](./s3ap-compatibility-matrix.md)） | Glue / EMR Serverless で読んで学習用データセットを作る |
 | FlexCache Cache 側に S3 AP を attach | ONTAP S3 NAS バケットは Origin FlexVol/FlexGroup のみ対応 | S3 AP は Origin 側にのみ付与 |
 | 同一ファイルを複数 Cache から write-back | XLD 競合 → パフォーマンス劣化 | デバイスごとにディレクトリ分離設計 |
 | 全デバイスを単一ディレクトリに書き込み | FlexGroup constituent 偏り + FlexCache キャッシュ効率低下 | デバイスID + 時間パーティションで分散 |
@@ -554,7 +565,7 @@ streaming tables で Iceberg テーブルとして materialize する経路も�
 
 ### Phase 4: ML フィードバックループ（2-4 週間）
 
-- [ ] SageMaker が S3 AP 経由で学習データ読み取り → モデル学習
+- [ ] SageMaker が S3 AP 経由で学習データを読めるかを確認（未検証。通らなければ Glue / EMR Serverless 経由に切り替える）
 - [ ] 学習済みモデルを S3 AP 経由で Origin `/models/` に書き込み
 - [ ] FlexCache read cache → エッジ ONTAP → NFS mount → Jetson モデルロード確認
 - [ ] Greengrass ML Inference → IoT Core → Lambda → S3 AP のフィードバック確認

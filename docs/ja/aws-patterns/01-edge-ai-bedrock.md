@@ -102,8 +102,11 @@ AgentCore の Runtime / Memory / Gateway を使う選択があります。判断
 
 ## 前提と制約
 
-- **S3 Access Point 経由で Lambda / Bedrock を使う構成は AWS が手順を公開しています**
-  （[Lambda](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/using-access-points-with-aws-services.html)）。
+- **S3 Access Point 経由で AWS Lambda を使う構成は AWS が手順を公開しています**
+  （[出典](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/tutorial-process-files-with-lambda.html)）。
+  この構成で Bedrock を呼ぶのは Lambda であって、access point 経由ではありません。
+  対応サービス一覧に載っているのは Bedrock Knowledge Bases で、モデル呼び出しとは別物です
+  （[閉じた一覧としての読み方](../s3ap-compatibility-matrix.md)）。
   ただし ONTAP 9.17.1 以降、同一リージョン、同一アカウントが必要
   （[制約一覧](../s3ap-compatibility-matrix.md)）
 - **ファイル到着をイベントで起動できません。** S3 AP はイベント通知に対応しないため、
