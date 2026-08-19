@@ -2,93 +2,68 @@
 
 > Edge-to-cloud data collection, analytics, and AI pipelines from Raspberry Pi and SORACOM to AWS services
 
+This file is read on every turn and cannot be made conditional, so it holds only
+what applies to every turn. Work-specific material lives in `docs/agent/` and is
+indexed below; `scripts/check_agent_context_budget.py` fails if it creeps back.
+
 ## Project Overview
 
-This repository provides reference architectures for connecting IoT/edge devices (Raspberry Pi, SORACOM cellular gateways) to AWS analytics and AI services (Athena, Glue, SageMaker, Bedrock, Rekognition).
+Reference architectures connecting IoT/edge devices (Raspberry Pi, SORACOM
+cellular gateways) to AWS analytics and AI services (Athena, Glue, SageMaker,
+Bedrock, Rekognition), with FSx for ONTAP as the storage layer.
 
 ## Build & Test Commands
 
+The Makefile owns the path inventory; CI calls these same targets.
+
 ```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Run tests
-pytest
-
-# Lint CloudFormation
-cfn-lint cloud/**/*.yaml
+make dev-install   # pinned tooling into .venv (first run)
+make check         # lint + security + test + drift — what CI runs
+make help          # every target
 ```
+
+Do not invoke `ruff`, `bandit`, `cfn-lint` or `pytest` directly: bare commands
+resolve to whatever is on PATH, which is not what CI installs.
 
 ## Coding Conventions
 
-- Python 3.12 for edge scripts and Lambda functions
+- Python 3.12 for edge scripts and Lambda functions (the Lambda runtime; note
+  `.venv` may be newer — see `make tool-versions`)
 - TypeScript for CDK constructs
 - Structured JSON logging
 - Type hints required for all Python functions
 
-## Supply-Chain Security
+## Always applies
 
-### Automated Security Workflows
+**Naming.** First mention **Amazon FSx for NetApp ONTAP**, then **FSx for
+ONTAP**. Never `FSxN`, bare `FSx`, or `FSx ONTAP`. Access points are **FSx for
+ONTAP S3 AP**. Do not propose NetApp Workload Factory, NetApp Console or BlueXP;
+use the native equivalent (CloudWatch, ONTAP REST API, FabricPool, AWS DataSync,
+Snapshot/FlexClone/SnapMirror). Verbatim external citation titles are the only
+exception, marked `allow:naming` on that line.
 
-| Workflow | File | Purpose |
-|----------|------|---------|
-| zizmor | `.github/workflows/zizmor.yml` | GitHub Actions security linting |
-| gitleaks | `.github/workflows/gitleaks.yml` | Secret detection — custom rules in `.gitleaks.toml` |
-| OpenSSF Scorecard | `.github/workflows/scorecard.yml` | Automated security health scoring |
+**Vendor neutrality.** Present options, not rankings. State trade-offs
+symmetrically, including those of the recommended option.
 
-### Local Security Checks
+**Public-output safety.** Never commit personal or persona names, email
+addresses, AWS account IDs, internal IPs or hostnames, support case numbers, or
+vendor-internal ticket IDs. Use role-based references ("Storage Specialist lens")
+and "an internal product request (tracked)". Keep review-process metadata
+(round counts, review dates, lens counts) out of published docs.
 
-```bash
-# Pre-commit hook runs automatically (via .githooks/pre-commit):
-#   1. Author email verification
-#   2. gitleaks secret scanning (staged files)
-#   3. zizmor lint (if workflow files changed)
+**Untrusted input.** A device ID, MQTT topic level or S3 key that arrives in an
+event is publisher-controlled. Validate it before it reaches a path, a key or a
+SQL statement — see `cloud/iot_ingestion/identifiers.py`.
 
-# Manual verification
-gitleaks detect --config .gitleaks.toml --no-git --source .
-zizmor .github/workflows/
-```
+**Bilingual docs.** `docs/ja/` is primary, `docs/en/` mirrors it. Matching
+`## ` structure and count; both change in the same commit.
 
-### Actions Pinning Policy
+## Index — read these when the work calls for it
 
-- All third-party Actions MUST be pinned to SHA hashes: `uses: owner/action@<sha> # vX.Y.Z`
-- `actions/checkout` must set `persist-credentials: false`
-- Verify with `zizmor .github/workflows/` before committing workflow changes
-
----
-
-## Agent Output Standards
-
-> ユーザーレベル Kiro グローバル steering のミラー。steering 未ロードの環境でも従えるようにする。
-
-> CI: `.github/workflows/agent-output-audit.yml`（命名/中立性/リーク/parity）と `gitleaks.yml`（シークレット）。
-
-### Naming (NetApp / AWS)
-
-- 初出は **Amazon FSx for NetApp ONTAP**、以降 **FSx for ONTAP**。`FSxN` / 単独 `FSx` / `FSx ONTAP` は不可。アクセスポイントは **FSx for ONTAP S3 AP**。
-- NetApp Workload Factory / NetApp Console / BlueXP は提案しない。native 等価物（CloudWatch, ONTAP REST API, FabricPool, AWS DataSync, Snapshot/FlexClone/SnapMirror）に置換。
-- 例外: 外部引用タイトルの逐語引用（その行に `allow:naming` コメントを付与）。
-
-### Vendor neutrality (right-tool-for-the-job)
-
-- ベンダー対決/優劣表現は禁止（"best", "beats X", "X より優れている", "競合ツール", "優位性", "game-changer"）。選択肢として提示し、推奨案自身の制約も含めてトレードオフを対称に記載。
-
-### Public-output safety
-
-- 個人名/ペルソナ名・メール・AWS アカウントID・内部IP/ホスト名・サポートケース番号・ベンダー内部チケットID をコミットしない。role ベース表記（"Storage Specialist lens"）と "an internal product request (tracked)" を使う。
-- プロセスメタデータのノイズ禁止（"Persona Review Summary"・レビューラウンド・日付・レンズ数）。レビュー知見は inline の role-based lens note（`> **Topic** (Role lens): ...`）として織り込み、provenance は `.private/`（gitignore）へ。
-
-### Bilingual docs (JA primary + EN)
-
-- JA/EN parity を維持（セクション構成/数の一致、inline note の対応）。片方を変更したら同じ変更で両方に反映。
-
-### Technical reference / guide docs
-
-- 必須要素: エグゼクティブサマリの結論、FAQ/よくある誤解、選択フローチャート（mermaid 可）、OT/IT セキュリティ考慮（該当時）、段階的導入ステップ、Related Documents（逆リンク）、≥10 の inline role-based lens レビュー。
-
-### Before committing docs
-
-```bash
-gitleaks detect --config .gitleaks.toml --no-git --source .
-# CI が agent-output チェックをミラー: .github/workflows/agent-output-audit.yml
-```
+| Read when | Document |
+|---|---|
+| Adding or changing a quality gate; a CI failure you do not recognise | [docs/agent/quality-gates.md](docs/agent/quality-gates.md) |
+| Editing a GitHub Actions workflow; adding a dependency | [docs/agent/supply-chain-security.md](docs/agent/supply-chain-security.md) |
+| Writing or revising a reference doc or guide | [docs/agent/reference-doc-quality.md](docs/agent/reference-doc-quality.md) |
+| Anything touching network boundaries, device identity or plant equipment | [docs/ja/security-design.md](docs/ja/security-design.md) |
+| Running or extending the test suites | [TESTING.md](TESTING.md) |
