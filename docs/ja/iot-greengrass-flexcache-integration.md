@@ -363,7 +363,7 @@ IoT データは時間経過とともにアクセス頻度が低下する。Fabr
 | エッジデバイス | Raspberry Pi 5 + カメラ / NVIDIA Jetson |
 | エッジストレージ | ONTAP Select (FlexCache write-back) |
 | 書き込み経路 | Camera → Greengrass → NFS write to edge ONTAP Cache Vol → async flush to FSx Origin |
-| クラウド分析 | Bedrock Claude Vision (S3 AP 経由 GetObject) / Rekognition |
+| クラウド分析 | AWS Lambda が S3 AP 経由で GetObject し、画像を Bedrock Claude Vision または Rekognition に渡す。どちらも S3 AP を直接のデータソースにはしない |
 | FlexCache 読み取り | 品質画像データベースを QA チームのオンプレ WS に配信 |
 | データ階層化 | 30日以上の画像 → FabricPool 容量プールへ自動移行 |
 

@@ -275,7 +275,7 @@ IoT data access frequency decreases over time. FabricPool automatically tiers da
 | Edge device | Raspberry Pi 5 + Camera / NVIDIA Jetson |
 | Edge storage | ONTAP Select (FlexCache write-back) |
 | Write path | Camera → Greengrass → NFS write to edge ONTAP Cache Vol → async flush to FSx Origin |
-| Cloud analysis | Bedrock Claude Vision (GetObject via S3 AP) / Rekognition |
+| Cloud analysis | AWS Lambda calls GetObject through the S3 AP and passes the image to Bedrock Claude Vision or Rekognition. Neither takes the S3 AP as a data source directly |
 | FlexCache read | Quality image database delivered to QA team workstations |
 | Data tiering | Images older than 30 days → FabricPool capacity pool |
 
