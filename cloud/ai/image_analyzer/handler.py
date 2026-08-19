@@ -22,7 +22,7 @@ import json
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import boto3
 
@@ -289,7 +289,7 @@ def _extract_json(text: str) -> str:
 
 def _store_result(source_bucket: str, source_key: str, result: dict) -> str:
     """Store analysis result to S3."""
-    timestamp = datetime.now(timezone.utc)
+    timestamp = datetime.now(UTC)
     result_key = (
         f"processed/image_analysis/"
         f"year={timestamp.year:04d}/month={timestamp.month:02d}/"
@@ -309,7 +309,15 @@ def _store_result(source_bucket: str, source_key: str, result: dict) -> str:
             },
             "analyzer": {
                 "service": "bedrock",
-                "model_id": MODEL_ID,
+                # Which model produced this verdict depends on whether Stage 2
+                # ran. `_stage` is set by _analyze_image: "screening_only"
+                # means only SCREENING_MODEL_ID was invoked.
+                "model_id": (
+                    SCREENING_MODEL_ID
+                    if result.get("_stage") == "screening_only"
+                    else DETAIL_MODEL_ID
+                ),
+                "stage": result.get("_stage", "unknown"),
             },
             "result": result,
         },
@@ -342,12 +350,12 @@ def _send_alert(bucket: str, key: str, result: dict) -> None:
 
     subject = f"[{max_severity.upper()}] 3D Print Anomaly Detected"
     message_lines = [
-        f"Anomaly detected in 3D print monitoring",
-        f"",
+        "Anomaly detected in 3D print monitoring",
+        "",
         f"Image: s3://{bucket}/{key}",
         f"Confidence: {result.get('confidence', 0):.0%}",
         f"Quality Score: {result.get('overall_quality_score', 'N/A')}/100",
-        f"",
+        "",
         f"Anomalies ({len(anomalies)}):",
     ]
 
@@ -358,7 +366,7 @@ def _send_alert(bucket: str, key: str, result: dict) -> None:
         )
 
     message_lines.extend([
-        f"",
+        "",
         f"Recommendation: {result.get('recommendation', 'Review manually')}",
     ])
 

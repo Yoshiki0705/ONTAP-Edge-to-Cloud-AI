@@ -1,8 +1,8 @@
 # 運用設計: SLI/SLO・Observability・AI評価・Runbook
 
-> 作成日: 2026-05-29  
-> 対象: PoC #1 (3Dプリント品質監視) / PoC #2 (ONTAPテレメトリ)  
-> ステータス: Draft  
+> 作成日: 2026-05-29
+> 対象: PoC #1 (3Dプリント品質監視) / PoC #2 (ONTAPテレメトリ)
+> ステータス: Draft
 > レビュー元ペルソナ: Observability/SRE Advocate, Data+AI Architect, Analytics Architect
 
 ---
@@ -67,7 +67,7 @@
 すべてのログ・メトリクスに `message_id` を含め、横断追跡を可能にする:
 
 ```
-[Pi: capture] message_id=abc-123 → 
+[Pi: capture] message_id=abc-123 →
 [ONTAP: NFS write] message_id=abc-123 →
 [Lambda: analyze] message_id=abc-123 →
 [Bedrock: invoke] message_id=abc-123 →

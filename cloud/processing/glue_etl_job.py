@@ -11,22 +11,14 @@ Glue Job Parameters:
 """
 
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from awsglue.context import GlueContext
 from awsglue.job import Job
-from awsglue.transforms import *
+from awsglue.transforms import *  # noqa: F403  AWS Glue's documented import form
 from awsglue.utils import getResolvedOptions
 from pyspark.context import SparkContext
 from pyspark.sql import functions as F
-from pyspark.sql.types import (
-    ArrayType,
-    DoubleType,
-    IntegerType,
-    StringType,
-    StructField,
-    StructType,
-)
 
 # Initialize Glue context
 sc = SparkContext()
@@ -55,7 +47,7 @@ DATABASE_NAME = args["database_name"]
 if args.get("processing_date"):
     PROCESSING_DATE = datetime.strptime(args["processing_date"], "%Y-%m-%d")
 else:
-    PROCESSING_DATE = datetime.now(timezone.utc) - timedelta(days=1)
+    PROCESSING_DATE = datetime.now(UTC) - timedelta(days=1)
 
 YEAR = f"{PROCESSING_DATE.year:04d}"
 MONTH = f"{PROCESSING_DATE.month:02d}"

@@ -61,11 +61,11 @@ Respond in JSON:
 
 ## コード
 
-3d-print-quality の Lambda をそのまま使用。プロンプトは Lambda 環境変数 `ANALYSIS_PROMPT` で切り替え可能。
+3d-print-quality と同じ Lambda を使用。プロンプトは Lambda 環境変数 `ANALYSIS_PROMPT` で切り替え可能。
 
 | ファイル | 場所 | 備考 |
 |---------|------|------|
-| `handler.py` | [../3d-print-quality/lambda/](../3d-print-quality/lambda/handler.py) | 共通 Lambda |
+| `handler.py` | [cloud/ai/image_analyzer/](../../cloud/ai/image_analyzer/handler.py) | 共通 Lambda（両ユースケースで同一） |
 | `template.yaml` | [./template.yaml](./template.yaml) | プロンプト環境変数のみ異なる |
 
 ## デプロイ

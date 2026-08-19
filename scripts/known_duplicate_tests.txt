@@ -1,0 +1,18 @@
+# Test file basenames that are allowed to exist at more than one path.
+#
+# Empty, and meant to stay that way. scripts/check_test_coverage_drift.py blocks
+# any duplicate basename not listed here, and also fails if an entry here stops
+# being duplicated — so the file cannot quietly outlive the debt it records.
+#
+# It previously held three entries. usecases/3d-print-quality/tests/ and
+# usecases/ontap-telemetry-analytics/tests/ carried near-copies of
+# test_simple_capture.py, test_ontap_e2e.py and test_ontap_telemetry.py, with the
+# same test inventory as the tests/ versions and only the sys.path expression
+# differing. They had already drifted: tests/test_ontap_e2e.py was changed to use
+# `ontap.test.invalid` and named constants so gitleaks would stop matching a
+# literal address, and the copy never received it. Both sets ran in CI, so the
+# older assertions passed next to the newer ones and nothing reported the gap.
+# The copies were removed rather than kept in sync.
+#
+# Format if an entry is ever genuinely needed: one basename per line, with a
+# comment saying why two copies have to exist.

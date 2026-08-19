@@ -1,0 +1,50 @@
+# Reviewed SQL construction sites.  Format:  <path> | <verdict>
+#
+# scripts/check_sql_interpolation.py enumerates every file where a SQL keyword,
+# an interpolation and an execution call appear near each other, and fails on any
+# path missing from this list. A new query therefore cannot ship until somebody
+# classifies its inputs. It also fails on entries here that no longer match, so
+# the list cannot drift into fiction.
+#
+# The classification each entry has to answer: is every interpolated value
+# configuration (env var, module constant, CloudFormation parameter) or data
+# (event field, object contents, S3 key, CLI argument)? Data must be bound as a
+# parameter, or validated against a pattern before it reaches the statement.
+#
+# Some entries below are matches on `%s` in a nearby logging call or on a `+`
+# between two column names. Those are kept rather than tuned away: a checker that
+# reports a little extra is worth more than one narrowed until it reports nothing.
+
+cloud/clickhouse/scripts/export_training_features.sh | DATA. $1 reached both the SQL text and the S3 object path; `"2026-01-01' OR 1=1 --"` was a working injection. Now validated against ^\d{4}-\d{2}-\d{2}$ plus an OS date parse, and bound via --param_export_date with {export_date:Date}. Credentials moved off argv onto stdin (they were visible in ps). Remaining interpolation is configuration: ONTAP_S3_ENDPOINT/BUCKET from env, bucket name shape-checked.
+
+edge/raspberry-pi/camera/_cellular_fallback/buffer.py | SAFE. sqlite3; every value passes as a ? placeholder — (now, message_type, json.dumps(metadata), image_path) and (entry_id,). No identifier is interpolated. The match is `%s` in an adjacent logger.debug call.
+
+local-demo/load_events_direct.py | SAFE. Was `f"SELECT count() FROM {tbl}"`. Rewritten as a tuple of complete query strings, so there is no interpolation left to inject into. Row values go through client.insert(), not string building.
+
+local-demo/setup.sh | SAFE. The only query is the literal readiness probe `SELECT 1`; the interpolation in range is docker/compose configuration.
+
+scripts/tests/test_drift_guards.py | SAFE. Fixture text, never executed: the module holds an injectable query as a string so the sweep can be tested against it. Recorded rather than excluding tests/ from the sweep, which would blind it to SQL built in a test helper.
+
+usecases/ontap-telemetry-analytics/template.yaml | SAFE. AWS::Athena::NamedQuery with a static block scalar. Checked all six NamedQuery resources across usecases/*/template.yaml: none uses !Sub or ${} inside QueryString. The match is `throughput_read_mbps + throughput_write_mbps`.
+
+# Reviewed and not currently flagged, recorded here rather than above because the
+# checker requires every entry to correspond to a site it reports:
+#
+# edge/greengrass/s3ap_client/buffer.py — SAFE, same shape as the cellular
+# buffer: ? placeholders throughout, table and column names literal. It stopped
+# being flagged when `assert self._conn is not None` became `_require_open()`,
+# which moved the `%s` in a nearby log call out of the match window.
+#
+# Not present, and worth stating because it changes what to look for:
+#
+# No Python code calls athena.start_query_execution or awswrangler. Athena SQL
+# exists only as the static NamedQuery resources above. Athena has no bind
+# parameters, so the first caller that builds a query from a device_id, an S3 key
+# or an event field will need a literalisation helper (doubling embedded quotes,
+# escaping LIKE metacharacters, ESCAPE '\'). None exists yet because nothing
+# would use it.
+#
+# Device identifiers and MQTT topic levels do reach a path: cloud/iot_ingestion
+# interpolates device_id into the S3 key. That is validated by
+# cloud/iot_ingestion/identifiers.py rather than escaped, and covered by
+# tests/test_iot_identifiers.py.

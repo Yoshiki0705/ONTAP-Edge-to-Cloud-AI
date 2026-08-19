@@ -51,7 +51,8 @@ def main():
     event_types = list(se.GENERATORS.keys())
     import random
     for _ in range(args.count):
-        et = random.choice(event_types)
+        # Picks which synthetic demo event to generate; not security-relevant.
+        et = random.choice(event_types)  # nosec B311  # noqa: S311
         e = se.GENERATORS[et]()
         rows.append([
             e["event_id"], e["event_type"], e["domain"], e["event_category"],
@@ -69,10 +70,23 @@ def main():
     client.insert("kafka_events_raw", rows, column_names=columns)
     print(f"Inserted {len(rows)} events into kafka_events_raw")
 
-    # Show MV results
-    for tbl in ["quality_events", "payload_manifest", "anomaly_events", "feedback_events"]:
+    # Show MV results.
+    #
+    # These are full query strings rather than a table name interpolated into a
+    # template. ClickHouse has no bind parameter for an identifier, so the only
+    # way to keep this provably free of interpolation is not to interpolate:
+    # the loop iterates over finished queries. A scanner reports the f-string
+    # shape and stays quiet about a module-level template fed to .format(), so
+    # matching the scanner is not the goal — having nothing to inject into is.
+    MV_COUNT_QUERIES = (
+        ("quality_events", "SELECT count() FROM quality_events"),
+        ("payload_manifest", "SELECT count() FROM payload_manifest"),
+        ("anomaly_events", "SELECT count() FROM anomaly_events"),
+        ("feedback_events", "SELECT count() FROM feedback_events"),
+    )
+    for tbl, query in MV_COUNT_QUERIES:
         try:
-            cnt = client.query(f"SELECT count() FROM {tbl}").result_rows[0][0]
+            cnt = client.query(query).result_rows[0][0]
             print(f"  {tbl}: {cnt} rows")
         except Exception as e:
             print(f"  {tbl}: (not queryable: {e})")

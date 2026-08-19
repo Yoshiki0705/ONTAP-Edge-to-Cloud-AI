@@ -3,45 +3,121 @@ title = "edge-to-cloud-analytics gitleaks config"
 [extend]
 useDefault = true
 
+# ---------------------------------------------------------------------------
+# Repository-specific rules.
+#
+# These two are noisy against documentation on purpose: a deployment guide has to
+# show `192.168.10.5` and `svm-iot.example.internal` for the reader to follow it.
+# The noise used to be handled by excluding *.md, *.sh, workflows and
+# infrastructure templates from the scan entirely — which also switched off every
+# default rule on that content. Measured: 46 findings across those paths, all 46
+# from the two rules below and none from a default rule, while 700 KB including
+# all 29 docs was exempt from AWS-key, GitHub-token and private-key detection.
+#
+# Each rule now carries its own allowlist instead, so documentation examples stay
+# quiet and a real credential pasted into a doc is still caught.
+# ---------------------------------------------------------------------------
+
+# Paths that legitimately contain example addresses and hostnames.
+# Shared by the two documentation-noisy rules below.
+
 [[rules]]
 id = "internal-ip-address"
 description = "Internal/Private IP Address"
 regex = '''(?:^|[^0-9])(?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2[0-9]|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})(?:[^0-9]|$)'''
 tags = ["internal", "ip"]
+[[rules.allowlists]]
+description = "Example addresses in documentation, setup scripts and templates"
+paths = [
+  '''.*\.md$''',
+  '''.*\.example$''',
+  '''.*\.example\.json$''',
+  '''cloud/fsxn/template\.yaml$''',
+  '''infrastructure/.*\.yaml$''',
+  '''scripts/.*\.sh$''',
+  '''\.github/workflows/.*\.yml$''',
+]
 
 [[rules]]
 id = "aws-account-id-suspicious"
 description = "AWS Account ID in suspicious context"
 regex = '''(?i)(?:account[_-]?id|aws[_-]?account)\s*[:=]\s*["\']?\d{12}["\']?'''
 tags = ["aws", "account"]
+[[rules.allowlists]]
+description = "Placeholder account IDs in documentation and example parameter files"
+paths = [
+  '''.*\.md$''',
+  '''.*\.example$''',
+  '''.*\.example\.json$''',
+]
 
 [[rules]]
 id = "internal-hostname"
 description = "Internal hostname patterns"
 regex = '''[\w.-]+\.(?:internal|corp|local)\b'''
 tags = ["internal", "hostname"]
+[[rules.allowlists]]
+description = "Example hostnames in documentation, setup scripts and templates"
+paths = [
+  '''.*\.md$''',
+  '''.*\.example$''',
+  '''.*\.example\.json$''',
+  '''cloud/fsxn/template\.yaml$''',
+  '''infrastructure/.*\.yaml$''',
+  '''scripts/.*\.sh$''',
+  '''\.github/workflows/.*\.yml$''',
+]
 
 [[rules]]
 id = "vpn-config"
 description = "VPN configuration values"
 regex = '''(?i)(?:vpn[_-]?(?:server|endpoint|gateway|host))\s*[:=]\s*["\']?[\w.-]+["\']?'''
 tags = ["vpn", "config"]
+[[rules.allowlists]]
+description = "Example VPN endpoints in documentation"
+paths = ['''.*\.md$''', '''.*\.example$''', '''.*\.example\.json$''']
 
 [[rules]]
 id = "netapp-internal"
 description = "NetApp internal references"
 regex = '''(?i)(?:[\w.-]+@netapp\.com|[\w.-]+\.netapp\.internal)'''
 tags = ["netapp", "internal"]
+[[rules.allowlists]]
+description = "The email-domain check in .githooks/pre-commit names the domain by design"
+paths = ['''\.githooks/pre-commit$''', '''.*\.md$''']
 
-[allowlist]
+# ---------------------------------------------------------------------------
+# Global allowlists.
+# ---------------------------------------------------------------------------
+
+[[allowlists]]
+description = "Paths that are not this repository's source"
 paths = [
+  # `gitleaks dir` walks the filesystem and does not read .gitignore, so a
+  # working-tree scan reported 218 findings, all of them inside the virtualenv
+  # and the SAM build output. Excluding them here rather than per-invocation
+  # keeps `make secrets`, the pre-commit hook and CI looking at the same files.
+  '''(^|/)\.venv/''',
+  '''(^|/)\.aws-sam/''',
+  '''(^|/)__pycache__/''',
+  '''(^|/)\.pytest_cache/''',
+  '''(^|/)node_modules/''',
+  # This file quotes the patterns it detects.
   '''\.gitleaks\.toml$''',
   '''\.gitignore$''',
-  '''.*\.example$''',
-  '''.*\.example\.json$''',
-  '''.*\.md$''',
-  '''cloud/fsxn/template\.yaml$''',
-  '''infrastructure/.*\.yaml$''',
-  '''scripts/.*\.sh$''',
-  '''\.github/workflows/.*\.yml$''',
 ]
+
+# No waiver for the S3 Access Point alias fixture in tests/test_s3ap_client.py.
+# One was needed while the fixture read `iot-ingest-ap-abc123-s3alias`, because
+# the `abc123` looked like entropy to the default generic-api-key rule. Dropping
+# the invented suffix — `iot-ingest-ap-s3alias` — makes the value clean under both
+# this config and the global one, which is better than a waiver: nothing has to be
+# excluded, so nothing else can hide behind the exclusion.
+#
+# Recorded because the first attempt at that waiver was wrong in an instructive
+# way. Written as `paths = ['tests/.*\.py']` plus `regexes = ['-s3alias']`, it
+# made gitleaks skip those files entirely rather than allowing that one value:
+# scanning tests/ read 22 KB instead of 281 KB and a planted `ghp_...` token went
+# unreported. `matchCondition = "AND"` does not narrow a `paths` entry. If a
+# value-scoped waiver is ever genuinely needed here, it must carry `regexes` and
+# no `paths`.

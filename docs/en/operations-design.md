@@ -1,8 +1,8 @@
 # Operations Design: SLI/SLO, Observability, AI Evaluation, Runbook
 
-> Created: 2026-05-29  
-> Scope: PoC #1 (3D Print Quality Monitoring) / PoC #2 (ONTAP Telemetry)  
-> Status: Draft  
+> Created: 2026-05-29
+> Scope: PoC #1 (3D Print Quality Monitoring) / PoC #2 (ONTAP Telemetry)
+> Status: Draft
 > Review personas: Observability/SRE Advocate, Data+AI Architect, Analytics Architect
 
 ---
@@ -67,7 +67,7 @@
 Include `message_id` in all logs and metrics for cross-service tracing:
 
 ```
-[Pi: capture] message_id=abc-123 → 
+[Pi: capture] message_id=abc-123 →
 [ONTAP: NFS write] message_id=abc-123 →
 [Lambda: analyze] message_id=abc-123 →
 [Bedrock: invoke] message_id=abc-123 →

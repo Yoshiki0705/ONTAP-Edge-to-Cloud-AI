@@ -22,7 +22,7 @@ import json
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import boto3
 
@@ -64,7 +64,7 @@ def handler(event: dict, context) -> dict:
             feedback_type = "false_positive" if actual_status == "normal" else "false_negative"
 
         # Build feedback record
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
         feedback = {
             "feedback_id": str(uuid.uuid4()),
             "source_message_id": source_message_id,
@@ -131,6 +131,17 @@ def _publish_feedback_to_kafka(feedback: dict, event: dict) -> bool:
     if not rest_proxy_url:
         return False
 
+    # urlopen honours whatever scheme it is given, including file: and ftp:.
+    # This URL comes from configuration rather than from an event, so the
+    # realistic failure is a deployment typo rather than an attack, but a
+    # file:// value would turn this call into a local file read whose contents
+    # then get logged. Restricting the scheme costs nothing.
+    if not rest_proxy_url.startswith(("http://", "https://")):
+        logger.error(
+            "KAFKA_REST_PROXY_URL must be http:// or https:// — skipping publish"
+        )
+        return False
+
     try:
         import urllib.request
 
@@ -147,7 +158,7 @@ def _publish_feedback_to_kafka(feedback: dict, event: dict) -> bool:
             "equipment_id": event.get("equipment_id", "unknown"),
             "sensor_id": event.get("sensor_id", "unknown"),
             "timestamp": feedback["timestamp"],
-            "ingest_time": datetime.now(timezone.utc).isoformat(),
+            "ingest_time": datetime.now(UTC).isoformat(),
             "schema_version": "2.0.0",
             "payload_uri": event.get("payload_uri"),
             "lineage_id": event.get("lineage_id", feedback["source_message_id"]),
@@ -165,13 +176,16 @@ def _publish_feedback_to_kafka(feedback: dict, event: dict) -> bool:
         }
 
         payload = json.dumps({"records": [{"value": feedback_event}]}).encode("utf-8")
-        req = urllib.request.Request(
+        req = urllib.request.Request(  # noqa: S310  scheme checked above
             f"{rest_proxy_url}/topics/factory.events.raw",
             data=payload,
             headers={"Content-Type": "application/vnd.kafka.json.v2+json"},
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=5) as resp:
+        # Scheme restricted to http/https above; URL comes from configuration,
+        # not from the event. bandit blacklists the call itself and cannot see
+        # the guard, so the waiver is recorded on the reported line.
+        with urllib.request.urlopen(req, timeout=5) as resp:  # nosec B310  # noqa: S310
             ok = 200 <= resp.status < 300
             logger.info("Feedback published to Kafka: status=%s", resp.status)
             return ok

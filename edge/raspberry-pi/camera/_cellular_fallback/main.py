@@ -13,7 +13,6 @@ import logging
 import signal
 import sys
 import time
-from datetime import datetime, timezone
 
 from buffer import MessageBuffer
 from capture import CameraCapture
@@ -101,8 +100,15 @@ def _run_capture_loop(
             capture_count += 1
             health.increment_capture()
 
-            # Upload (or buffer if offline)
-            success = uploader.upload_image(image_bytes, metadata)
+            # Upload, or buffer if offline. The return value says which happened;
+            # it was assigned and discarded, so a run that buffered every frame
+            # looked the same in the logs as one that uploaded every frame.
+            uploaded = uploader.upload_image(image_bytes, metadata)
+            if not uploaded:
+                logger.warning(
+                    "Upload deferred to local buffer (pending=%d)",
+                    buffer.pending_count(),
+                )
 
             if capture_count % 10 == 0:
                 logger.info(

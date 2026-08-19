@@ -11,7 +11,7 @@ import platform
 import shutil
 import time
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import requests
@@ -92,7 +92,7 @@ class HealthMonitor:
         km = kafka_metrics or {}
         report = HealthReport(
             device_id=self._device_id,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             uptime_seconds=time.monotonic() - self._boot_time,
             cpu_temp_celsius=self._get_cpu_temp(),
             cpu_usage_percent=self._get_cpu_usage(),

@@ -12,14 +12,21 @@ Configuration via environment variables:
 
 import json
 import os
-import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "factory.events.raw")
 KAFKA_ENABLED = os.getenv("KAFKA_ENABLED", "false").lower() == "true"
-KAFKA_BUFFER_PATH = os.getenv("KAFKA_BUFFER_PATH", "/tmp/kafka-buffer")
+# Buffered factory events land here when Kafka is unreachable, so the default
+# must not be a world-writable, predictable path: on a shared host another user
+# can pre-create /tmp/kafka-buffer, or symlink it, before this process does.
+# Set KAFKA_BUFFER_PATH explicitly for a packaged deployment (e.g.
+# /var/lib/edge-to-cloud/kafka-buffer with the service user owning it).
+KAFKA_BUFFER_PATH = os.getenv(
+    "KAFKA_BUFFER_PATH",
+    str(Path.home() / ".local" / "state" / "edge-to-cloud" / "kafka-buffer"),
+)
 
 
 class EventPublisher:
@@ -151,7 +158,7 @@ class EventPublisher:
     def _buffer_event(self, event_json: str) -> None:
         """Save event to local filesystem buffer."""
         self._buffer_dir.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
+        timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%f")
         buffer_file = self._buffer_dir / f"{timestamp}.json"
         buffer_file.write_text(event_json, encoding="utf-8")
 

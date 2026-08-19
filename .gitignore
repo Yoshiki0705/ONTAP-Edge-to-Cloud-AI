@@ -30,6 +30,7 @@ __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
+.ruff_cache/
 .venv/
 venv/
 *.egg-info/
@@ -52,6 +53,7 @@ package-lock.json
 # Build artifacts
 dist/
 build/
+.aws-sam/
 
 # Blog drafts (not public)
 blog/

@@ -22,7 +22,7 @@ import json
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import boto3
@@ -72,13 +72,13 @@ def capture_image() -> tuple[bytes, str]:
         raise RuntimeError("Failed to capture image from camera")
 
     _, jpeg = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     return jpeg.tobytes(), timestamp
 
 
 def save_to_ontap(image_bytes: bytes, timestamp: str) -> Path:
     """Save image to ONTAP NFS mount. Returns the saved file path."""
-    date_dir = datetime.now(timezone.utc).strftime("%Y/%m/%d")
+    date_dir = datetime.now(UTC).strftime("%Y/%m/%d")
     output_dir = Path(ONTAP_IMAGE_PATH) / date_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -113,7 +113,6 @@ def invoke_analysis_lambda(image_path: Path, image_bytes: bytes) -> dict | None:
         )
     else:
         # If no S3 bucket configured, encode image in Lambda payload (limited to 6MB)
-        import base64
         pass  # Will use S3 bucket in production
 
     # Invoke Lambda
@@ -139,7 +138,7 @@ def invoke_analysis_lambda(image_path: Path, image_bytes: bytes) -> dict | None:
 
 def save_result_to_ontap(result: dict, timestamp: str) -> None:
     """Save analysis result to ONTAP NFS mount."""
-    date_dir = datetime.now(timezone.utc).strftime("%Y/%m/%d")
+    date_dir = datetime.now(UTC).strftime("%Y/%m/%d")
     output_dir = Path(ONTAP_RESULT_PATH) / date_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -177,7 +176,7 @@ def capture_and_analyze(skip_analyze: bool = False) -> bool:
             asset_id=ASSET_ID,
             equipment_id=EQUIPMENT_ID,
             sensor_id=SENSOR_ID,
-            timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
+            timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
             payload_uri=payload_uri,
             payload_type="image",
             content_type="image/jpeg",

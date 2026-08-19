@@ -105,7 +105,7 @@ class TestONTAPTelemetryE2E:
         "ONTAP_VERIFY_SSL": "false",
         "DEVICE_ID": "rpi5-e2e-test",
         "COLLECTION_INTERVAL_SECONDS": "60",
-        
+
     })
     def test_full_collection_cycle(self):
         """Test a complete collection cycle: connect → collect → format → upload."""

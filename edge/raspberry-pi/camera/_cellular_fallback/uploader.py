@@ -6,17 +6,15 @@ Falls back to local buffer when network is unavailable.
 """
 
 import base64
-import json
 import logging
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import requests
-
 from buffer import MessageBuffer
-from config import AppConfig, UploadConfig
+from config import AppConfig
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +108,7 @@ class Uploader:
     ) -> dict:
         """Build the IoT message envelope."""
         timestamp = capture_metadata.get(
-            "timestamp", datetime.now(timezone.utc).isoformat()
+            "timestamp", datetime.now(UTC).isoformat()
         )
         device_id = self._device_config.device_id
 
@@ -196,7 +194,7 @@ class Uploader:
     ) -> Path | None:
         """Save image to local filesystem as backup."""
         try:
-            timestamp = metadata.get("timestamp", datetime.now(timezone.utc).isoformat())
+            timestamp = metadata.get("timestamp", datetime.now(UTC).isoformat())
             ts = datetime.fromisoformat(timestamp)
             filename = f"{ts.strftime('%Y%m%dT%H%M%SZ')}_{self._device_config.device_id}.jpg"
 

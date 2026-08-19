@@ -1,0 +1,17 @@
+# Development and CI tooling — exact pins.
+#
+# These are pinned rather than ranged so that a local `make lint` and the CI job
+# it is invoked from cannot reach different verdicts. An audit of this repo found
+# cfn-lint 1.52.1 on PATH and 1.52.0 in .venv, with requirements.txt allowing
+# anything from 0.87.0 upward: a range wide enough to span a major version.
+#
+# Renovate keeps these current (see renovate.json); bump them in one commit so
+# that the version the hooks use and the version CI uses stay identical.
+#
+# Install:  make dev-install     (targets .venv, not the system interpreter)
+
+bandit==1.9.4
+cfn-lint==1.55.1
+pre-commit==4.6.2
+pytest==9.1.1
+ruff==0.16.3
