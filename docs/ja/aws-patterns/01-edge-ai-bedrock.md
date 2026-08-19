@@ -41,6 +41,8 @@ graph LR
   end
 ```
 
+公式アイコンで描いた版: [SVG](../../images/pattern-01-edge-ai-bedrock.svg)（作図元は [pattern-01-edge-ai-bedrock.drawio](../../diagrams/pattern-01-edge-ai-bedrock.drawio)、生成手順は [docs/diagrams/](../../diagrams/)）
+
 1. カメラが一定間隔で撮影し、Pi がローカルストレージに NFS で書き込む
 2. ペイロードは集約先（FSx for ONTAP）へ同期される。経路の選択は
    [FlexCache / SnapMirror の使い分け](../iot-greengrass-flexcache-integration.md)を参照

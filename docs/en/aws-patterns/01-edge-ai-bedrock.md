@@ -42,6 +42,8 @@ graph LR
   end
 ```
 
+Drawn with the official icons: [SVG](../../images/pattern-01-edge-ai-bedrock-en.svg) (source [pattern-01-edge-ai-bedrock-en.drawio](../../diagrams/pattern-01-edge-ai-bedrock-en.drawio), regenerated as described in [docs/diagrams/](../../diagrams/))
+
 1. The camera captures at an interval and the Pi writes to local storage over NFS
 2. The payload syncs to the aggregation point (FSx for ONTAP). For choosing the route, see
    [FlexCache versus SnapMirror](../iot-greengrass-flexcache-integration.md)

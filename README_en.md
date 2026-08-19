@@ -43,24 +43,9 @@ collected under [About this repository](#about-this-repository).
 
 ## Architecture
 
-```
-[Edge Devices]              [ONTAP (Aggregation)]       [Real-Time Ops]       [AI / Analytics]
-                            FAS/AFF|Select|FSx for ONTAP  On-prem VMs           AWS Cloud
-+------------------+        +----------------------+        +---------------------+
-| Raspberry Pi 5   |--NFS-->|                      |        | AWS                 |
-|   Camera         |        |  Inspection images   |--S3 AP>|   Bedrock (GenAI)   |
-|   Sensors        |        |  Sensor CSV          |        |   SageMaker (ML)    |
-+------------------+        |  Equipment logs      |--SM--->|   Athena (SQL)      |
-| 3D Printer       |--SMB-->|  3D models           |        |   Glue (ETL)        |
-+------------------+        |                      |        |   Quick Sight (BI)  |
-| USB Camera       |--NFS-->|  FPolicy (events)    |        +---------------------+
-+------------------+        |  REST API (telemetry)|        | Local AI            |
-                            |  ARP/AI (protection) |        |   GPU Server        |
-[Connectivity]              |  Snapshot (preserve) |        |   Pi Edge Inference |
-|- Wired LAN (10GbE)        +----------------------+        +---------------------+
-|- Wi-Fi
-|- Cellular (option)
-```
+![Files written by cameras and vibration sensors at an edge site are aggregated through local storage into Amazon FSx for NetApp ONTAP, and reach Amazon Bedrock, Amazon Athena and Amazon SageMaker AI through an S3 access point. Sensor events take two separate paths, to AWS IoT Core and to Kafka / ClickHouse](docs/images/architecture-overview-en.svg)
+
+Figure 1: overall architecture ([.drawio](docs/diagrams/architecture-overview-en.drawio) / [日本語](docs/images/architecture-overview.svg))
 
 **Data paths:**
 - **Payload** (images, CSV, logs): edge → NFS → ONTAP (stored)
@@ -194,6 +179,8 @@ The full procedure is in the [deployment guide](docs/en/deployment-guide.md).
 | Operations design | [operations-design](docs/ja/operations-design.md) | [operations-design](docs/en/operations-design.md) |
 | Demo scenarios | [demo-scenarios](docs/ja/demo-scenarios.md) | [demo-scenarios](docs/en/demo-scenarios.md) |
 | FAQ | [faq](docs/ja/faq.md) | [faq](docs/en/faq.md) |
+
+Architecture diagrams (official icons, both languages): [docs/diagrams/](docs/diagrams/)
 
 Demo walkthroughs (English only): [prerequisites](docs/demo-guides/demo-guide-00-prerequisites.md) /
 [IoT Core → Lambda → S3 AP](docs/demo-guides/demo-guide-01-iot-core-lambda-s3ap.md) /

@@ -38,6 +38,8 @@ graph LR
   end
 ```
 
+Drawn with the official icons: [SVG](../../images/pattern-05-agentic-rag-en.svg) (source [pattern-05-agentic-rag-en.drawio](../../diagrams/pattern-05-agentic-rag-en.drawio), regenerated as described in [docs/diagrams/](../../diagrams/))
+
 1. Documents already live on a file share, and users keep using it over SMB or NFS
 2. Data syncs to the aggregation point, or the aggregation point serves as the share directly
 3. The S3 access point alias is given as the knowledge base data source. Knowledge Bases accepts the
