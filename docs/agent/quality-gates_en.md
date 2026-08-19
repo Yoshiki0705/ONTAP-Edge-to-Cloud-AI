@@ -23,9 +23,10 @@ make check           # lint + security + test + drift (what CI runs)
 | `make test` | `TEST_DIRS` | a test fails |
 | `make lint-py` | `PY_DIRS` | ruff reports anything |
 | `make lint-cfn` | `CFN_TEMPLATES` | cfn-lint reports anything |
+| `make hygiene` | every git-tracked file | a hook in `.pre-commit-config.yaml` had to rewrite something (final newline, trailing whitespace, YAML/JSON syntax, a file over 1 MB) |
 | `make bandit` | `PY_DIRS` | any finding, at any severity |
 | `make secrets` | working tree, via `.gitleaks.toml` | any finding |
-| `make drift` | the five guards below | a gate is structurally able to go quiet |
+| `make drift` | the eight guards below | a gate is structurally able to go quiet |
 | `make agent-config` | global and workspace steering, skills, hooks | unreachable configuration |
 
 ## Drift guards
