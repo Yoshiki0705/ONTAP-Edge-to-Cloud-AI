@@ -72,12 +72,16 @@ fi
 
 # --- 4. Drift guards -------------------------------------------------------
 # Cheap, and they are the checks that notice when another gate goes quiet.
+#
+# Delegate to `make drift` rather than listing the guards here. This hook used to
+# name four of them, which made it a second inventory alongside the Makefile: when
+# check_doc_parity.py and check_sunset_services.py were added to `make drift`, the
+# hook kept passing without running them, and check_git_hooks_wiring.py had never
+# been listed at all. A guard that does not run is indistinguishable from a guard
+# that finds nothing.
 if [[ -x .venv/bin/python ]]; then
-  echo "🔍 drift guards"
-  .venv/bin/python scripts/check_agent_context_budget.py
-  .venv/bin/python scripts/check_test_coverage_drift.py
-  .venv/bin/python scripts/check_dependency_pins.py
-  .venv/bin/python scripts/check_sql_interpolation.py
+  echo "🔍 drift guards (make drift)"
+  make drift
 else
   echo "⚠️  .venv missing — drift guards skipped (run: make dev-install)"
 fi
