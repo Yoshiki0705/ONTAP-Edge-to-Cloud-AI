@@ -76,8 +76,10 @@ FSx for ONTAP を含む経路は実行していません。SAM テンプレー�
 | 実画像 4/4 正解 | `verified` | 同上 + スクリーニング `jp.anthropic.claude-haiku-4-5-20251001-v1:0`。Bambu Lab Wiki と Prusa Help が公開している 4 枚 |
 | 合成画像を非実写と識別 | `verified` | 同上。OpenCV で生成した画像に対する別ラウンドの結果 |
 | Haiku 平均 1,417 ms / Sonnet 平均 7,186 ms | `verified` | n=4、逐次実行、クライアント側での計測。VPC 内の AWS Lambda からではない |
-| 画像あたり $0.005〜0.011 | `documented` | 公開されているモデル料金からの手計算。`cloud/ai/image_analyzer/handler.py` は token usage を取得しないため、請求実績でも API 応答由来でもない |
-| 2 段階構成で月 $259 → $40 | `hypothesis` | 60 秒間隔・24 時間連続・異常率 10%・特定リージョンの料金という仮定。異常率が下がれば削減幅は縮む |
+| FSx for ONTAP の PoC 構成が月 $500.61 | `documented` | AWS Price List Query API から 2026-08-19 取得、ap-northeast-1、単価の effectiveDate 2026-07-01。1024 GiB × $0.300/GB-月 + 128 MBps × $1.511/MBps-月。ストレージとスループットの 2 軸のみで、バックアップ等は含まない（[コストモデル](cost-model.md)） |
+| 画像あたり $0.005〜0.011 | — | **撤回しました。** 公開価格からの手計算で、その実行はトークン数を記録していません。測定結果の表に並んでいたため実測値に見えていました |
+| 2 段階構成で月 $259 → $40 | — | **撤回しました。** 同じ前提で `tests/sample_images/README.md` の式は月 $78 になり、リポジトリ内で 3 通りの答えが出ていました。どの単価も出典を再現できません |
+| 1 画像あたりのトークン数 | — | まだ記録がありません。`handler.py` は `usage` を取得するようになり `InputTokens` / `OutputTokens` を出しますが、スタックをデプロイしていないため実測値はありません |
 | 異常を 60 秒以内に検知 | `hypothesis` | 設計目標。未計測 |
 | S3 Access Point は ONTAP 9.17.1 以降が必要 | `documented` | AWS 公式ドキュメント。[S3 AP 互換性と制約](s3ap-compatibility-matrix.md) |
 | S3 Access Point はイベント通知に対応しない | `documented` | 同上。FPolicy / 明示的な呼び出し / ポーリングで補う |

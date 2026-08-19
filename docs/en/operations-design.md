@@ -49,7 +49,9 @@
 | `PrintQuality/AnomalyRate` | Percent | Anomaly detection rate (last 1 hour) | > 30% notify (possible printer issue) |
 | `PrintQuality/QualityScore` | None (0-100) | Average quality score (last 1 hour) | < 50 notify |
 | `PrintQuality/CaptureGap` | Seconds | Time since last capture | > 300s (5 min) device-down alert |
-| `PrintQuality/CostPerImage` | USD | Analysis cost per image | > $0.02 cost anomaly alert |
+| `PrintQuality/InputTokens` | Count | Input tokens per image | Emitted regardless of rates |
+| `PrintQuality/OutputTokens` | Count | Output tokens per image | Same |
+| `PrintQuality/CostPerImage` | USD | Analysis cost per image. **Emitted only when all four `*_USD_PER_MTOK` variables are set** (see the [cost model](cost-model.md)) | Set the threshold from your own rates; the design example is > $0.02 |
 | `ONTAP/CapacityUsedPercent` | Percent | Volume utilization | > 80% capacity warning |
 | `ONTAP/LatencyP95` | Microseconds | Latency p95 | > 5000μs performance warning |
 

@@ -360,9 +360,9 @@ For platform-specific compatibility (Athena, Glue, EMR, Databricks, Snowflake, B
 | Bedrock (Claude Vision) | $5-20/month | ~2,880 calls/day × 30 days, input token billing |
 | Lambda (FPolicy trigger) | $0-2/month | FPolicy event processing |
 | Athena | $1-5/month | Several GB/month scanned |
-| **Total** | **~¥1,500-4,000/month** | PoC scale, 1 device, wired LAN environment |
+| Total | — | **Not summed.** Dollar rows and a yen row are mixed, and they cannot be added without an exchange rate and the date it was taken |
 
-> **Note**: Above is a PoC-scale estimate. In wired LAN environments, cellular communication costs are not incurred, so SORACOM fees do not apply. Production environments scale with device count, capture frequency, and retention period. Use AWS Pricing Calculator for accurate estimates.
+> **Note**: the above is a PoC-scale estimate with no pricing date and no source. The "~¥1,500-4,000/month" total that used to be here added dollar rows to a yen row with no exchange rate, and is withdrawn. In wired LAN environments cellular costs are not incurred, so SORACOM fees do not apply. The FSx for ONTAP figure — the one whose magnitude matters — and dated unit prices are in the [cost model](cost-model.md). Use the [AWS Pricing Calculator](https://calculator.aws/) for an accurate estimate.
 
 ### 5.7 Prerequisites (Required for PoC Start)
 

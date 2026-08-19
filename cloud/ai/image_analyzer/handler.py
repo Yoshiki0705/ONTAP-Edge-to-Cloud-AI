@@ -4,9 +4,11 @@ Two-stage analysis for cost optimization:
   Stage 1: Claude Haiku (fast, cheap) - quick screening
   Stage 2: Claude Sonnet (accurate, expensive) - only if Haiku flags anomaly
 
-Cost comparison (60-second intervals, 24/7):
-  Single-stage Sonnet: ~$259/month
-  Two-stage (Haiku + Sonnet on 10% flagged): ~$40/month
+Cost: how much a screening stage saves depends on the anomaly rate, and at a high enough
+rate two stages cost more than one. The monthly figures this docstring used to give were
+withdrawn -- they assumed unit prices with no recorded source and disagreed with the other
+figures in the repository. The formula and the current rates are in docs/ja/cost-model.md.
+This function emits InputTokens, OutputTokens and, when rates are configured, CostPerImage.
 
 Environment variables:
     RESULT_BUCKET: S3 bucket for analysis results
@@ -207,12 +209,16 @@ def _analyze_image(image_bytes: bytes) -> dict:
     If TWO_STAGE_ENABLED is false, goes directly to Stage 2.
     """
     image_base64 = base64.b64encode(image_bytes).decode("utf-8")
+    # Keyed by stage rather than by model id: the same model can serve both stages, and a
+    # reader reconciling a bill needs to know which call it paid for.
+    token_usage: dict[str, dict] = {}
 
     if TWO_STAGE_ENABLED:
         # Stage 1: Quick screening with Haiku
-        screening_result = _invoke_model(
+        screening_result, screening_usage = _invoke_model(
             image_base64, SCREENING_PROMPT, SCREENING_MODEL_ID, max_tokens=128
         )
+        token_usage["screening"] = dict(screening_usage, model_id=SCREENING_MODEL_ID)
 
         try:
             screening = json.loads(_extract_json(screening_result))
@@ -235,12 +241,14 @@ def _analyze_image(image_bytes: bytes) -> dict:
                 "recommendation": "No defects detected. Print proceeding normally.",
                 "overall_quality_score": 90,
                 "_stage": "screening_only",
+                "_token_usage": token_usage,
             }
 
     # Stage 2: Detailed analysis with Sonnet
-    detail_result = _invoke_model(
+    detail_result, detail_usage = _invoke_model(
         image_base64, DETAIL_PROMPT, DETAIL_MODEL_ID, max_tokens=1024
     )
+    token_usage["detail"] = dict(detail_usage, model_id=DETAIL_MODEL_ID)
 
     try:
         result = json.loads(_extract_json(detail_result))
@@ -255,11 +263,20 @@ def _analyze_image(image_bytes: bytes) -> dict:
             "_stage": "parse_error",
         }
 
+    result["_token_usage"] = token_usage
     return result
 
 
-def _invoke_model(image_base64: str, prompt: str, model_id: str, max_tokens: int = 1024) -> str:
-    """Invoke a Bedrock model with an image and prompt."""
+def _invoke_model(
+    image_base64: str, prompt: str, model_id: str, max_tokens: int = 1024
+) -> tuple[str, dict]:
+    """Invoke a Bedrock model with an image and prompt.
+
+    Returns the text and the token counts the response reports. The counts used to be
+    thrown away with the rest of the parsed body, which is why every cost figure in this
+    repository was a hand calculation from published prices rather than anything this
+    code observed. `docs/ja/cost-model.md` is the formula; these are the inputs to it.
+    """
     request_body = {
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": max_tokens,
@@ -292,7 +309,14 @@ def _invoke_model(image_base64: str, prompt: str, model_id: str, max_tokens: int
     )
 
     response_body = json.loads(response["body"].read())
-    return response_body["content"][0]["text"]
+    # `usage` is absent from some model families' responses. Zeros rather than a KeyError:
+    # a missing count must not fail an analysis that otherwise succeeded, and a zero is
+    # distinguishable downstream because _publish_metrics skips a zero total.
+    usage = response_body.get("usage") or {}
+    return response_body["content"][0]["text"], {
+        "input_tokens": int(usage.get("input_tokens", 0) or 0),
+        "output_tokens": int(usage.get("output_tokens", 0) or 0),
+    }
 
 
 def _extract_json(text: str) -> str:
@@ -394,27 +418,98 @@ def _send_alert(bucket: str, key: str, result: dict) -> None:
     )
     logger.info("Alert sent: %s", subject)
 
+def _price_per_mtok(stage: str, direction: str) -> float | None:
+    """Per-million-token price for a stage, or None when it is not configured.
+
+    Prices are configuration, not constants. A rate written into this file would be wrong
+    within a release or two and there would be no way for a reader to tell — which is the
+    failure `docs/ja/cost-model.md` records across this repository. The AWS Price List API
+    is not a way out either: for Bedrock foundation models it returns the token rates for
+    a Region with an empty `operation` field, so a rate cannot be attributed to a named
+    model programmatically. So the operator supplies the rate they are actually billed,
+    and without it the token counts are still emitted and the cost metric is not.
+    """
+    raw = os.environ.get(f"{stage.upper()}_{direction.upper()}_USD_PER_MTOK", "").strip()
+    if not raw:
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        logger.warning(
+            "%s_%s_USD_PER_MTOK is not a number: %r. Cost metric skipped.",
+            stage.upper(), direction.upper(), raw,
+        )
+        return None
+
+
+def _cost_usd(token_usage: dict) -> float | None:
+    """Cost of one image from its own token counts, or None if any rate is missing.
+
+    None rather than a partial sum: a figure covering the screening call but silently not
+    the detail call would look like a cheap image rather than a missing rate.
+    """
+    total = 0.0
+    for stage, counts in token_usage.items():
+        for direction, key in (("input", "input_tokens"), ("output", "output_tokens")):
+            tokens = counts.get(key, 0)
+            if not tokens:
+                continue
+            rate = _price_per_mtok(stage, direction)
+            if rate is None:
+                return None
+            total += tokens / 1_000_000 * rate
+    return total
+
+
 def _publish_metrics(result: dict) -> None:
     """Publish business metrics to CloudWatch."""
     try:
         is_anomaly = 1.0 if result.get("status") == "anomaly_detected" else 0.0
         quality_score = result.get("overall_quality_score", 50)
 
+        metric_data = [
+            {
+                "MetricName": "AnomalyDetected",
+                "Value": is_anomaly,
+                "Unit": "Count",
+            },
+            {
+                "MetricName": "QualityScore",
+                "Value": float(quality_score),
+                "Unit": "None",
+            },
+        ]
+
+        token_usage = result.get("_token_usage") or {}
+        input_tokens = sum(counts.get("input_tokens", 0) for counts in token_usage.values())
+        output_tokens = sum(counts.get("output_tokens", 0) for counts in token_usage.values())
+        if input_tokens or output_tokens:
+            metric_data += [
+                {"MetricName": "InputTokens", "Value": float(input_tokens), "Unit": "Count"},
+                {"MetricName": "OutputTokens", "Value": float(output_tokens), "Unit": "Count"},
+            ]
+            cost = _cost_usd(token_usage)
+            if cost is not None:
+                # The metric docs/ja/operations-design.md has always listed. Until now
+                # nothing emitted it, so its "> $0.02" alarm could never fire.
+                metric_data.append(
+                    {"MetricName": "CostPerImage", "Value": cost, "Unit": "None"}
+                )
+            else:
+                logger.info(
+                    "CostPerImage not emitted: no per-million-token rate configured. "
+                    "Set SCREENING_INPUT_USD_PER_MTOK and the matching variables to the "
+                    "rates you are billed. Token counts are published regardless."
+                )
+
         cloudwatch_client.put_metric_data(
             Namespace="EdgeToCloud/PrintQuality",
-            MetricData=[
-                {
-                    "MetricName": "AnomalyDetected",
-                    "Value": is_anomaly,
-                    "Unit": "Count",
-                },
-                {
-                    "MetricName": "QualityScore",
-                    "Value": float(quality_score),
-                    "Unit": "None",
-                },
-            ],
+            MetricData=metric_data,
         )
-        logger.debug("Business metrics published: anomaly=%s, score=%s", is_anomaly, quality_score)
+        logger.debug(
+            "Business metrics published: anomaly=%s, score=%s, input_tokens=%s, "
+            "output_tokens=%s",
+            is_anomaly, quality_score, input_tokens, output_tokens,
+        )
     except Exception as e:
         logger.warning("Failed to publish metrics (non-fatal): %s", e)

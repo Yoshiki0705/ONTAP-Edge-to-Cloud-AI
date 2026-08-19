@@ -5,7 +5,10 @@
 > **Goal**: Validate the end-to-end flow of MQTT telemetry → IoT Core rule → Lambda → PutObject → FSx for ONTAP S3 Access Point → Athena query. No S3 standard bucket involved.
 
 > **Time**: ~45 minutes (excluding FSx for ONTAP provisioning)
-> **Cost**: ~$2/day for IoT Core + Lambda. FSx for ONTAP cost is separate (see Demo Guide 00).
+> **Cost**: IoT Core and Lambda are billed per message and per invocation, so the total
+> follows the publish rate this guide configures. The "~$2/day" quoted here previously gave
+> no message volume and no pricing date, so it could not be checked. FSx for ONTAP is separate
+> and dominates — see [the cost model](../en/cost-model.md).
 
 > **Prerequisites**: Complete [Demo Guide 00](./demo-guide-00-prerequisites.md) first.
 

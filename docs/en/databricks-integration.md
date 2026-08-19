@@ -461,9 +461,9 @@ Edge capture (Pi)
 
 | Component | Estimate | Notes |
 |-----------|----------|-------|
-| DataSync (10 GB/day) | ~$0.125/day | Daily image + CSV sync |
-| S3 (synced copy, 300GB) | ~$7/month | Standard IA eligible |
-| Databricks Compute | ~$50-100/month | All-Purpose cluster (PoC scale) |
+| DataSync (10 GB/day) | Per GB transferred ([pricing](https://aws.amazon.com/datasync/pricing/)) | Daily image + CSV sync |
+| S3 (synced copy, 300GB) | Per GB stored ([pricing](https://aws.amazon.com/s3/pricing/)) | Standard IA eligible |
+| Databricks Compute | Billed in DBUs on Databricks' own price list, not AWS's | All-Purpose cluster (PoC scale) |
 | Kafka → Databricks Streaming | DBU consumption | Few DBU/hour for PoC |
 
 ---

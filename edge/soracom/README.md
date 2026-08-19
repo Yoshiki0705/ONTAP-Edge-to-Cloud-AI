@@ -169,7 +169,7 @@ For production, consider SORACOM VPG (Virtual Private Gateway) for private conne
 
 - Creates a dedicated VPN between SORACOM and your AWS VPC
 - Eliminates internet exposure for device-to-cloud communication
-- Adds cost (~$100/month) but improves security posture
+- Adds cost but improves security posture (the amount depends on the configuration and contract; the "~$100/month" quoted here previously had no source and is withdrawn)
 
 ---
 
