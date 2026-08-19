@@ -704,6 +704,21 @@ def test_sunset_reports_the_source_so_the_status_is_auditable(tmp_path):
     assert "https://" in result.stderr
 
 
+def test_sunset_does_not_match_a_service_name_inside_ordinary_prose(tmp_path):
+    """Regression: an entry short enough to appear inside a phrase reports a false positive.
+
+    "IoT Analytics" was in the inventory unqualified, and matched inside
+    "Industrial IoT analytics" — a pattern name — so the catalog index was
+    reported as a defect on the first run after the catalog was written.
+    """
+    _sunset_fixture(
+        tmp_path,
+        "# Guide\n\n| 03 | Industrial IoT analytics | Sensors to a data lake |\n",
+    )
+    result = run_guard(tmp_path, "check_sunset_services.py")
+    assert result.returncode == 0, result.stderr
+
+
 def test_sunset_blocks_when_it_finds_no_documents_at_all(tmp_path):
     result = run_guard(tmp_path, "check_sunset_services.py")
     assert result.returncode == 1

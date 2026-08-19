@@ -36,7 +36,9 @@
 | FlexCache / SnapMirror | エッジ書き込み経路と読み取り配信 | 設計のみ | [iot-greengrass-flexcache-integration](docs/ja/iot-greengrass-flexcache-integration.md) |
 | Greengrass カスタム S3 クライアント | S3 Access Point への直接 PutObject | 設計のみ（手順あり） | [demo-guide-02](docs/demo-guides/demo-guide-02-greengrass-s3ap-client.md) |
 
-実機での検証状況は [このリポジトリについて](#このリポジトリについて) にまとめています。
+設計として並べたパターンは [AWS パターンカタログ](docs/ja/aws-patterns/README.md) に 9 本あります
+（成熟度ラベルと選び方付き）。実機での検証状況は
+[このリポジトリについて](#このリポジトリについて) にまとめています。
 
 ## アーキテクチャ
 
@@ -175,6 +177,9 @@ aws cloudformation deploy \
 
 | ドキュメント | 日本語 | English |
 |------------|--------|---------|
+| **AWS パターンカタログ**（9 パターン） | [aws-patterns](docs/ja/aws-patterns/README.md) | [aws-patterns](docs/en/aws-patterns/README.md) |
+| Agentic AI on AWS | [agentic-ai-on-aws](docs/ja/agentic-ai-on-aws.md) | [agentic-ai-on-aws](docs/en/agentic-ai-on-aws.md) |
+| Flexible AI Data Layer（将来展望） | [flexible-ai-data-layer](docs/ja/flexible-ai-data-layer.md) | [flexible-ai-data-layer](docs/en/flexible-ai-data-layer.md) |
 | デプロイガイド | [deployment-guide](docs/ja/deployment-guide.md) | [deployment-guide](docs/en/deployment-guide.md) |
 | S3 AP 互換性と制約 | [s3ap-compatibility-matrix](docs/ja/s3ap-compatibility-matrix.md) | [s3ap-compatibility-matrix](docs/en/s3ap-compatibility-matrix.md) |
 | ユースケース調査 | [use-case-research](docs/ja/use-case-research.md) | [use-case-research](docs/en/use-case-research.md) |

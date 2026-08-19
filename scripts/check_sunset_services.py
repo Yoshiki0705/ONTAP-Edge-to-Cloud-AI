@@ -43,7 +43,10 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # source. Adding one without a source makes the list unauditable; the next reader
 # cannot tell a verified status from a remembered one.
 SUNSET_SERVICES: dict[str, tuple[str, str]] = {
-    "IoT Analytics": (
+    # Qualified with "AWS" deliberately. The bare "IoT Analytics" matched inside
+    # "Industrial IoT analytics", a pattern name, and reported the catalog index as
+    # a defect. An entry has to be specific enough not to occur inside ordinary prose.
+    "AWS IoT Analytics": (
         "discontinued 2025-12-15",
         "https://docs.aws.amazon.com/greengrass/v1/developerguide/stream-export-configurations.html",
     ),
