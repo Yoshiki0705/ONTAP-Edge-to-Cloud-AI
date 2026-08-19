@@ -39,7 +39,7 @@ graph LR
     LS -->|sync| FSX[(FSx for ONTAP)]
     CH -->|export| OBJ[(Object<br/>storage)]
     OBJ --> DBX[Databricks]
-    FSX --> DBX
+    FSX -->|direct read unverified| DBX
   end
 ```
 
@@ -116,8 +116,9 @@ Having both is viable: the columnar database for dashboards, Iceberg for cross-c
 - **Whether an S3 access point can be registered as a Unity Catalog external location is
   unverified.** This document previously stated it was impossible; the claim was withdrawn because
   no source for the mechanism could be found
-  ([databricks-integration](../databricks-integration.md)). That verdict decides between reading
-  from file storage directly and going through an export
+  ([databricks-integration](../databricks-integration.md) /
+  [S3 AP compatibility and limits](../s3ap-compatibility-matrix.md)). That verdict decides
+  between reading from file storage directly and going through an export
 - **ClickHouse scheduled execution differs by deployment shape.** Before building a scheduled
   export, confirm scheduling is available in the configuration you run
 - **Second-scale latency is not measured.** "Keep latency in seconds" is a design goal, not a

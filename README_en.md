@@ -43,7 +43,7 @@ collected under [About this repository](#about-this-repository).
 
 ## Architecture
 
-![Files written by cameras and vibration sensors at an edge site are aggregated through local storage into Amazon FSx for NetApp ONTAP, and reach Amazon Bedrock, Amazon Athena and Amazon SageMaker AI through an S3 access point. The MQTT path through AWS IoT Core and AWS Lambda puts objects through the same access point. Only the cellular path goes through Amazon Kinesis Data Streams and Amazon Data Firehose into a standard S3 bucket, which AWS Glue reads](docs/images/architecture-overview-en.svg)
+![Files written by cameras and vibration sensors at an edge site are aggregated through local storage into Amazon FSx for NetApp ONTAP, and reach Amazon Bedrock and Amazon Athena through an S3 access point, with Amazon SageMaker AI marked unverified because AWS publishes no walkthrough for it. The MQTT path through AWS IoT Core and AWS Lambda puts objects through the same access point. Only the cellular path goes through Amazon Kinesis Data Streams and Amazon Data Firehose into a standard S3 bucket, which AWS Glue reads](docs/images/architecture-overview-en.svg)
 
 Figure 1: overall architecture ([.drawio](docs/diagrams/architecture-overview-en.drawio) / [日本語](docs/images/architecture-overview.svg))
 

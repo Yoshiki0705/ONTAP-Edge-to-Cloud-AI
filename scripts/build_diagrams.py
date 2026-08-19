@@ -145,6 +145,16 @@ ICONS = {
     "vibration": "Resource-Icons_07312026/Res_IoT/Res_AWS-IoT_Thing_Vibration-Sensor_48.svg",
 }
 
+# Reference markers are global, not per figure. Two figures sit next to each other in the
+# README, so a number that means one thing in one and something else in the other is read as
+# the same note. That happened once already: the overview and pattern 05 both grew a ※5.
+#
+#   ※1 access point prerequisites      ※6 permission asymmetry
+#   ※2 two-layer authorization         ※7 a standard S3 bucket is required here
+#   ※3 event notifications unavailable ※8 no official walkthrough via an access point
+#   ※4 hardware testing incomplete     ※9 optional path, not created by default
+#   ※5 not implemented in this repository
+#
 # Japanese label -> English label. A Japanese label with no entry fails the build.
 LABELS = {
     "AWS クラウド": "AWS Cloud",
@@ -166,12 +176,13 @@ LABELS = {
     # Markers tie a note to the thing it qualifies. A note with nothing to point at is
     # read as a general disclaimer, which is not what these say.
     "エッジ拠点 ※4": "Edge site *4",
-    "セルラー接続（任意）※7": "Cellular connectivity (optional) *7",
+    "セルラー接続（任意）※9": "Cellular connectivity (optional) *9",
     "SORACOM プラットフォーム": "SORACOM platform",
+    "Amazon Bedrock\nKnowledge Bases": "Amazon Bedrock\nKnowledge Bases",
     "Amazon Kinesis\nData Streams": "Amazon Kinesis\nData Streams",
     "Amazon Data\nFirehose": "Amazon Data\nFirehose",
-    "Amazon Simple\nStorage Service ※5": "Amazon Simple\nStorage Service *5",
-    "Amazon\nSageMaker AI ※6": "Amazon\nSageMaker AI *6",
+    "Amazon Simple\nStorage Service ※7": "Amazon Simple\nStorage Service *7",
+    "Amazon\nSageMaker AI ※8": "Amazon\nSageMaker AI *8",
     "MQTT": "MQTT",
     "PutObject": "PutObject",
     "テレメトリ": "Telemetry",
@@ -194,11 +205,13 @@ LABELS = {
     "ファイル到着の起点は FPolicy / 明示的な呼び出し / ポーリング": "File arrival is triggered by FPolicy, an explicit call, or polling",
     "※4 実機テスト未完了": "*4 Hardware testing incomplete",
     "エッジ側と ONTAP 連携は未検証": "The edge side and ONTAP integration are unverified",
-    "※5 この経路にだけ標準の S3 バケットが残る": "*5 A standard S3 bucket remains on this path only",
-    "Amazon Data Firehose の配信先は S3 バケット ARN で、access point を受けるかは未検証。Athena のクエリ結果の出力先は S3 バケットであることが公式に必須":
-        "Firehose takes an S3 bucket ARN as its destination, and whether it accepts an access point is unverified. Athena's query results location is officially required to be an S3 bucket",
-    "※6 S3 Access Point 経由の利用に公式手順がない": "*6 No official walkthrough for use via an access point",
-    "※7 この経路は任意で、既定では作られない": "*7 This path is optional and is not created by default",
+    "※7 ここは標準の S3 バケットが必要": "*7 A standard S3 bucket is required here",
+    "Athena のクエリ結果の出力先は S3 バケットであることが公式に必須。Amazon Data Firehose の配信先も S3 バケット ARN で、access point を受けるかは未検証":
+        "Athena's query results location is officially required to be an S3 bucket. Firehose also takes an S3 bucket ARN as its destination, and whether it accepts an access point is unverified",
+    "Athena のクエリ結果の出力先は S3 バケットであることが公式に必須。判定結果も現在は共有スタックのバケットに書いている":
+        "Athena's query results location is officially required to be an S3 bucket. Verdicts are currently written to the shared stack's bucket as well",
+    "※8 S3 Access Point 経由の利用に公式手順がない": "*8 No official walkthrough for use via an access point",
+    "※9 この経路は任意で、既定では作られない": "*9 This path is optional and is not created by default",
     "SoracomOperatorId を指定したときだけ IAM ロールが作られる。SORACOM 側のアカウントが ExternalId 付きでそのロールを引き受け、Kinesis と S3 の raw/ 配下に書く":
         "The IAM role is created only when SoracomOperatorId is supplied. SORACOM's own account assumes it with that value as the ExternalId and writes to Kinesis and to raw/ in the bucket",
     "公式手順があるのは Athena / AWS Lambda / AWS Glue / Bedrock Knowledge Bases / EMR Serverless / CloudFront / Transfer Family":
@@ -433,7 +446,7 @@ def overview(uri, theme: str) -> Diagram:
     d = Diagram("architecture-overview", "Architecture overview", 1300, 1330, theme)
     d.group("g_edge", "エッジ拠点 ※4", 40, 60, 300, 420)
     d.group("g_onprem", "オンプレミス", 40, 520, 300, 240)
-    d.group("g_cellular", "セルラー接続（任意）※7", 40, 800, 300, 190)
+    d.group("g_cellular", "セルラー接続（任意）※9", 40, 800, 300, 190)
     # The cloud starts at 500, not 380: the gap has to hold the widest inter-group edge
     # label, and "同期 / 読み取り配信" is ~140px wide.
     d.group("g_cloud", "AWS クラウド", 500, 60, 740, 980)
@@ -458,7 +471,7 @@ def overview(uri, theme: str) -> Diagram:
     # covers Athena, Lambda, Glue, Bedrock Knowledge Bases, EMR Serverless, CloudFront
     # and Transfer Family. SageMaker AI is not on it, so an unqualified line from the
     # access point to it would read as a support claim this project cannot make.
-    d.icon("sm", "sagemaker", "Amazon\nSageMaker AI ※6", 880, 500, uri("sagemaker"))
+    d.icon("sm", "sagemaker", "Amazon\nSageMaker AI ※8", 880, 500, uri("sagemaker"))
     # The icon package ships only a suite-level Quick icon; the node here is the BI
     # capability, which the docs call Amazon Quick Sight.
     d.icon("quick", "quick", "Amazon\nQuick Sight", 1030, 300, uri("quick"))
@@ -471,7 +484,7 @@ def overview(uri, theme: str) -> Diagram:
     # bucket is real. Firehose delivers to DataLakeBucket and Glue crawls it.
     d.icon("kin", "kinesis", "Amazon Kinesis\nData Streams", 550, 900, uri("kinesis"))
     d.icon("fh", "firehose", "Amazon Data\nFirehose", 720, 900, uri("firehose"))
-    d.icon("s3", "s3", "Amazon Simple\nStorage Service ※5", 880, 900, uri("s3"))
+    d.icon("s3", "s3", "Amazon Simple\nStorage Service ※7", 880, 900, uri("s3"))
     d.icon("glue", "glue", "AWS Glue", 1050, 900, uri("glue"))
 
     d.edge("e1", "cam", "st", "NFS 書き込み", (0, 26, 0),
@@ -522,13 +535,13 @@ def overview(uri, theme: str) -> Diagram:
             "IAM とファイルシステム権限の両方を通る必要がある",
             "※4 実機テスト未完了",
             "エッジ側と ONTAP 連携は未検証",
-            "※5 この経路にだけ標準の S3 バケットが残る",
-            "Amazon Data Firehose の配信先は S3 バケット ARN で、access point を受けるかは未検証。"
-            "Athena のクエリ結果の出力先は S3 バケットであることが公式に必須",
-            "※6 S3 Access Point 経由の利用に公式手順がない",
+            "※7 ここは標準の S3 バケットが必要",
+            "Athena のクエリ結果の出力先は S3 バケットであることが公式に必須。"
+            "Amazon Data Firehose の配信先も S3 バケット ARN で、access point を受けるかは未検証",
+            "※8 S3 Access Point 経由の利用に公式手順がない",
             "公式手順があるのは Athena / AWS Lambda / AWS Glue / Bedrock Knowledge Bases / "
             "EMR Serverless / CloudFront / Transfer Family",
-            "※7 この経路は任意で、既定では作られない",
+            "※9 この経路は任意で、既定では作られない",
             "SoracomOperatorId を指定したときだけ IAM ロールが作られる。SORACOM 側のアカウントが "
             "ExternalId 付きでそのロールを引き受け、Kinesis と S3 の raw/ 配下に書く",
         ],
@@ -538,7 +551,7 @@ def overview(uri, theme: str) -> Diagram:
 
 
 def pattern01(uri, theme: str) -> Diagram:
-    d = Diagram("pattern-01-edge-ai-bedrock", "Pattern 01", 1160, 800, theme)
+    d = Diagram("pattern-01-edge-ai-bedrock", "Pattern 01", 1160, 830, theme)
     d.group("g_edge", "エッジ拠点 ※4", 40, 60, 300, 340)
     # 80px of clear air between the groups so the label on the line that crosses the
     # boundary sits in the gap instead of on a dashed border.
@@ -551,7 +564,10 @@ def pattern01(uri, theme: str) -> Diagram:
     d.icon("s3ap", "s3ap", "S3 Access Point\n※3", 630, 156, uri("s3ap"), RESOURCE)
     d.icon("lam1", "lambda", "AWS Lambda", 810, 140, uri("lambda"))
     d.icon("bed1", "bedrock", "Amazon Bedrock", 980, 140, uri("bedrock"))
-    d.icon("s3", "s3", "Amazon Simple\nStorage Service", 530, 420, uri("s3"))
+    # RESULT_BUCKET in the use-case templates is the shared stack's standard bucket,
+    # and Athena reads the verdicts from it. Marked so the reader is not left to infer
+    # that the access point could serve this and simply was not used.
+    d.icon("s3", "s3", "Amazon Simple\nStorage Service ※7", 530, 420, uri("s3"))
     d.icon("lam2", "lambda", "AWS Lambda", 810, 420, uri("lambda"))
     d.icon("sns", "sns", "Amazon Simple\nNotification Service", 980, 420, uri("sns"))
 
@@ -576,8 +592,11 @@ def pattern01(uri, theme: str) -> Diagram:
             "ファイル到着の起点は FPolicy / 明示的な呼び出し / ポーリング",
             "※4 実機テスト未完了",
             "エッジ側と ONTAP 連携は未検証",
+            "※7 ここは標準の S3 バケットが必要",
+            "Athena のクエリ結果の出力先は S3 バケットであることが公式に必須。"
+            "判定結果も現在は共有スタックのバケットに書いている",
         ],
-        40, 640, 1060, 130,
+        40, 640, 1060, 160,
     )
     return d
 
@@ -596,7 +615,10 @@ def pattern05(uri, theme: str) -> Diagram:
     # Ingest across the top band, retrieval across the bottom one.
     d.icon("fsxn", "fsxn", "Amazon FSx for\nNetApp ONTAP", 460, 140, uri("fsxn"))
     d.icon("s3ap", "s3ap", "S3 Access Point", 630, 156, uri("s3ap"), RESOURCE)
-    d.icon("bed", "bedrock", "Amazon Bedrock", 810, 140, uri("bedrock"))
+    # Knowledge Bases by name: that is the integration AWS documents for an access
+    # point, via the alias. Plain model invocation has no such walkthrough, and the
+    # doc's own mermaid already said Knowledge Bases while this figure did not.
+    d.icon("bed", "bedrock", "Amazon Bedrock\nKnowledge Bases", 810, 140, uri("bedrock"))
     d.icon("os", "opensearch", "Amazon OpenSearch\nService", 630, 380, uri("opensearch"))
     d.icon("agent", "agentcore", "Amazon Bedrock\nAgentCore", 810, 380, uri("agentcore"))
 

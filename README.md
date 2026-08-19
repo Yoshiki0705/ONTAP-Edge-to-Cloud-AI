@@ -42,7 +42,7 @@
 
 ## アーキテクチャ
 
-![エッジ拠点のカメラと振動センサーが書いたファイルをローカルストレージ経由で Amazon FSx for NetApp ONTAP に集約し、S3 Access Point から Amazon Bedrock、Amazon Athena、Amazon SageMaker AI に渡す構成。AWS IoT Core と AWS Lambda を通る MQTT 経路も同じ S3 Access Point に PutObject する。セルラー経路だけは Amazon Kinesis Data Streams と Amazon Data Firehose を経由して標準の S3 バケットに書き、AWS Glue が読む](docs/images/architecture-overview.svg)
+![エッジ拠点のカメラと振動センサーが書いたファイルをローカルストレージ経由で Amazon FSx for NetApp ONTAP に集約し、S3 Access Point から Amazon Bedrock と Amazon Athena に渡し、Amazon SageMaker AI へは公式手順がないため未検証と注記した構成。AWS IoT Core と AWS Lambda を通る MQTT 経路も同じ S3 Access Point に PutObject する。セルラー経路だけは Amazon Kinesis Data Streams と Amazon Data Firehose を経由して標準の S3 バケットに書き、AWS Glue が読む](docs/images/architecture-overview.svg)
 
 図 1: 全体アーキテクチャ（[.drawio](docs/diagrams/architecture-overview.drawio) / [English](docs/images/architecture-overview-en.svg)）
 

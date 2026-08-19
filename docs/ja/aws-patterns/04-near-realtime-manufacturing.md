@@ -39,7 +39,7 @@ graph LR
     LS -->|同期| FSX[(FSx for ONTAP)]
     CH -->|エクスポート| OBJ[(オブジェクト<br/>ストレージ)]
     OBJ --> DBX[Databricks]
-    FSX --> DBX
+    FSX -->|直接読みは未検証| DBX
   end
 ```
 
@@ -113,7 +113,8 @@ Kafka トピックを列指向データベースに入れる代わりに、Icebe
   設計されています
 - **Unity Catalog の External Location に S3 Access Point を登録できるかは未検証です。**
   以前は「できない」と記載していましたが、機構の裏付けが取れなかったため断定を取り下げました
-  （[databricks-integration](../databricks-integration.md)）。この判定によって、
+  （[databricks-integration](../databricks-integration.md) /
+  [S3 AP 互換性と制約](../s3ap-compatibility-matrix.md)）。この判定によって、
   ファイルストレージから直接読むか、エクスポートを経由するかが変わります
 - **ClickHouse のスケジュール実行機能は提供形態によって異なります。** 定期エクスポートを
   組む前に、使っている構成でスケジュール実行が可能かを確認してください
