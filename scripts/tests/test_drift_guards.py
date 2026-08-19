@@ -36,6 +36,7 @@ GUARDS = [
     "check_diagram_assets.py",
     "check_doc_parity.py",
     "check_verification_ledger.py",
+    "check_lambda_env_contract.py",
     "check_git_hooks_wiring.py",
     "check_sql_interpolation.py",
     "check_sunset_services.py",
@@ -972,3 +973,143 @@ def test_verification_ledger_blocks_a_missing_ledger(tmp_path):
     result = run_guard(tmp_path, "check_verification_ledger.py")
     assert result.returncode == 1
     assert "missing" in result.stderr
+
+
+# ---------------------------------------------------------------------------
+# check_lambda_env_contract.py
+# ---------------------------------------------------------------------------
+
+_HANDLER = '''\
+import os
+
+RESULT_BUCKET = os.environ.get("RESULT_BUCKET", "")
+DETAIL_PROMPT = (
+    os.environ.get("DETAIL_PROMPT")
+    or """Inspect a 3D print. Respond with {"status": "normal" | "anomaly_detected",
+    "confidence": 0.0-1.0, "anomalies": []}"""
+)
+
+
+def handler(event, context):
+    result = {}
+    return result.get("status"), result.get("confidence"), result.get("anomalies")
+'''
+
+_TEMPLATE = """\
+Resources:
+  AnalyzerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Environment:
+        Variables:
+          RESULT_BUCKET: !Ref Bucket
+          DETAIL_PROMPT: |
+            Inspect a finished part. Respond with
+            {"status": "normal" | "anomaly_detected", "confidence": 0.0-1.0, "anomalies": []}
+"""
+
+_MAP = (
+    "usecases/inspect/template.yaml :: AnalyzerFunction :: cloud/ai/analyzer/handler.py "
+    ":: must-set=DETAIL_PROMPT\n"
+)
+
+
+def _contract_fixture(root: Path, template: str = _TEMPLATE, mapping: str = _MAP) -> None:
+    (root / "cloud" / "ai" / "analyzer").mkdir(parents=True, exist_ok=True)
+    (root / "cloud" / "ai" / "analyzer" / "handler.py").write_text(_HANDLER, encoding="utf-8")
+    (root / "usecases" / "inspect").mkdir(parents=True, exist_ok=True)
+    (root / "usecases" / "inspect" / "template.yaml").write_text(template, encoding="utf-8")
+    (root / "usecases" / "handler-map.txt").write_text(mapping, encoding="utf-8")
+
+
+def test_env_contract_allows_an_agreeing_pair(tmp_path):
+    _contract_fixture(tmp_path)
+    result = run_guard(tmp_path, "check_lambda_env_contract.py")
+    assert result.returncode == 0, result.stderr
+    assert "1 template/handler pair" in result.stdout
+
+
+def test_env_contract_blocks_a_declared_override_left_unset(tmp_path):
+    """The defect that shipped: the prompt has a default, so nothing else notices.
+
+    An earlier version of this guard passed here. Once the prompts had defaults, "the
+    handler reads it and the template does not set it" stopped being true of the broken
+    state, and nothing distinguished a use case that may rely on the default from one that
+    must not. That is why the map carries must-set.
+    """
+    stripped = _TEMPLATE[: _TEMPLATE.index("          DETAIL_PROMPT:")]
+    _contract_fixture(tmp_path, template=stripped)
+    result = run_guard(tmp_path, "check_lambda_env_contract.py")
+    assert result.returncode == 1
+    assert "must-set" in result.stderr
+    assert "wrong analysis" in result.stderr
+
+
+def test_env_contract_blocks_a_prompt_that_omits_the_alerting_status(tmp_path):
+    """A prompt asking for "pass"/"fail" parses as absent and alerting stays silent."""
+    wrong = _TEMPLATE.replace('"status": "normal" | "anomaly_detected"', '"status": "pass" | "fail"')
+    _contract_fixture(tmp_path, template=wrong)
+    result = run_guard(tmp_path, "check_lambda_env_contract.py")
+    assert result.returncode == 1
+    assert "anomaly_detected" in result.stderr
+
+
+def test_env_contract_blocks_a_prompt_that_omits_a_parsed_key(tmp_path):
+    wrong = _TEMPLATE.replace(', "anomalies": []', "")
+    _contract_fixture(tmp_path, template=wrong)
+    result = run_guard(tmp_path, "check_lambda_env_contract.py")
+    assert result.returncode == 1
+    assert "anomalies" in result.stderr
+
+
+def test_env_contract_blocks_dead_configuration(tmp_path):
+    """A variable nothing reads invites the next person to tune a value with no effect."""
+    dead = _TEMPLATE.replace(
+        "          RESULT_BUCKET: !Ref Bucket",
+        '          RESULT_BUCKET: !Ref Bucket\n          ANALYSIS_PROMPT: "never read"',
+    )
+    _contract_fixture(tmp_path, template=dead)
+    result = run_guard(tmp_path, "check_lambda_env_contract.py")
+    assert result.returncode == 1
+    assert "never reads it" in result.stderr
+
+
+def test_env_contract_blocks_an_undefaulted_read_the_template_omits(tmp_path):
+    _contract_fixture(tmp_path)
+    handler = tmp_path / "cloud" / "ai" / "analyzer" / "handler.py"
+    handler.write_text(
+        handler.read_text(encoding="utf-8").replace(
+            'RESULT_BUCKET = os.environ.get("RESULT_BUCKET", "")',
+            'RESULT_BUCKET = os.environ["MANDATORY_BUCKET"]',
+        ),
+        encoding="utf-8",
+    )
+    result = run_guard(tmp_path, "check_lambda_env_contract.py")
+    assert result.returncode == 1
+    assert "MANDATORY_BUCKET" in result.stderr
+    assert "no default" in result.stderr
+
+
+def test_env_contract_blocks_a_template_absent_from_the_map(tmp_path):
+    """A use case cannot opt out of the check by forgetting to add a line."""
+    _contract_fixture(tmp_path, mapping="# nothing declared\n")
+    result = run_guard(tmp_path, "check_lambda_env_contract.py")
+    assert result.returncode == 1
+    assert "absent from handler-map.txt" in result.stderr
+
+
+def test_env_contract_reads_multiline_environ_calls(tmp_path):
+    """A line-oriented grep reported four of six variables here while looking authoritative.
+
+    The read is found with the AST, so splitting the call across lines cannot hide it.
+    """
+    _contract_fixture(tmp_path)
+    handler = tmp_path / "cloud" / "ai" / "analyzer" / "handler.py"
+    handler.write_text(
+        handler.read_text(encoding="utf-8")
+        + '\nSPLIT = os.environ.get(\n    "SPLIT_ACROSS_LINES"\n)\n',
+        encoding="utf-8",
+    )
+    result = run_guard(tmp_path, "check_lambda_env_contract.py")
+    assert result.returncode == 1
+    assert "SPLIT_ACROSS_LINES" in result.stderr

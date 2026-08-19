@@ -37,6 +37,44 @@ Resources:
           DETAIL_MODEL_ID: !Ref BedrockDetailModel
           CONFIDENCE_THRESHOLD: "0.7"
           TWO_STAGE_ENABLED: "true"
+          # This is what makes the use case a variant rather than a copy: the same
+          # handler, told to inspect something else. Without these two the stack
+          # deploys cleanly and then looks for stringing and spaghetti on a metal
+          # part, because the handler defaults to the 3D print prompts.
+          SCREENING_PROMPT: >-
+            Analyze this product image quickly. Is there any visible defect?
+            Reply JSON only: {"has_defect": true|false, "confidence": 0.0-1.0,
+            "defect_hint": "brief description or empty"}
+          DETAIL_PROMPT: |
+            You are a manufacturing quality inspector. Analyze this image of a finished product.
+
+            Check for the following defects:
+            1. **Scratches** - surface scratches or abrasions
+            2. **Discoloration** - colour variations, stains, oxidation
+            3. **Burrs** - excess material on edges
+            4. **Dimensional anomaly** - visible warping or deformation
+            5. **Surface roughness** - uneven surface finish
+            6. **Contamination** - foreign particles or debris
+
+            Respond in JSON format:
+            {
+              "status": "normal" | "anomaly_detected",
+              "confidence": 0.0-1.0,
+              "anomalies": [
+                {
+                  "type": "scratch|discoloration|burr|dimensional|roughness|contamination",
+                  "severity": "low|medium|high|critical",
+                  "location": "description of where in the image",
+                  "description": "brief description of the issue"
+                }
+              ],
+              "recommendation": "action to take",
+              "overall_quality_score": 0-100
+            }
+
+            If the product looks acceptable with no defects, return status "normal" with an
+            empty anomalies array and quality score above 80.
+            Be conservative - only flag clear defects, not minor cosmetic variations.
       Code:
         ZipFile: |
           # Deploy actual code: aws lambda update-function-code

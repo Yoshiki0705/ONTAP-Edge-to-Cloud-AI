@@ -55,11 +55,27 @@ DETAIL_MODEL_ID = os.environ.get(
 CONFIDENCE_THRESHOLD = float(os.environ.get("CONFIDENCE_THRESHOLD", "0.7"))
 TWO_STAGE_ENABLED = os.environ.get("TWO_STAGE_ENABLED", "true").lower() == "true"
 
-# Analysis prompt for 3D print quality inspection
-SCREENING_PROMPT = """Analyze this 3D print image quickly. Is there any visible defect?
+# Analysis prompts. The defaults inspect a 3D print; a use case that inspects something
+# else overrides them from its template instead of forking this handler. That override is
+# the entire reason usecases/visual-inspection ships no code of its own — and until it was
+# wired, that use case deployed cleanly and then analysed manufactured parts by looking for
+# stringing and spaghetti.
+#
+# `or` rather than a get() default: an environment variable present but empty would
+# otherwise send an empty prompt to the model, which answers something rather than failing.
+#
+# AWS Lambda caps all environment variables at 4 KB combined. These two are ~1.4 KB as
+# shipped, so a replacement has room but not unlimited room; a substantially longer prompt
+# belongs in Amazon S3 or a layer, not in an environment variable.
+SCREENING_PROMPT = (
+    os.environ.get("SCREENING_PROMPT")
+    or """Analyze this 3D print image quickly. Is there any visible defect?
 Reply JSON only: {"has_defect": true|false, "confidence": 0.0-1.0, "defect_hint": "brief description or empty"}"""
+)
 
-DETAIL_PROMPT = """You are a 3D printing quality inspector. Analyze this image of a 3D print in progress.
+DETAIL_PROMPT = (
+    os.environ.get("DETAIL_PROMPT")
+    or """You are a 3D printing quality inspector. Analyze this image of a 3D print in progress.
 
 Check for the following defects:
 1. **Stringing** - thin strings of filament between parts
@@ -89,6 +105,7 @@ Respond in JSON format:
 
 If the print looks normal with no defects, return status "normal" with an empty anomalies array and quality score above 80.
 Be conservative - only flag clear defects, not minor cosmetic variations."""
+)
 
 
 def handler(event: dict, context) -> dict:

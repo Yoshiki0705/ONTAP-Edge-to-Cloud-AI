@@ -8,7 +8,7 @@ IoT データのサイロ化を解消し、ONTAP に集約したデータを AWS
 |---|------------|------|-----------|
 | 1 | [3D Print Quality Monitoring](./3d-print-quality/) | カメラ画像 → ONTAP → Bedrock Vision で印刷品質を自動検査 | ✅ コード実装済（実機テスト待ち） |
 | 2 | [ONTAP Telemetry Analytics](./ontap-telemetry-analytics/) | ONTAP REST API → メトリクス収集 → 容量予測・異常検知 | ✅ コード実装済（実機テスト待ち） |
-| 3 | [Visual Inspection (Manufacturing)](./visual-inspection/) | 製造品外観検査 → 傷・変色・バリ検出（プロンプト変更のみで再利用） | ✅ テンプレート作成済 |
+| 3 | [Visual Inspection (Manufacturing)](./visual-inspection/) | 製造品外観検査 → 傷・変色・バリ検出（同じ Lambda をテンプレートのプロンプト上書きで再利用） | テンプレート作成済（実機未検証） |
 
 ## 計画中
 
