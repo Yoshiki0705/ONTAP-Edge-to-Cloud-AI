@@ -118,6 +118,23 @@ Tokyo region (`ap-northeast-1`) is recommended. The `jp.` prefix on Bedrock mode
 - Use-case stacks reference the `ingestion` stack Outputs via `Fn::ImportValue`
 - The `fsxn` stack is independent — skip it if FSx for ONTAP is not needed
 
+**Where data lands:**
+
+The `ingestion` stack creates a standard S3 bucket, `DataLakeBucket`. Which paths use it and
+which complete inside the FSx for ONTAP S3 access point differ.
+
+| Path | Destination |
+|------|-------------|
+| AWS IoT Core → Lambda (`cloud/iot_ingestion/`) | **The S3 access point only**. This stack creates no bucket, and `S3APAccessPointArn` is a required parameter |
+| SORACOM → Kinesis → Firehose | **The standard bucket**. Firehose takes an S3 bucket ARN as its destination; whether it accepts an access point is unverified |
+| Storing verdicts (use-case stacks) | **The standard bucket**. `RESULT_BUCKET` is passed the `ingestion` export |
+| Amazon Athena query results | **The standard bucket**. Officially required to be an S3 bucket |
+
+So the bucket cannot be removed entirely: Athena's query results location is officially
+required to be an S3 bucket. That is query output rather than the dataset itself. The basis
+for each row is collected in
+[S3 AP compatibility and limits](./s3ap-compatibility-matrix.md).
+
 ---
 
 ## 3. Preflight Check

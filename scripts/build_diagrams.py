@@ -135,6 +135,8 @@ ICONS = {
     "iotcore": "Architecture-Service-Icons_07312026/Arch_Internet-of-Things/64/Arch_AWS-IoT-Core_64.svg",
     "lambda": "Architecture-Service-Icons_07312026/Arch_Compute/64/Arch_AWS-Lambda_64.svg",
     "s3": "Architecture-Service-Icons_07312026/Arch_Storage/64/Arch_Amazon-Simple-Storage-Service_64.svg",
+    "kinesis": "Architecture-Service-Icons_07312026/Arch_Analytics/64/Arch_Amazon-Kinesis-Data-Streams_64.svg",
+    "firehose": "Architecture-Service-Icons_07312026/Arch_Analytics/64/Arch_Amazon-Data-Firehose_64.svg",
     "sns": "Architecture-Service-Icons_07312026/Arch_Application-Integration/64/Arch_Amazon-Simple-Notification-Service_64.svg",
     "opensearch": "Architecture-Service-Icons_07312026/Arch_Analytics/64/Arch_Amazon-OpenSearch-Service_64.svg",
     "quick": "Architecture-Service-Icons_07312026/Arch_Business-Applications/64/Arch_Amazon-Quick_64.svg",
@@ -164,6 +166,15 @@ LABELS = {
     # Markers tie a note to the thing it qualifies. A note with nothing to point at is
     # read as a general disclaimer, which is not what these say.
     "エッジ拠点 ※4": "Edge site *4",
+    "セルラー接続（任意）※7": "Cellular connectivity (optional) *7",
+    "SORACOM プラットフォーム": "SORACOM platform",
+    "Amazon Kinesis\nData Streams": "Amazon Kinesis\nData Streams",
+    "Amazon Data\nFirehose": "Amazon Data\nFirehose",
+    "Amazon Simple\nStorage Service ※5": "Amazon Simple\nStorage Service *5",
+    "Amazon\nSageMaker AI ※6": "Amazon\nSageMaker AI *6",
+    "MQTT": "MQTT",
+    "PutObject": "PutObject",
+    "テレメトリ": "Telemetry",
     "AWS クラウド ※5": "AWS Cloud *5",
     "S3 Access Point\n※1 ※2": "S3 Access Point\n*1 *2",
     "S3 Access Point\n※3": "S3 Access Point\n*3",
@@ -183,6 +194,15 @@ LABELS = {
     "ファイル到着の起点は FPolicy / 明示的な呼び出し / ポーリング": "File arrival is triggered by FPolicy, an explicit call, or polling",
     "※4 実機テスト未完了": "*4 Hardware testing incomplete",
     "エッジ側と ONTAP 連携は未検証": "The edge side and ONTAP integration are unverified",
+    "※5 この経路にだけ標準の S3 バケットが残る": "*5 A standard S3 bucket remains on this path only",
+    "Amazon Data Firehose の配信先は S3 バケット ARN で、access point を受けるかは未検証。Athena のクエリ結果の出力先は S3 バケットであることが公式に必須":
+        "Firehose takes an S3 bucket ARN as its destination, and whether it accepts an access point is unverified. Athena's query results location is officially required to be an S3 bucket",
+    "※6 S3 Access Point 経由の利用に公式手順がない": "*6 No official walkthrough for use via an access point",
+    "※7 この経路は任意で、既定では作られない": "*7 This path is optional and is not created by default",
+    "SoracomOperatorId を指定したときだけ IAM ロールが作られる。SORACOM 側のアカウントが ExternalId 付きでそのロールを引き受け、Kinesis と S3 の raw/ 配下に書く":
+        "The IAM role is created only when SoracomOperatorId is supplied. SORACOM's own account assumes it with that value as the ExternalId and writes to Kinesis and to raw/ in the bucket",
+    "公式手順があるのは Athena / AWS Lambda / AWS Glue / Bedrock Knowledge Bases / EMR Serverless / CloudFront / Transfer Family":
+        "Official walkthroughs exist for Athena, AWS Lambda, AWS Glue, Bedrock Knowledge Bases, EMR Serverless, CloudFront, and Transfer Family",
     "※5 このリポジトリに実装なし": "*5 No implementation in this repository",
     "AWS が公式手順を公開している": "AWS publishes an official walkthrough",
     "※6 権限の非対称に注意": "*6 Mind the permission asymmetry",
@@ -410,18 +430,23 @@ def overview(uri, theme: str) -> Diagram:
     Rows are 220px apart because an icon is 80px and its wrapped label takes up to
     LABEL_H below it; anything tighter and a label meets the row beneath it.
     """
-    d = Diagram("architecture-overview", "Architecture overview", 1300, 1060, theme)
+    d = Diagram("architecture-overview", "Architecture overview", 1300, 1330, theme)
     d.group("g_edge", "エッジ拠点 ※4", 40, 60, 300, 420)
     d.group("g_onprem", "オンプレミス", 40, 520, 300, 240)
+    d.group("g_cellular", "セルラー接続（任意）※7", 40, 800, 300, 190)
     # The cloud starts at 500, not 380: the gap has to hold the widest inter-group edge
     # label, and "同期 / 読み取り配信" is ~140px wide.
-    d.group("g_cloud", "AWS クラウド", 500, 60, 740, 790)
+    d.group("g_cloud", "AWS クラウド", 500, 60, 740, 980)
 
     d.icon("cam", "camera", "カメラ", 100, 110, uri("camera"), RESOURCE)
     d.icon("vib", "vibration", "振動センサー", 240, 110, uri("vibration"), RESOURCE)
     d.box("st", "ローカルストレージ", 90, 280, 200, 50)
     d.box("kc", "Kafka / ClickHouse", 90, 560, 200, 50)
     d.box("dash", "ダッシュボード", 90, 650, 200, 40)
+    # Not edge equipment: SoracomIngestionRole is assumed by SORACOM's own AWS
+    # account with the Operator ID as ExternalId, so the writer is their platform.
+    # Drawn because this whole path was absent from the figure.
+    d.box("soracom", "SORACOM プラットフォーム", 90, 870, 200, 50)
 
     # Storage spine, left to right, all centred on y=340 so the arrows are straight.
     d.icon("fsxn", "fsxn", "Amazon FSx for\nNetApp ONTAP", 550, 300, uri("fsxn"))
@@ -429,15 +454,25 @@ def overview(uri, theme: str) -> Diagram:
     # Three consumers of the access point, fanned into their own rows.
     d.icon("bed", "bedrock", "Amazon Bedrock", 880, 110, uri("bedrock"))
     d.icon("ath", "athena", "Amazon Athena", 880, 300, uri("athena"))
-    d.icon("sm", "sagemaker", "Amazon\nSageMaker AI", 880, 500, uri("sagemaker"))
+    # Marked ※6: the AWS list of services with a published access-point walkthrough
+    # covers Athena, Lambda, Glue, Bedrock Knowledge Bases, EMR Serverless, CloudFront
+    # and Transfer Family. SageMaker AI is not on it, so an unqualified line from the
+    # access point to it would read as a support claim this project cannot make.
+    d.icon("sm", "sagemaker", "Amazon\nSageMaker AI ※6", 880, 500, uri("sagemaker"))
     # The icon package ships only a suite-level Quick icon; the node here is the BI
     # capability, which the docs call Amazon Quick Sight.
     d.icon("quick", "quick", "Amazon\nQuick Sight", 1030, 300, uri("quick"))
-    # Telemetry path along the bottom.
+    # MQTT path, middle row. cloud/iot_ingestion/handler.py puts every object through
+    # the access point — `Bucket=S3AP_ARN` at all three call sites, and its template
+    # declares no bucket at all. This figure used to route it into a standard bucket.
     d.icon("iot", "iotcore", "AWS IoT Core", 550, 660, uri("iotcore"))
     d.icon("lam", "lambda", "AWS Lambda", 720, 660, uri("lambda"))
-    d.icon("s3", "s3", "Amazon Simple\nStorage Service", 880, 660, uri("s3"))
-    d.icon("glue", "glue", "AWS Glue", 1050, 660, uri("glue"))
+    # Cellular path, bottom row: cloud/ingestion/template.yaml, the one place a standard
+    # bucket is real. Firehose delivers to DataLakeBucket and Glue crawls it.
+    d.icon("kin", "kinesis", "Amazon Kinesis\nData Streams", 550, 900, uri("kinesis"))
+    d.icon("fh", "firehose", "Amazon Data\nFirehose", 720, 900, uri("firehose"))
+    d.icon("s3", "s3", "Amazon Simple\nStorage Service ※5", 880, 900, uri("s3"))
+    d.icon("glue", "glue", "AWS Glue", 1050, 900, uri("glue"))
 
     d.edge("e1", "cam", "st", "NFS 書き込み", (0, 26, 0),
            exit=(1, 0.5), entry=(0.4, 0), points=[(170, 134)])
@@ -452,19 +487,29 @@ def overview(uri, theme: str) -> Diagram:
     d.edge("e4", "st", "fsxn", "同期 / 読み取り配信", (0, 0, -14),
            exit=(1, 0.7), entry=(0, 0.5), points=[(420, 315), (420, 340)], both=True)
     d.edge("e5", "kc", "dash")
-    d.edge("e6", "fsxn", "s3ap", exit=(1, 0.5), entry=(0, 0.5))
+    d.edge("e6", "fsxn", "s3ap", exit=(1, 0.5), entry=(0, 0.35))
     d.edge("e7", "s3ap", "bed",
            exit=(1, 0.25), entry=(0, 0.5), points=[(820, 328), (820, 150)])
     d.edge("e8", "s3ap", "ath", exit=(1, 0.5), entry=(0, 0.5))
     d.edge("e9", "s3ap", "sm",
            exit=(1, 0.75), entry=(0, 0.5), points=[(840, 352), (840, 540)])
-    d.edge("e10", "iot", "lam", exit=(1, 0.5), entry=(0, 0.5))
-    d.edge("e11", "lam", "s3", exit=(1, 0.5), entry=(0, 0.5))
-    d.edge("e12", "s3", "glue", exit=(1, 0.5), entry=(0, 0.5))
+    # Shifted 34px left: the midpoint of this line is x=675, which is exactly where the
+    # PutObject riser below passes, and the label sat on top of it.
+    d.edge("e10", "iot", "lam", "MQTT", (0, -34, -10), exit=(1, 0.5), entry=(0, 0.5))
+    # Up the corridor between the file system and the access point, into the left side
+    # of the access point below where the volume line arrives. Two arrowheads on one
+    # point read as one arrow, hence 0.8 against e6's 0.35.
+    d.edge("e11", "lam", "s3ap", "PutObject", (0, 34, 0),
+           exit=(0, 0.5), entry=(0, 0.8), points=[(675, 700), (675, 354)])
+    d.edge("e_soracom", "soracom", "kin", "テレメトリ", (0, 0, -10),
+           exit=(1, 0.5), entry=(0, 0.5), points=[(420, 895), (420, 940)])
+    d.edge("e12", "kin", "fh", exit=(1, 0.5), entry=(0, 0.5))
+    d.edge("e15", "fh", "s3", exit=(1, 0.5), entry=(0, 0.5))
+    d.edge("e16", "s3", "glue", exit=(1, 0.5), entry=(0, 0.5))
     # Enters Athena from above: the space below an icon belongs to its label. The riser
-    # sits at 1180, clear to the right of both Glue and Quick.
+    # sits at 1200, clear to the right of both Glue and Quick.
     d.edge("e13", "glue", "ath",
-           exit=(1, 0.5), entry=(0.5, 0), points=[(1180, 700), (1180, 270), (920, 270)])
+           exit=(1, 0.5), entry=(0.5, 0), points=[(1200, 940), (1200, 270), (920, 270)])
     d.edge("e14", "ath", "quick", exit=(1, 0.5), entry=(0, 0.5))
 
     d.note(
@@ -477,8 +522,17 @@ def overview(uri, theme: str) -> Diagram:
             "IAM とファイルシステム権限の両方を通る必要がある",
             "※4 実機テスト未完了",
             "エッジ側と ONTAP 連携は未検証",
+            "※5 この経路にだけ標準の S3 バケットが残る",
+            "Amazon Data Firehose の配信先は S3 バケット ARN で、access point を受けるかは未検証。"
+            "Athena のクエリ結果の出力先は S3 バケットであることが公式に必須",
+            "※6 S3 Access Point 経由の利用に公式手順がない",
+            "公式手順があるのは Athena / AWS Lambda / AWS Glue / Bedrock Knowledge Bases / "
+            "EMR Serverless / CloudFront / Transfer Family",
+            "※7 この経路は任意で、既定では作られない",
+            "SoracomOperatorId を指定したときだけ IAM ロールが作られる。SORACOM 側のアカウントが "
+            "ExternalId 付きでそのロールを引き受け、Kinesis と S3 の raw/ 配下に書く",
         ],
-        40, 890, 1200, 130,
+        40, 1070, 1200, 215,
     )
     return d
 

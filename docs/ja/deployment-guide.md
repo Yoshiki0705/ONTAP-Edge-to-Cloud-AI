@@ -118,6 +118,22 @@ aws lambda update-function-code \
 - ユースケーススタックは `ingestion` スタックの Outputs を `Fn::ImportValue` で参照する
 - `fsxn` スタックは独立 — FSx for ONTAP が不要であれば省略可
 
+**データの格納先:**
+
+`ingestion` スタックは標準の S3 バケット `DataLakeBucket` を作ります。どの経路がそれを使い、
+どの経路が FSx for ONTAP の S3 Access Point で完結するかは分かれています。
+
+| 経路 | 格納先 |
+|------|--------|
+| AWS IoT Core → Lambda（`cloud/iot_ingestion/`） | **S3 Access Point のみ**。このスタックはバケットを作らず、`S3APAccessPointArn` が必須パラメータ |
+| SORACOM → Kinesis → Firehose | **標準バケット**。Firehose の配信先は S3 バケット ARN で、access point を受けるかは未検証 |
+| 判定結果の保存（usecase スタック） | **標準バケット**。`RESULT_BUCKET` に `ingestion` の Export を渡している |
+| Amazon Athena のクエリ結果 | **標準バケット**。公式に S3 バケットであることが必須 |
+
+つまりバケットを完全に外すことはできません。Athena のクエリ結果の出力先が公式に S3 バケット
+必須であるためです。ただしこれはクエリの出力で、データセット本体ではありません。判断の根拠は
+[S3 AP 互換性と制約](./s3ap-compatibility-matrix.md) にまとめています。
+
 ---
 
 ## 3. 事前検証（Preflight Check）

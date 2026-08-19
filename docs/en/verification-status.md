@@ -53,6 +53,7 @@ distinction here is the scope of the stage rather than read versus write.
 | Storing verdicts and alerting (Amazon S3 / Amazon SNS) | Unit tests only | [`tests/`](../../tests/) |
 | Recording human feedback | Unit tests only | [`tests/`](../../tests/) |
 | Sensor → AWS IoT Core → AWS Lambda | Unit tests only | [`tests/`](../../tests/) |
+| SORACOM → Kinesis → Firehose → Amazon S3 (cellular path) | Not run | An optional path. The IAM role is not created unless `SoracomOperatorId` is supplied. Templates only |
 | AWS Glue / Amazon Athena | Not run | Templates only |
 | Kafka / ClickHouse | Local only | [`local-demo/`](../../local-demo/) |
 | ONTAP telemetry collection (REST API polling) | Not run | No real ONTAP environment |

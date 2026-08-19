@@ -50,6 +50,7 @@ FSx for ONTAP を含む経路は実行していません。SAM テンプレー�
 | 判定結果の保存と通知（Amazon S3 / Amazon SNS） | 自動テストのみ | [`tests/`](../../tests/) |
 | 人手フィードバックの記録 | 自動テストのみ | [`tests/`](../../tests/) |
 | センサー → AWS IoT Core → AWS Lambda | 自動テストのみ | [`tests/`](../../tests/) |
+| SORACOM → Kinesis → Firehose → Amazon S3（セルラー経路） | 未実行 | 任意の経路。`SoracomOperatorId` を指定しないと IAM ロールが作られない。テンプレートのみ |
 | AWS Glue / Amazon Athena | 未実行 | テンプレートのみ |
 | Kafka / ClickHouse | ローカルのみ | [`local-demo/`](../../local-demo/) |
 | ONTAP テレメトリ収集（REST API ポーリング） | 未実行 | 実 ONTAP 環境がない |

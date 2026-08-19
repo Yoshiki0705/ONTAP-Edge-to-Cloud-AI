@@ -43,15 +43,28 @@ collected under [About this repository](#about-this-repository).
 
 ## Architecture
 
-![Files written by cameras and vibration sensors at an edge site are aggregated through local storage into Amazon FSx for NetApp ONTAP, and reach Amazon Bedrock, Amazon Athena and Amazon SageMaker AI through an S3 access point. Sensor events take two separate paths, to AWS IoT Core and to Kafka / ClickHouse](docs/images/architecture-overview-en.svg)
+![Files written by cameras and vibration sensors at an edge site are aggregated through local storage into Amazon FSx for NetApp ONTAP, and reach Amazon Bedrock, Amazon Athena and Amazon SageMaker AI through an S3 access point. The MQTT path through AWS IoT Core and AWS Lambda puts objects through the same access point. Only the cellular path goes through Amazon Kinesis Data Streams and Amazon Data Firehose into a standard S3 bucket, which AWS Glue reads](docs/images/architecture-overview-en.svg)
 
 Figure 1: overall architecture ([.drawio](docs/diagrams/architecture-overview-en.drawio) / [日本語](docs/images/architecture-overview.svg))
 
 **Data paths:**
-- **Payload** (images, CSV, logs): edge → NFS → ONTAP (stored)
+- **Payload** (images, CSV, logs): edge → NFS → ONTAP (source of truth)
 - **Events** (metadata): edge → Kafka → ClickHouse (analytics)
 - **AI analysis**: ONTAP → S3 AP → Bedrock / Lambda (quality verdict)
+- **MQTT**: AWS IoT Core → Lambda → **PutObject through the S3 AP** (no standard bucket)
+- **Cellular (optional)**: SORACOM → Kinesis → Firehose → **standard S3 bucket** → Glue
 - **Backup**: ClickHouse → ONTAP S3 (S3-compatible storage)
+
+Writes arrive from two directions. The edge writes over a file protocol and the data is
+read through the S3 AP; separately, `cloud/iot_ingestion/` writes over the S3 API and keeps
+ONTAP as the source of truth. The second shape is the one
+[S3 Burst on ONTAP Files](https://github.com/Yoshiki0705/s3-burst-on-ontap-files)
+covers, and it suits pipelines that begin at a cloud API.
+
+A standard S3 bucket remains on the cellular path only, for two reasons: Amazon Data
+Firehose takes an S3 bucket ARN as its destination (whether it accepts an access point is
+unverified), and Amazon Athena's query results location is officially required to be an S3
+bucket. See [S3 AP compatibility and limits](docs/en/s3ap-compatibility-matrix.md).
 
 ## The problem
 

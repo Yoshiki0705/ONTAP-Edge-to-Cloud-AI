@@ -42,15 +42,27 @@
 
 ## アーキテクチャ
 
-![エッジ拠点のカメラと振動センサーが書いたファイルをローカルストレージ経由で Amazon FSx for NetApp ONTAP に集約し、S3 Access Point から Amazon Bedrock、Amazon Athena、Amazon SageMaker AI に渡す構成。センサーイベントは AWS IoT Core と Kafka / ClickHouse の 2 経路に分かれる](docs/images/architecture-overview.svg)
+![エッジ拠点のカメラと振動センサーが書いたファイルをローカルストレージ経由で Amazon FSx for NetApp ONTAP に集約し、S3 Access Point から Amazon Bedrock、Amazon Athena、Amazon SageMaker AI に渡す構成。AWS IoT Core と AWS Lambda を通る MQTT 経路も同じ S3 Access Point に PutObject する。セルラー経路だけは Amazon Kinesis Data Streams と Amazon Data Firehose を経由して標準の S3 バケットに書き、AWS Glue が読む](docs/images/architecture-overview.svg)
 
 図 1: 全体アーキテクチャ（[.drawio](docs/diagrams/architecture-overview.drawio) / [English](docs/images/architecture-overview-en.svg)）
 
 **データの流れ:**
-- **ペイロード** (画像、CSV、ログ): エッジ → NFS → ONTAP (保存)
+- **ペイロード** (画像、CSV、ログ): エッジ → NFS → ONTAP (正本データ)
 - **イベント** (メタデータ): エッジ → Kafka → ClickHouse (分析)
 - **AI 分析**: ONTAP → S3 AP → Bedrock / Lambda (品質判定)
+- **MQTT**: AWS IoT Core → Lambda → **S3 AP に PutObject**（標準バケットを経由しない）
+- **セルラー（任意）**: SORACOM → Kinesis → Firehose → **標準の S3 バケット** → Glue
 - **バックアップ**: ClickHouse → ONTAP S3 (S3 互換ストレージ)
+
+書き込みの方向が 2 つあります。エッジがファイルプロトコルで書いて S3 AP で読む経路と、
+S3 API で書いて ONTAP を正本データにする経路（`cloud/iot_ingestion/`）です。後者は
+[S3 Burst on ONTAP Files](https://github.com/Yoshiki0705/s3-burst-on-ontap-files)
+が扱っている形と同じで、クラウド API から始まるパイプラインに向きます。
+
+標準の S3 バケットが残るのはセルラー経路だけです。理由は 2 つあり、Amazon Data Firehose の
+配信先が S3 バケット ARN であること（access point を受けるかは未検証）と、Amazon Athena の
+クエリ結果の出力先が S3 バケットであることが公式に必須であることです。詳細は
+[S3 AP 互換性と制約](docs/ja/s3ap-compatibility-matrix.md)。
 
 ## 解決したい課題
 

@@ -35,6 +35,11 @@ AWS が統合手順を公開しているサービス。
 
 出典: [Using access points with AWS services](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/using-access-points-with-aws-services.html)（各サービスのチュートリアルへのリンクを含む）
 
+**この表は閉じた一覧として読んでください。** ここに無いサービスは「使えない」ではなく
+「AWS が S3 AP 経由の手順を公開していない」状態です。S3 に対応していることは、access point の
+ARN または alias を扱えることを意味しません。全体アーキテクチャ図が Amazon SageMaker AI に
+※6 を付けているのはこの理由で、S3 AP から実線で結んだ他のサービスとは根拠の強さが違います。
+
 Bedrock Knowledge Bases はデータソースとして **access point alias** を指定する。
 bucket 名の代わりに alias を受け付ける。
 出典: [Build a RAG application using Amazon Bedrock Knowledge Bases](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/tutorial-build-rag-with-bedrock.html)
@@ -145,7 +150,28 @@ AWS は 2021 年に S3 バケット名を要求するアプリケーション向
 
 ---
 
-## 5. 影響を受ける構成と代替経路
+## 5. このリポジトリのどの経路が該当するか
+
+書き込みの向きが 2 つあり、S3 AP の位置づけが逆になります。
+
+| 経路 | 向き | S3 AP の役割 | 標準バケット |
+|------|------|-------------|-------------|
+| エッジ → NFS → ONTAP → 分析 | ファイルプロトコルで書く | 読み取り側の入口 | 使わない |
+| AWS IoT Core → Lambda → ONTAP（[`cloud/iot_ingestion/`](../../cloud/iot_ingestion/)） | S3 API で書く | 書き込み側の入口 | 使わない |
+| SORACOM → Kinesis → Firehose → Glue（[`cloud/ingestion/`](../../cloud/ingestion/)） | S3 API で書く | 使わない | **使う**（§4 の Firehose） |
+| 判定結果の保存（3 つの usecase スタック） | S3 API で書く | 未配線 | **使う**（`RESULT_BUCKET`） |
+
+2 行目の形は
+[S3 Burst on ONTAP Files](https://github.com/Yoshiki0705/s3-burst-on-ontap-files)
+と同じで、S3 API で収集して ONTAP を正本データとし、ファンアウト先の利用拠点へ NFS / SMB で
+配る構成です。クラウド API から始まるパイプライン、つまり本リポジトリのセルラー経路や
+MQTT 経路のような入口には、この向きが素直に当てはまります。
+
+4 行目は現時点でテンプレートが標準バケットを渡しています。`boto3` の `Bucket` は access point
+ARN をそのまま受けるのでハンドラ側の変更は不要と見込んでいますが、実機では確認していません
+（[検証状態](verification-status.md)）。
+
+## 6. 影響を受ける構成と代替経路
 
 | 構成 | 代替経路 | 代替の制約 |
 |------|---------|-----------|
@@ -157,7 +183,7 @@ AWS は 2021 年に S3 バケット名を要求するアプリケーション向
 
 ---
 
-## 6. 未確認の項目
+## 7. 未確認の項目
 
 このプロジェクトで確認できていない項目。埋まったらこの表から消す。
 
