@@ -52,6 +52,7 @@ import base64
 import re
 import subprocess  # nosec B404  # fixed argv, never a shell string
 import sys
+import tempfile
 import xml.etree.ElementTree as ET  # nosec B405  # noqa: S405  parsing our own output
 from pathlib import Path
 
@@ -63,27 +64,64 @@ DRAWIO_BIN = Path("/Applications/draw.io.app/Contents/MacOS/draw.io")
 
 SERVICE = 80  # official service icon canvas; never rescaled
 RESOURCE = 48  # official resource icon canvas
-INK = "#232F3E"
 
-EDGE_STYLE = (
-    "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;"
-    f"endArrow=open;endFill=0;strokeColor={INK};strokeWidth=1;"
-    "fontSize=11;fontColor=" + INK + ";labelBackgroundColor=#FFFFFF;"
-)
-GROUP_STYLE = (
-    "rounded=0;html=1;dashed=1;dashPattern=8 4;fillColor=none;"
-    f"strokeColor={INK};verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;"
-    f"fontSize=12;fontColor={INK};fontStyle=1;"
-)
-NOTE_STYLE = (
-    "rounded=0;html=1;whiteSpace=wrap;fillColor=#F7F7F7;"
-    f"strokeColor=#AAB7B8;align=left;verticalAlign=top;spacing=8;"
-    f"fontSize=11;fontColor={INK};"
-)
-PLAIN_STYLE = (
-    "rounded=1;html=1;whiteSpace=wrap;fillColor=#FFFFFF;"
-    f"strokeColor={INK};fontSize=11;fontColor={INK};"
-)
+# Only our own strokes, text and fills change between themes. The AWS icons never do:
+# recolouring one is not permitted, and they read on either background as shipped.
+#
+# The dark variant is a real palette rather than the draw.io CLI's `--theme dark`. That
+# flag produces a genuinely dark PNG, but for SVG it only adds `color-scheme: dark` and a
+# transparent background while leaving every explicit colour alone — measured: the
+# stroke/fill census of a `--theme dark` SVG is identical to the light one. Rendered on a
+# light page it is the light diagram. Exporting both formats from a dark-palette source
+# also keeps the PNG and the SVG showing the same thing.
+THEMES = {
+    "light": {
+        "ink": "#232F3E",
+        "canvas": "#FFFFFF",
+        "note_fill": "#F7F7F7",
+        "note_stroke": "#AAB7B8",
+        "box_fill": "#FFFFFF",
+    },
+    # Contrast against the canvas: 12.6:1 for text, well past WCAG AA for body text.
+    "dark": {
+        "ink": "#D5DBDB",
+        "canvas": "#16191F",
+        "note_fill": "#232F3E",
+        "note_stroke": "#5F6B7A",
+        "box_fill": "#232F3E",
+    },
+}
+
+
+def edge_style(p: dict[str, str]) -> str:
+    return (
+        "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;"
+        f"endArrow=open;endFill=0;strokeColor={p['ink']};strokeWidth=1;"
+        f"fontSize=11;fontColor={p['ink']};labelBackgroundColor={p['canvas']};"
+    )
+
+
+def group_style(p: dict[str, str]) -> str:
+    return (
+        "rounded=0;html=1;dashed=1;dashPattern=8 4;fillColor=none;"
+        f"strokeColor={p['ink']};verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;"
+        f"fontSize=12;fontColor={p['ink']};fontStyle=1;"
+    )
+
+
+def note_style(p: dict[str, str]) -> str:
+    return (
+        f"rounded=0;html=1;whiteSpace=wrap;fillColor={p['note_fill']};"
+        f"strokeColor={p['note_stroke']};align=left;verticalAlign=top;spacing=8;"
+        f"fontSize=11;fontColor={p['ink']};"
+    )
+
+
+def plain_style(p: dict[str, str]) -> str:
+    return (
+        f"rounded=1;html=1;whiteSpace=wrap;fillColor={p['box_fill']};"
+        f"strokeColor={p['ink']};fontSize=11;fontColor={p['ink']};"
+    )
 
 # Icon paths relative to the extracted asset package. The filename is the authority on
 # the service name: if a name cannot be found here, the name is wrong.
@@ -183,11 +221,14 @@ def label_html(text: str) -> str:
 class Diagram:
     """Accumulates cells and writes a `.drawio` whose XML is verified after writing."""
 
-    def __init__(self, name: str, title: str, width: int, height: int) -> None:
+    def __init__(self, name: str, title: str, width: int, height: int,
+                 theme: str = "light") -> None:
         self.name = name
         self.title = title
         self.width = width
         self.height = height
+        self.theme = theme
+        self.p = THEMES[theme]
         self.cells: list[str] = []
         self.labels: list[str] = []
 
@@ -197,7 +238,7 @@ class Diagram:
     def group(self, cid: str, label: str, x: int, y: int, w: int, h: int) -> None:
         self.labels.append(label)
         self.cells.append(
-            f'<mxCell id="{cid}" value="{label_html(label)}" style="{GROUP_STYLE}" '
+            f'<mxCell id="{cid}" value="{label_html(label)}" style="{group_style(self.p)}" '
             f'vertex="1" parent="1"><mxGeometry x="{x}" y="{y}" width="{w}" '
             f'height="{h}" as="geometry"/></mxCell>'
         )
@@ -208,7 +249,7 @@ class Diagram:
         style = (
             "sketch=0;html=1;shape=image;verticalLabelPosition=bottom;verticalAlign=top;"
             f"labelPosition=center;align=center;imageAspect=1;aspect=fixed;fontSize=11;"
-            f"fontColor={INK};image={uri};"
+            f"fontColor={self.p['ink']};image={uri};"
         )
         self.cells.append(
             f'<mxCell id="{cid}" value="{label_html(label)}" style="{style}" '
@@ -219,7 +260,7 @@ class Diagram:
     def box(self, cid: str, label: str, x: int, y: int, w: int, h: int) -> None:
         self.labels.append(label)
         self.cells.append(
-            f'<mxCell id="{cid}" value="{label_html(label)}" style="{PLAIN_STYLE}" '
+            f'<mxCell id="{cid}" value="{label_html(label)}" style="{plain_style(self.p)}" '
             f'vertex="1" parent="1"><mxGeometry x="{x}" y="{y}" width="{w}" '
             f'height="{h}" as="geometry"/></mxCell>'
         )
@@ -238,7 +279,7 @@ class Diagram:
             parts.append(f"<b>{line}</b>" if index % 2 == 0 else line)
         html = self._value("<br>".join(parts))
         self.cells.append(
-            f'<mxCell id="{cid}" value="{html}" style="{NOTE_STYLE}" vertex="1" '
+            f'<mxCell id="{cid}" value="{html}" style="{note_style(self.p)}" vertex="1" '
             f'parent="1"><mxGeometry x="{x}" y="{y}" width="{w}" height="{h}" '
             f'as="geometry"/></mxCell>'
         )
@@ -264,7 +305,7 @@ class Diagram:
         """
         if label:
             self.labels.append(label)
-        style = EDGE_STYLE
+        style = edge_style(self.p)
         if exit is not None:
             style += f"exitX={exit[0]};exitY={exit[1]};exitDx=0;exitDy=0;"
         if entry is not None:
@@ -296,7 +337,10 @@ class Diagram:
             f'<mxGraphModel dx="{self.width}" dy="{self.height}" grid="0" '
             'gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" '
             f'page="1" pageScale="1" pageWidth="{self.width}" '
-            f'pageHeight="{self.height}" math="0" shadow="0">'
+            f'pageHeight="{self.height}" math="0" shadow="0" '
+            # Without this the export is transparent, and a dark figure with light text
+            # is invisible on the light page it gets embedded in.
+            f'background="{self.p["canvas"]}">'
             '<root><mxCell id="0"/><mxCell id="1" parent="0"/>'
             f"{body}</root></mxGraphModel></diagram></mxfile>"
         )
@@ -330,7 +374,8 @@ def translate(diagram: Diagram) -> Diagram:
             print(f"  no LABELS entry for: {label!r}", file=sys.stderr)
         raise SystemExit(f"{diagram.name}: {len(missing)} label(s) have no translation")
 
-    english = Diagram(diagram.name + "-en", diagram.title, diagram.width, diagram.height)
+    english = Diagram(diagram.name + "-en", diagram.title, diagram.width,
+                      diagram.height, diagram.theme)
     # Longest first: "エッジ拠点 ※4" has to be replaced before "エッジ拠点" would
     # consume its prefix and leave the marker behind.
     for ja, en in sorted(LABELS.items(), key=lambda kv: -len(kv[0])):
@@ -357,13 +402,13 @@ def write_english(xml: str, path: Path) -> None:
 # --------------------------------------------------------------------------------------
 
 
-def overview(uri) -> Diagram:
+def overview(uri, theme: str) -> Diagram:
     """Whole-repository scope: two ingestion paths, one storage spine, three consumers.
 
     Rows are 220px apart because an icon is 80px and its wrapped label takes up to
     LABEL_H below it; anything tighter and a label meets the row beneath it.
     """
-    d = Diagram("architecture-overview", "Architecture overview", 1300, 1060)
+    d = Diagram("architecture-overview", "Architecture overview", 1300, 1060, theme)
     d.group("g_edge", "エッジ拠点 ※4", 40, 60, 300, 420)
     d.group("g_onprem", "オンプレミス", 40, 520, 300, 240)
     # The cloud starts at 500, not 380: the gap has to hold the widest inter-group edge
@@ -436,8 +481,8 @@ def overview(uri) -> Diagram:
     return d
 
 
-def pattern01(uri) -> Diagram:
-    d = Diagram("pattern-01-edge-ai-bedrock", "Pattern 01", 1160, 800)
+def pattern01(uri, theme: str) -> Diagram:
+    d = Diagram("pattern-01-edge-ai-bedrock", "Pattern 01", 1160, 800, theme)
     d.group("g_edge", "エッジ拠点 ※4", 40, 60, 300, 340)
     # 80px of clear air between the groups so the label on the line that crosses the
     # boundary sits in the gap instead of on a dashed border.
@@ -481,8 +526,8 @@ def pattern01(uri) -> Diagram:
     return d
 
 
-def pattern05(uri) -> Diagram:
-    d = Diagram("pattern-05-agentic-rag", "Pattern 05", 1080, 760)
+def pattern05(uri, theme: str) -> Diagram:
+    d = Diagram("pattern-05-agentic-rag", "Pattern 05", 1080, 760, theme)
     d.group("g_onprem", "既存のファイル共有", 40, 60, 300, 300)
     # Width 600, not 560: the group has to contain the query riser at x=930 and the
     # label beside it, or the label crosses the boundary. Left edge at 420 leaves the
@@ -531,26 +576,47 @@ def pattern05(uri) -> Diagram:
 DEFINITIONS = (overview, pattern01, pattern05)
 
 
-def export(source: Path, stem: str) -> None:
+def run_export(source: Path, target: Path, extra: list[str]) -> None:
     if not DRAWIO_BIN.is_file():
         print(f"  draw.io not found at {DRAWIO_BIN}; skipping export", file=sys.stderr)
         return
-    IMAGE_DIR.mkdir(parents=True, exist_ok=True)
-    PNG_DIR.mkdir(parents=True, exist_ok=True)
-    jobs = [
-        ["--format", "svg", "--embed-svg-images", "--output", str(IMAGE_DIR / f"{stem}.svg")],
-        ["--format", "png", "--scale", "2", "--output", str(PNG_DIR / f"{stem}@2x.png")],
-    ]
-    for extra in jobs:
-        result = subprocess.run(  # nosec B603  # noqa: S603  fixed binary, no shell
-            [str(DRAWIO_BIN), "--export", "--border", "12", *extra, str(source)],
-            capture_output=True, text=True, check=False,
-        )
-        target = Path(extra[-1])
-        if not target.is_file() or target.stat().st_size == 0:
-            print(result.stdout, result.stderr, file=sys.stderr)
-            raise SystemExit(f"export produced nothing: {target}")
-        print(f"  {target.relative_to(REPO_ROOT)} ({target.stat().st_size // 1024} KB)")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    result = subprocess.run(  # nosec B603  # noqa: S603  fixed binary, no shell
+        [str(DRAWIO_BIN), "--export", "--border", "12", *extra,
+         "--output", str(target), str(source)],
+        capture_output=True, text=True, check=False,
+    )
+    if not target.is_file() or target.stat().st_size == 0:
+        print(result.stdout, result.stderr, file=sys.stderr)
+        raise SystemExit(f"export produced nothing: {target}")
+    print(f"  {target.relative_to(REPO_ROOT)} ({target.stat().st_size // 1024} KB)")
+
+
+def export_svg(source: Path, stem: str) -> None:
+    """One SVG per figure, and it carries both themes.
+
+    Left on the default theme, draw.io writes every colour as a CSS `light-dark()` pair
+    plus `color-scheme: light dark`, so the viewer picks. Measured on these figures: 46
+    such pairs, with #232F3E resolving to #bdc7d4 and #FFFFFF to #121212 under a dark
+    scheme — a correct dark rendering of the light source, for free.
+
+    That is also why there is no dark SVG. Exporting the dark palette this way inverts it
+    the other way (#D5DBDB -> #2e3333), so serving a dark SVG to a dark-mode reader would
+    hand them a light diagram. `--theme light|dark` pins the colours and would give a
+    fixed pair, but one adaptive file is fewer artifacts and cannot be mismatched.
+    """
+    run_export(source, IMAGE_DIR / f"{stem}.svg", ["--format", "svg", "--embed-svg-images"])
+
+
+def export_png(source: Path, stem: str) -> None:
+    """PNG per figure per theme. A raster cannot adapt, so dark needs its own file.
+
+    `--theme light` means "do not apply an inversion", not "make it light": the palette in
+    the source decides. Without it the export depends on draw.io's default, which is how a
+    dark source could silently come back light.
+    """
+    run_export(source, PNG_DIR / f"{stem}@2x.png",
+               ["--format", "png", "--scale", "2", "--theme", "light"])
 
 
 def main() -> int:
@@ -567,21 +633,35 @@ def main() -> int:
         return data_uri(args.icons, key)
 
     seen: set[str] = set()
-    for build in DEFINITIONS:
-        diagram = build(uri)
-        seen.update(diagram.labels)
-        ja_path = DIAGRAM_DIR / f"{diagram.name}.drawio"
-        diagram.write(ja_path)
-        print(f"{ja_path.relative_to(REPO_ROOT)}")
+    # Only the light `.drawio` is committed. The dark one is the same definitions with a
+    # different palette, so keeping it would be a second source of truth for one figure;
+    # it is written to a temporary directory, exported and dropped.
+    with tempfile.TemporaryDirectory(prefix="diagrams-dark-") as scratch:
+        dark_dir = Path(scratch)
+        for build in DEFINITIONS:
+            for theme in THEMES:
+                suffix = "" if theme == "light" else f"-{theme}"
+                directory = DIAGRAM_DIR if theme == "light" else dark_dir
+                diagram = build(uri, theme)
+                seen.update(diagram.labels)
 
-        english = translate(diagram)
-        en_path = DIAGRAM_DIR / f"{diagram.name}-en.drawio"
-        write_english(english._prebuilt, en_path)  # type: ignore[attr-defined]
-        print(f"{en_path.relative_to(REPO_ROOT)}")
+                ja_path = directory / f"{diagram.name}{suffix}.drawio"
+                diagram.write(ja_path)
+                english = translate(diagram)
+                en_path = directory / f"{diagram.name}-en{suffix}.drawio"
+                write_english(english._prebuilt, en_path)  # type: ignore[attr-defined]
+                for path in (ja_path, en_path):
+                    if theme == "light":
+                        print(path.relative_to(REPO_ROOT))
+                    else:
+                        print(f"(scratch) {path.name}")
 
-        if args.export:
-            export(ja_path, diagram.name)
-            export(en_path, f"{diagram.name}-en")
+                if args.export:
+                    for path, stem in ((ja_path, f"{diagram.name}{suffix}"),
+                                       (en_path, f"{diagram.name}-en{suffix}")):
+                        if theme == "light":
+                            export_svg(path, stem)
+                        export_png(path, stem)
 
     stray = [
         p for p in REPO_ROOT.rglob("*")

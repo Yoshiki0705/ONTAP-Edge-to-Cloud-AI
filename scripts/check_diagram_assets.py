@@ -63,6 +63,14 @@ def committed_icon_library() -> list[str]:
 
 
 def expected_artifacts(figure: str) -> list[Path]:
+    """Eight per figure: two sources, two SVG, four PNG.
+
+    There is no dark SVG on purpose. The SVG export carries both themes as CSS
+    `light-dark()` pairs and the viewer picks, so one file serves both. A PNG cannot do
+    that, which is the only reason the dark variants exist. Nor is there a dark
+    `.drawio`: it is the same definitions with another palette, so committing it would
+    make one figure have two sources.
+    """
     return [
         DIAGRAM_DIR / f"{figure}.drawio",
         DIAGRAM_DIR / f"{figure}-en.drawio",
@@ -70,6 +78,8 @@ def expected_artifacts(figure: str) -> list[Path]:
         IMAGE_DIR / f"{figure}-en.svg",
         PNG_DIR / f"{figure}@2x.png",
         PNG_DIR / f"{figure}-en@2x.png",
+        PNG_DIR / f"{figure}-dark@2x.png",
+        PNG_DIR / f"{figure}-en-dark@2x.png",
     ]
 
 

@@ -736,7 +736,7 @@ _DRAWIO = '<mxfile><diagram name="x"><root><mxCell id="0"/></root></diagram></mx
 
 
 def _diagram_fixture(root: Path) -> None:
-    """A tree with all 18 artifacts present and no Japanese in the English ones."""
+    """A tree with all 24 artifacts present and no Japanese in the English ones."""
     diagrams = root / "docs" / "diagrams"
     images = root / "docs" / "images"
     png = images / "png"
@@ -746,15 +746,17 @@ def _diagram_fixture(root: Path) -> None:
         for stem in (figure, f"{figure}-en"):
             (diagrams / f"{stem}.drawio").write_text(_DRAWIO, encoding="utf-8")
             (images / f"{stem}.svg").write_text("<svg>Edge site</svg>", encoding="utf-8")
-        (png / f"{figure}@2x.png").write_bytes(b"\x89PNG\r\n\x1a\n")
-        (png / f"{figure}-en@2x.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+        # Light and dark PNG, both languages. A raster cannot adapt to the viewer's
+        # colour scheme the way the SVG does, so dark needs its own file.
+        for stem in (figure, f"{figure}-en", f"{figure}-dark", f"{figure}-en-dark"):
+            (png / f"{stem}@2x.png").write_bytes(b"\x89PNG\r\n\x1a\n")
 
 
 def test_diagram_assets_allow_a_complete_set(tmp_path):
     _diagram_fixture(tmp_path)
     result = run_guard(tmp_path, "check_diagram_assets.py")
     assert result.returncode == 0, result.stderr
-    assert "18 artifacts" in result.stdout
+    assert "24 artifacts" in result.stdout
 
 
 def test_diagram_assets_block_a_committed_icon_library_file(tmp_path):
@@ -773,6 +775,23 @@ def test_diagram_assets_block_a_figure_never_re_exported(tmp_path):
     result = run_guard(tmp_path, "check_diagram_assets.py")
     assert result.returncode == 1
     assert "pattern-05-agentic-rag.svg: missing" in result.stderr
+
+
+def test_diagram_assets_block_a_missing_dark_png(tmp_path):
+    """Adding the dark theme is the kind of change that lands for one figure only."""
+    _diagram_fixture(tmp_path)
+    (tmp_path / "docs" / "images" / "png" / "architecture-overview-en-dark@2x.png").unlink()
+    result = run_guard(tmp_path, "check_diagram_assets.py")
+    assert result.returncode == 1
+    assert "architecture-overview-en-dark@2x.png: missing" in result.stderr
+
+
+def test_diagram_assets_do_not_require_a_dark_svg(tmp_path):
+    """The SVG carries both themes itself; requiring a dark one would be wrong."""
+    _diagram_fixture(tmp_path)
+    result = run_guard(tmp_path, "check_diagram_assets.py")
+    assert result.returncode == 0, result.stderr
+    assert "dark.svg" not in result.stderr
 
 
 def test_diagram_assets_block_an_empty_export(tmp_path):
