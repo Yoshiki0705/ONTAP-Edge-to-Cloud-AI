@@ -36,6 +36,12 @@ Services for which AWS publishes an integration walkthrough.
 
 Source: [Using access points with AWS services](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/using-access-points-with-aws-services.html), which links each tutorial.
 
+**Read this as a closed list.** A service absent from it is not "unusable"; AWS has not
+published a walkthrough for using it through an S3 access point. Supporting S3 does not
+imply handling an access point ARN or alias. That is why the overall architecture figure
+marks Amazon SageMaker AI with *6: the basis for it differs in strength from the other
+services drawn with a solid line from the access point.
+
 Bedrock Knowledge Bases takes the **access point alias** as its data source, accepting
 the alias in place of a bucket name.
 Source: [Build a RAG application using Amazon Bedrock Knowledge Bases](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/tutorial-build-rag-with-bedrock.html)
@@ -151,7 +157,29 @@ in 2021 for applications that require an S3 bucket name.
 
 ---
 
-## 5. Affected designs and alternative paths
+## 5. Which paths in this repository are affected
+
+Writes arrive from two directions, and the access point plays the opposite role in each.
+
+| Path | Direction | Role of the S3 AP | Standard bucket |
+|------|-----------|-------------------|-----------------|
+| Edge → NFS → ONTAP → analytics | Writes over a file protocol | Entry point for reads | Not used |
+| AWS IoT Core → Lambda → ONTAP ([`cloud/iot_ingestion/`](../../cloud/iot_ingestion/)) | Writes over the S3 API | Entry point for writes | Not used |
+| SORACOM → Kinesis → Firehose → Glue ([`cloud/ingestion/`](../../cloud/ingestion/)) | Writes over the S3 API | Not used | **Used** (Firehose, §4) |
+| Storing verdicts (the three use-case stacks) | Writes over the S3 API | Not wired up | **Used** (`RESULT_BUCKET`) |
+
+The second row is the shape
+[S3 Burst on ONTAP Files](https://github.com/Yoshiki0705/s3-burst-on-ontap-files)
+covers: collect over the S3 API, keep ONTAP as the source of truth, and fan out to
+consuming sites over NFS / SMB. Pipelines that begin at a cloud API — this repository's
+cellular and MQTT entry points among them — fit that direction directly.
+
+The fourth row currently has the template pass a standard bucket. `boto3` accepts an access
+point ARN as `Bucket` unchanged, so no handler change is expected, but this has not been
+confirmed against real infrastructure (see the
+[verification status](verification-status.md)).
+
+## 6. Affected designs and alternative paths
 
 | Design | Alternative path | Constraint of the alternative |
 |--------|------------------|-------------------------------|
@@ -163,7 +191,7 @@ in 2021 for applications that require an S3 bucket name.
 
 ---
 
-## 6. Open items
+## 7. Open items
 
 Not confirmed in this project. Remove a row once it is.
 
