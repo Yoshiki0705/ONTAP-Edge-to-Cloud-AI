@@ -35,6 +35,7 @@ GUARDS = [
     "check_dependency_pins.py",
     "check_diagram_assets.py",
     "check_doc_parity.py",
+    "check_verification_ledger.py",
     "check_git_hooks_wiring.py",
     "check_sql_interpolation.py",
     "check_sunset_services.py",
@@ -837,5 +838,137 @@ def test_diagram_assets_block_unparseable_drawio(tmp_path):
 
 def test_diagram_assets_block_an_empty_tree_rather_than_passing_vacuously(tmp_path):
     result = run_guard(tmp_path, "check_diagram_assets.py")
+    assert result.returncode == 1
+    assert "missing" in result.stderr
+
+
+# ---------------------------------------------------------------------------
+# check_verification_ledger.py
+# ---------------------------------------------------------------------------
+
+_MODEL = "jp.anthropic.claude-sonnet-4-5-20250929-v1:0"
+
+_LEDGER_JA = """# 検証状態
+
+| 段階 | 意味 |
+|---|---|
+| 実機 単体 | その段だけを実 AWS で実行した |
+| 自動テストのみ | 単体テストが通る |
+
+| 主張 | 区分 | 根拠 |
+|---|---|---|
+| 4/4 正解 | `verified` | 2026-05-29 / `MODEL` |
+| 画像あたりのコスト | `documented` | 公開価格からの計算 |
+"""
+
+_LEDGER_EN = """# Verification status
+
+| Tier | Meaning |
+|---|---|
+| Real hardware, single stage | That stage alone ran on real AWS |
+| Unit tests only | Unit tests pass |
+
+| Claim | Tier | Basis |
+|---|---|---|
+| 4/4 correct | `verified` | 2026-05-29 / `MODEL` |
+| Cost per image | `documented` | Calculated from published prices |
+"""
+
+
+def _ledger_fixture(root: Path) -> None:
+    """A tree whose ledger agrees with the model the code ships."""
+    for language, body in (("ja", _LEDGER_JA), ("en", _LEDGER_EN)):
+        directory = root / "docs" / language
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "verification-status.md").write_text(
+            body.replace("MODEL", _MODEL), encoding="utf-8"
+        )
+    handler = root / "cloud" / "ai" / "image_analyzer"
+    handler.mkdir(parents=True, exist_ok=True)
+    (handler / "handler.py").write_text(
+        f'DETAIL_MODEL_ID = os.environ.get("DETAIL_MODEL_ID", "{_MODEL}")\n', encoding="utf-8"
+    )
+
+
+def test_verification_ledger_allows_an_agreeing_tree(tmp_path):
+    _ledger_fixture(tmp_path)
+    result = run_guard(tmp_path, "check_verification_ledger.py")
+    assert result.returncode == 0, result.stderr
+    assert "model ID(s) cited" in result.stdout
+
+
+def test_verification_ledger_blocks_a_model_bumped_without_re_measuring(tmp_path):
+    """The failure this guard exists for: the measured numbers stop describing what ships.
+
+    The `jp.` prefix is a cross-Region inference profile, so this is a different path and
+    different billing, not a cosmetic edit — but the recorded figures keep reading current.
+    """
+    _ledger_fixture(tmp_path)
+    handler = tmp_path / "cloud" / "ai" / "image_analyzer" / "handler.py"
+    handler.write_text(
+        handler.read_text(encoding="utf-8").replace(
+            _MODEL, "jp.anthropic.claude-sonnet-5-0-20260101-v1:0"
+        ),
+        encoding="utf-8",
+    )
+    result = run_guard(tmp_path, "check_verification_ledger.py")
+    assert result.returncode == 1
+    assert "no longer appears in the code" in result.stderr
+    assert "demote" in result.stderr
+
+
+def test_verification_ledger_blocks_a_row_added_to_one_language_only(tmp_path):
+    """check_doc_parity.py compares heading levels, so it cannot see a table row."""
+    _ledger_fixture(tmp_path)
+    path = tmp_path / "docs" / "ja" / "verification-status.md"
+    path.write_text(
+        path.read_text(encoding="utf-8") + "| 追加した段 | 未実行 | まだない |\n",
+        encoding="utf-8",
+    )
+    result = run_guard(tmp_path, "check_verification_ledger.py")
+    assert result.returncode == 1
+    assert "table rows differ" in result.stderr
+
+
+def test_verification_ledger_blocks_a_rotted_basis_link(tmp_path):
+    _ledger_fixture(tmp_path)
+    path = tmp_path / "docs" / "en" / "verification-status.md"
+    path.write_text(
+        path.read_text(encoding="utf-8") + "\n[basis](../../tests/gone/)\n", encoding="utf-8"
+    )
+    result = run_guard(tmp_path, "check_verification_ledger.py")
+    assert result.returncode == 1
+    assert "basis link does not resolve" in result.stderr
+
+
+def test_verification_ledger_blocks_an_invented_tier(tmp_path):
+    """Borrowing a published vocabulary is pointless if a fifth value can be added."""
+    _ledger_fixture(tmp_path)
+    path = tmp_path / "docs" / "ja" / "verification-status.md"
+    path.write_text(
+        path.read_text(encoding="utf-8").replace("| 自動テストのみ |", "| mostly-working |"),
+        encoding="utf-8",
+    )
+    result = run_guard(tmp_path, "check_verification_ledger.py")
+    assert result.returncode == 1
+    assert "not one of the borrowed tiers" in result.stderr
+
+
+def test_verification_ledger_blocks_a_ledger_citing_no_model(tmp_path):
+    """A measurement recorded without the profile it used cannot be checked at all."""
+    _ledger_fixture(tmp_path)
+    for language in ("ja", "en"):
+        path = tmp_path / "docs" / language / "verification-status.md"
+        path.write_text(
+            path.read_text(encoding="utf-8").replace(_MODEL, "(model omitted)"),
+            encoding="utf-8",
+        )
+    result = run_guard(tmp_path, "check_verification_ledger.py")
+    assert result.returncode == 1
+    assert "no model ID is cited" in result.stderr
+
+
+def test_verification_ledger_blocks_a_missing_ledger(tmp_path):
+    result = run_guard(tmp_path, "check_verification_ledger.py")
     assert result.returncode == 1
     assert "missing" in result.stderr

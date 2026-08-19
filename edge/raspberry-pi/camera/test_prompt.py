@@ -17,6 +17,7 @@ Requirements:
 import argparse
 import base64
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -24,8 +25,13 @@ from pathlib import Path
 import boto3
 import requests
 
-MODEL_ID = "anthropic.claude-sonnet-4-5-20250929-v1:0"
-REGION = "ap-northeast-1"
+# Same default and override mechanism as cloud/ai/image_analyzer/handler.py. The `jp.`
+# prefix is a cross-Region inference profile, not decoration: without it this calls a
+# different profile, on a different path, billed differently. The recorded measurement in
+# tests/sample_images/README.md used the prefixed form, and this script did not — so it
+# could not reproduce that run. See docs/ja/verification-status.md.
+MODEL_ID = os.environ.get("DETAIL_MODEL_ID", "jp.anthropic.claude-sonnet-4-5-20250929-v1:0")
+REGION = os.environ.get("AWS_REGION", "ap-northeast-1")
 
 ANALYSIS_PROMPT = """You are a 3D printing quality inspector. Analyze this image of a 3D print in progress or completed.
 

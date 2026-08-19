@@ -3,6 +3,19 @@
 > Tested: 2026-05-29
 > Model: jp.anthropic.claude-sonnet-4-5-20250929-v1:0 (Bedrock, ap-northeast-1)
 > Screening: jp.anthropic.claude-haiku-4-5-20251001-v1:0
+> Iterations: 1 per image (n=4 for the latency and cost figures), sequential, concurrency 1
+> Timing: measured on the client, not inside an AWS Lambda function in a VPC
+> Cost: calculated from published model prices — `handler.py` does not capture token usage,
+> so these are not billed amounts and do not come from an API response
+
+This is a sample run, not a production estimate. The evidence tier of each figure below,
+and what has deliberately not been measured, are recorded in
+[verification status](../../docs/en/verification-status.md).
+
+**Round 1 and Round 2 test different things and their scores are not additive.** Round 1
+feeds the model a written description of a symptom; no image is involved, so it does not
+measure visual accuracy. Round 2 feeds real photographs. Reporting a combined "9/9" would
+present the two as one visual-accuracy result.
 
 ## Summary
 
