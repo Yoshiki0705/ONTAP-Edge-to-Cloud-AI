@@ -459,3 +459,110 @@ Perform the following checks when installing cameras:
 | Pi firewall (ufw) | ✅ Required | ✅ Required |
 | NFS encryption | ○ Dedicated VLAN substitute | ✅ Kerberos required |
 | Secret rotation | ○ Manual | ✅ Automated |
+
+---
+
+## 13. OT/IT Boundary
+
+Section 4 covers network separation on the IT side. This section covers what is
+additionally needed when that edge network sits **on the same floor as production
+equipment (OT)**. IT-side separation is not sufficient on its own because the
+availability requirements and blast radius on the OT side differ from the IT side.
+
+> **Scope note**: This section states design considerations. It is not a claim of
+> IEC 62443 conformance. For a connection to regulated equipment, certification
+> and conformity decisions are outside the scope of this document.
+
+### 13.1 Keep the data flow one-way
+
+This architecture only ever **sends** from edge to cloud. No path is created that
+lets the cloud reach into the OT network.
+
+| Path | Direction | Implementation |
+|------|-----------|----------------|
+| Pi → IoT Core (MQTT) | send only | the Pi publishes; it does not subscribe |
+| Pi → ONTAP (NFS) | bidirectional, same LAN | confined to VLAN 10 |
+| ONTAP → AWS (SnapMirror) | send only | initiated from the ONTAP side |
+| Lambda → FSx for ONTAP S3 AP | write only | nothing from the cloud reaches OT |
+
+**Paths deliberately absent**: cloud-to-edge command delivery (IoT Jobs, remote
+control via MQTT subscribe, SSH exposed to the internet). A feature that stops a
+printer remotely is also a control path for whoever compromises it. If one becomes
+necessary, design it on top of an independent OT-side safety mechanism (physical
+stop, PLC interlock) rather than making the cloud path the only means of control.
+
+### 13.2 Device identity does not come from the payload
+
+What MQTT authenticates is the **client certificate and client ID**, not the
+`device_id` field inside the payload. The payload is whatever the publisher chose
+to write.
+
+```
+# IoT Core rule SQL: attach the authenticated identifiers under names the payload cannot collide with
+SELECT *, clientid() as client_id, topic(2) as topic_device_id FROM 'edge/+/telemetry'
+```
+
+The Lambda prefers `client_id`, then `topic_device_id`, then the payload's
+`device_id` (`cloud/iot_ingestion/identifiers.py`).
+
+**Measured problem**: before the fix, `device_id` was taken from the payload and
+interpolated straight into an S3 key. Sending `device_id = "../../../etc/shadow"`
+produced the key `ingest/../../../etc/shadow/year=2026/...`. S3 does not normalise
+`..`, so the object is created under that literal key. The **consumers** normalise:
+an FSx for ONTAP S3 AP maps a key onto a path in a real filesystem namespace, and
+Athena/Glue read `ingest/<device_id>/year=.../` as Hive partitions. A `..` segment
+is therefore an escape from the intended prefix rather than a cosmetic oddity. A
+value containing CR/LF lands in a `PutObject` metadata header.
+
+Scope the IoT policy per Thing. Allowing a wildcard publish lets one compromised
+device write anywhere in every other device's data space.
+
+```json
+{
+  "Effect": "Allow",
+  "Action": "iot:Publish",
+  "Resource": "arn:aws:iot:<region>:<account>:topic/edge/${iot:Connection.Thing.ThingName}/telemetry"
+}
+```
+
+Reference: [Thing policy variables](https://docs.aws.amazon.com/iot/latest/developerguide/thing-policy-variables.html)
+
+### 13.3 Do not extend a blast radius into OT
+
+| Failure | Edge behaviour | Effect on OT |
+|---------|----------------|--------------|
+| Cloud unreachable | accumulates in the local SQLite buffer (`edge/greengrass/s3ap_client/buffer.py`) | none; equipment keeps running |
+| Buffer full | evicts oldest first, raises `BufferFullError` | none; monitoring has a gap |
+| ONTAP unreachable | NFS write fails, falls back to the cellular path | none |
+| Pi failure | collection stops | none; the Pi observes and does not control |
+
+**Design premise**: the Pi is observation-only and is not part of any control
+system. If that stops being true (the Pi writing to a PLC, for instance), every
+"none" in the table above has to be re-evaluated.
+
+### 13.4 What does not belong on the edge
+
+| Not this | Why | Instead |
+|---------|-----|---------|
+| Long-lived static AWS credentials | physical access carries them off | IoT Core certificate auth, SORACOM Beam AssumeRole |
+| Plaintext ONTAP admin credentials | a route into the management plane | a read-only custom role (§6.1) |
+| SSH open to the internet | brute force and vulnerability surface | specific IPs inside the management VLAN only (§4.2) |
+| A world-writable buffer path | another user on the host can pre-create or symlink it | under `~/.local/state/`; set `KAFKA_BUFFER_PATH` explicitly |
+
+### 13.5 Not covered, and not verified
+
+- **NFS encryption**: the PoC substitutes NFSv4.1 on a dedicated VLAN. Kerberos is
+  required where the link is shared (§5, §12).
+- **Direct OT protocol collection**: reading Modbus or OPC-UA directly is not
+  implemented in this repository. If it is added, OT protocols generally carry no
+  authentication, so whichever segment the collection point sits in becomes the
+  privilege boundary.
+- **IEC 62443 / NIST SP 800-82 conformance**: not assessed. Connecting to
+  regulated equipment is outside the scope of this document.
+
+## Related Documents
+
+- [Quality gates](../agent/quality-gates_en.md) — the gates that verify this design
+- [Operations design](operations-design.md)
+- [Data schema design](data-schema-design.md)
+- [IoT Greengrass / FlexCache integration](iot-greengrass-flexcache-integration.md)
