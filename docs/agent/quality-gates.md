@@ -21,9 +21,10 @@ make check           # lint + security + test + drift（CI と同じ）
 | `make test` | `TEST_DIRS` | テスト失敗 |
 | `make lint-py` | `PY_DIRS` | ruff の指摘 |
 | `make lint-cfn` | `CFN_TEMPLATES` | cfn-lint の指摘 |
+| `make hygiene` | git 追跡下の全ファイル | `.pre-commit-config.yaml` のフックが書き換えを要したとき（末尾改行、行末空白、YAML/JSON の構文、1 MB 超のファイル） |
 | `make bandit` | `PY_DIRS` | 重大度に関わらず 1 件でも |
 | `make secrets` | 作業ツリー（`.gitleaks.toml`） | 検出 1 件でも |
-| `make drift` | 下記の 5 ガード | ゲートが無音化する構造の検出 |
+| `make drift` | 下記の 8 ガード | ゲートが無音化する構造の検出 |
 | `make agent-config` | global/workspace の steering・skills・hooks | 到達不能な設定 |
 
 ## drift ガード
