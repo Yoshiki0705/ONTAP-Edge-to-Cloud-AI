@@ -4,15 +4,12 @@ Supports both USB cameras (e.g., Logitech BRIO) via OpenCV
 and CSI cameras (e.g., Pi Camera Module) via picamera2.
 """
 
-import io
 import logging
 import time
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
 
 import cv2
 import numpy as np
-
 from config import CaptureConfig
 
 logger = logging.getLogger(__name__)
@@ -82,7 +79,7 @@ class CameraCapture:
         Returns:
             Tuple of (jpeg_bytes, metadata_dict)
         """
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
 
         if self._config.camera_type == "usb":
             frame = self._capture_usb()

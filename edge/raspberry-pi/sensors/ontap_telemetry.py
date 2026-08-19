@@ -27,7 +27,7 @@ import signal
 import sys
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import requests
@@ -189,7 +189,7 @@ def build_telemetry_message(
         "schema_version": "1.0",
         "message_id": str(uuid.uuid4()),
         "device_id": DEVICE_ID,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "message_type": "ontap_telemetry",
         "payload": {
             "cluster": cluster_info,
@@ -206,7 +206,7 @@ def save_to_ontap(message: dict) -> bool:
     """Save telemetry message to ONTAP NFS mount as JSON file."""
     try:
         from pathlib import Path
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
         output_dir = Path(OUTPUT_PATH) / timestamp.strftime("%Y/%m/%d")
         output_dir.mkdir(parents=True, exist_ok=True)
 

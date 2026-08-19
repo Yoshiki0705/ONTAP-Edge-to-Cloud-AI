@@ -6,13 +6,10 @@ Tests the full flow with mocked ONTAP REST API responses:
 This validates the pipeline works correctly without real ONTAP hardware.
 """
 
-import json
 import sys
+from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch, call
-from datetime import datetime, timezone
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).parents[3] / "edge" / "raspberry-pi" / "sensors"))
 
@@ -100,11 +97,12 @@ class TestONTAPTelemetryE2E:
         "ONTAP_VERIFY_SSL": "false",
         "DEVICE_ID": "rpi5-e2e-test",
         "COLLECTION_INTERVAL_SECONDS": "60",
-        
+
     })
     def test_full_collection_cycle(self):
         """Test a complete collection cycle: connect → collect → format → upload."""
         import importlib
+
         import ontap_telemetry as ot
         importlib.reload(ot)
 
@@ -179,6 +177,7 @@ class TestONTAPTelemetryE2E:
     def test_save_failure_handling(self):
         """Test that save failures are handled gracefully."""
         import importlib
+
         import ontap_telemetry as ot
         importlib.reload(ot)
 
@@ -203,6 +202,7 @@ class TestONTAPTelemetryE2E:
     def test_save_http_error_handling(self):
         """Test that save to non-writable path is handled gracefully."""
         import importlib
+
         import ontap_telemetry as ot
         importlib.reload(ot)
 
@@ -225,6 +225,7 @@ class TestONTAPTelemetryE2E:
     def test_volume_capacity_calculation(self):
         """Test that volume capacity percentage is calculated correctly."""
         import importlib
+
         import ontap_telemetry as ot
         importlib.reload(ot)
 
@@ -261,6 +262,7 @@ class TestONTAPTelemetryE2E:
     def test_message_schema_compliance(self):
         """Test that generated messages comply with the data schema design."""
         import importlib
+
         import ontap_telemetry as ot
         importlib.reload(ot)
 

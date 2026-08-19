@@ -7,8 +7,7 @@ See docs/*/data-schema-design.md for full schema specification.
 import hashlib
 import os
 import uuid
-from datetime import datetime, timezone
-
+from datetime import UTC, datetime
 
 # Factory hierarchy configuration (via environment variables)
 SITE_ID = os.getenv("SITE_ID", "lab-tokyo")
@@ -56,7 +55,7 @@ def build_event(
     Returns:
         dict: Complete event envelope ready for Kafka publish
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     if timestamp is None:
         timestamp = now.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"

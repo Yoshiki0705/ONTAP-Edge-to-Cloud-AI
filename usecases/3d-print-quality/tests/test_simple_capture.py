@@ -6,12 +6,8 @@ Tests the main capture pipeline:
 
 import json
 import sys
-import tempfile
-from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parents[3] / "edge" / "raspberry-pi" / "camera"))
 
@@ -23,6 +19,7 @@ class TestSaveToOntap:
         """Test that image is saved to date-structured directory."""
         with patch.dict("os.environ", {"ONTAP_NFS_PATH": str(tmp_path), "DEVICE_ID": "rpi5-test"}):
             import importlib
+
             import simple_capture as sc
             importlib.reload(sc)
 
@@ -42,6 +39,7 @@ class TestSaveToOntap:
         """Test that nested date directories are created automatically."""
         with patch.dict("os.environ", {"ONTAP_NFS_PATH": str(tmp_path), "DEVICE_ID": "rpi5-test"}):
             import importlib
+
             import simple_capture as sc
             importlib.reload(sc)
 
@@ -59,6 +57,7 @@ class TestSaveResultToOntap:
         """Test that analysis result is saved as JSON."""
         with patch.dict("os.environ", {"ONTAP_RESULT_PATH": str(tmp_path), "DEVICE_ID": "rpi5-test"}):
             import importlib
+
             import simple_capture as sc
             importlib.reload(sc)
 
@@ -89,6 +88,7 @@ class TestInvokeAnalysisLambda:
             "DEVICE_ID": "rpi5-test",
         }):
             import importlib
+
             import simple_capture as sc
             importlib.reload(sc)
 
@@ -135,6 +135,7 @@ class TestInvokeAnalysisLambda:
             "DEVICE_ID": "rpi5-test",
         }):
             import importlib
+
             import simple_capture as sc
             importlib.reload(sc)
 
@@ -159,6 +160,7 @@ class TestInvokeAnalysisLambda:
             "DEVICE_ID": "rpi5-test",
         }):
             import importlib
+
             import simple_capture as sc
             importlib.reload(sc)
 

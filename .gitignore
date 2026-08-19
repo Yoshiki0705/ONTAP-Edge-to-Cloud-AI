@@ -53,6 +53,7 @@ package-lock.json
 # Build artifacts
 dist/
 build/
+.aws-sam/
 
 # Blog drafts (not public)
 blog/

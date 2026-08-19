@@ -7,7 +7,7 @@ Messages are flushed to the upload endpoint when connectivity returns.
 import json
 import logging
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from config import BufferConfig
@@ -75,7 +75,7 @@ class MessageBuffer:
         # Check buffer size and evict oldest if necessary
         self._evict_if_full()
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         cursor = self._conn.execute(
             """
             INSERT INTO pending_messages (created_at, message_type, metadata_json, image_path)

@@ -22,7 +22,7 @@ import json
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import boto3
 
@@ -64,7 +64,7 @@ def handler(event: dict, context) -> dict:
             feedback_type = "false_positive" if actual_status == "normal" else "false_negative"
 
         # Build feedback record
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
         feedback = {
             "feedback_id": str(uuid.uuid4()),
             "source_message_id": source_message_id,

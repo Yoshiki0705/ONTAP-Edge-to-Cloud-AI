@@ -1,11 +1,8 @@
 """Unit tests for ONTAP telemetry collector."""
 
-import json
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parents[3] / "edge" / "raspberry-pi" / "sensors"))
 
@@ -17,6 +14,7 @@ class TestBuildTelemetryMessage:
         """Test that telemetry message has correct structure."""
         with patch.dict("os.environ", {"DEVICE_ID": "rpi5-test"}):
             import importlib
+
             import ontap_telemetry as ot
             importlib.reload(ot)
 
@@ -43,6 +41,7 @@ class TestBuildTelemetryMessage:
         """Test that each message gets a unique ID."""
         with patch.dict("os.environ", {"DEVICE_ID": "rpi5-test"}):
             import importlib
+
             import ontap_telemetry as ot
             importlib.reload(ot)
 
