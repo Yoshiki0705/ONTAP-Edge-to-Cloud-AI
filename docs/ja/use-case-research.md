@@ -52,7 +52,7 @@ Raspberry Pi 5             On-premises              FSx for ONTAP
 |  - Current       |       | (incremental)    |     | Glue ETL                |
 |  - Pressure      |       +------------------+     | SageMaker (prediction)  |
 |                  |                                | CloudWatch (alerts)     |
-| Pre-process:     |                                | QuickSight (BI)         |
+| Pre-process:     |                                | Quick Sight (BI)        |
 |  - Aggregation   |                                +-------------------------+
 |  - Outlier filter|
 +------------------+
@@ -204,7 +204,7 @@ ONTAP                                               FSx for ONTAP
 |------|------|
 | **概要** | ビル各フロアの温湿度・電力消費をリアルタイム収集し、空調制御を最適化 |
 | **エッジ機材** | Raspberry Pi 5 + 温湿度センサー + CT電流センサー + SORACOM SIM |
-| **データフロー** | Pi → NFS → ONTAP → SnapMirror → FSx for ONTAP → S3 AP → Athena + QuickSight |
+| **データフロー** | Pi → NFS → ONTAP → SnapMirror → FSx for ONTAP → S3 AP → Athena + Quick Sight |
 | **ONTAP連携** | BMS(ビル管理システム)のログをONTAPに集約、長期トレンド分析 |
 | **AI活用** | SageMaker: 電力需要予測、Bedrock: 省エネレポート自動生成 |
 | **期待される効果** | 電力コスト削減(10-30%)、快適性維持、カーボンフットプリント可視化 |
@@ -287,23 +287,19 @@ ONTAP                                               FSx for ONTAP
 
 ### 5.1 FSx for ONTAP S3 Access Points の制約
 
-親プロジェクト（fsxn-lakehouse-integrations）で検証済みの制約:
+制約の一覧と各項目の根拠（公式ドキュメント / 別プロジェクトでの検証 / 未検証）は
+**[S3 AP 互換性と制約](./s3ap-compatibility-matrix.md)** に集約している。ここでは
+このユースケース調査に効く点だけを挙げる。
 
-📋 **[FSx for ONTAP S3 AP 互換性マトリクス（完全版）](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/docs/en/compatibility-matrix.md)** — AWS サポート確認済み (2026年5月)
+| 設計判断に効く制約 | 何が決まるか |
+|---|---|
+| 条件付き書き込み非対応 | S3 AP 上で Iceberg / Delta Lake のテーブルを直接更新する構成は取れない |
+| S3 イベント通知非対応 | ファイル到着の起点は FPolicy かポーリングになる |
+| ONTAP 9.17.1 以降が必要 | 既存ファイルシステムのバージョンによっては S3 AP 自体が使えない |
+| 同一アカウント・同一リージョン | クロスアカウントでのデータ共有は S3 AP では成立しない |
 
-| 制約 | 影響 | 回避策 |
-|------|------|--------|
-| 条件付き書き込み非対応 (If-None-Match) | Delta Lake/Iceberg/Hudi のトランザクション書き込み不可 | 読み取り専用分析、または DataSync → S3 で書き込みワークロード対応 |
-| S3 イベント通知非対応 | Snowpipe 自動取り込み、Auto Loader ファイル通知モード不可 | FPolicy → Lambda、スケジュールポーリング、または REST API |
-| SnapMirror S3 非対応 | ONTAP S3 バケットから AWS S3 へのレプリケーション不可 | DataSync (NFS → S3) を検証済み同期手段として使用 |
-| ListObjectsV2 高レイテンシ | 小ディレクトリでネイティブ S3 比 30-80倍遅い | ファイルリスト事前生成、大きいファイルサイズ使用、結果キャッシュ |
-| SSE-FSX 暗号化のみ | SSE-S3, SSE-KMS, SSE-C 非対応 | デフォルト SSE-FSX を使用（透過的、AWS KMS 管理） |
-| オブジェクトバージョニング非対応 | S3 バージョニング利用不可 | ONTAP Snapshot でポイントインタイムリカバリ |
-| Presigned URL: 公式未サポート | 実際には動作するが保証なし | 非クリティカルパスのみ使用、IAM ベースアクセスを推奨 |
-| **ONTAP 9.17.1+ 必須** | S3 Access Points の最小バージョン | デプロイ前に FSx ファイルシステムの ONTAP バージョンを確認 |
-
-プラットフォーム別互換性（Athena, Glue, EMR, Databricks, Snowflake, Bedrock）の詳細は[完全版ドキュメント](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/docs/en/compatibility-matrix.md)を参照。
-
+プラットフォーム別の互換性（Athena / Glue / EMR / Databricks / Snowflake / Bedrock）は
+[互換性と制約](./s3ap-compatibility-matrix.md) の §1 と §3 を参照。
 ### 5.2 SORACOM セルラー通信の制約
 
 | 制約 | 影響 | 対策 |
@@ -329,7 +325,7 @@ ONTAP                                               FSx for ONTAP
 | サービス | 用途 | プロトコル | 特徴 |
 |----------|------|-----------|------|
 | **Beam** | 汎用プロトコル変換 | MQTT→MQTTS, HTTP→HTTPS | デバイス側の暗号化処理をオフロード、任意のエンドポイントに転送可能 |
-| **Funnel** | クラウドサービス直接連携 | UDP/TCP → AWS Kinesis, S3等 | 設定のみでAWSサービスに直接送信、デバイス側コード最小化 |
+| **Funnel** | クラウドサービス直接連携 | UDP/TCP → Amazon Kinesis, S3等 | 設定のみでAWSサービスに直接送信、デバイス側コード最小化 |
 | **Harvest** | データ蓄積・可視化 | HTTP/UDP | SORACOM上でデータ保存・グラフ表示、プロトタイプに最適 |
 | **Flux** | AI統合ワークフロー | カメラ画像 + GenAI | 低コードでカメラ→AI分析→通知のパイプライン構築 |
 
@@ -479,11 +475,11 @@ Phase 2 (1-2週間): カスタマイズ + 分析精度向上
 
 Phase 3 (2週間): 分析基盤 + 本番準備
   目標: データ分析 + 運用体制構築
-  構成: Phase 2 + SnapMirror → FSx for ONTAP + Athena + QuickSight
+  構成: Phase 2 + SnapMirror → FSx for ONTAP + Athena + Quick Sight
   手順:
     1. SnapMirror: ONTAP → FSx for ONTAP 同期設定
     2. FSx for ONTAP S3 AP → Athena 分析（印刷成功率、失敗パターン）
-    3. QuickSight ダッシュボード
+    3. Quick Sight ダッシュボード
     4. 運用手順書作成（デバイス交換、障害対応）
     5. 死活監視設定（Pi heartbeat → CloudWatch）
 ```
@@ -576,7 +572,7 @@ Phase 3 (2週間): AI予測
 ### コミュニティ・事例
 
 - [River Monitoring with IoT Flow Meter (Hackster.io)](https://hackster.io/rhammell/river-monitoring-with-an-iot-flow-meter-9af852)
-- [Raspberry Pi + AWS Rekognition 画像認識](https://github.com/MatthiasGemelli/IntelliCam)
+- [Raspberry Pi + Amazon Rekognition 画像認識](https://github.com/MatthiasGemelli/IntelliCam)
 - [Kinesis Video Streams + Rekognition 火災検知](https://community.aws/content/2hTnRBhcqWU1nO7pHUw8fVKqQlN/how-to-detect-forest-fires-using-kinesis-video-streams-and-amazon-rekognition)
 - [Smart 3D Printing Surveillance (SCALE 21x)](https://www.socallinuxexpo.org/scale/21x/presentations/smart-3d-printing-surveillance-detecting-failures-computer-vision-and)
 - [Industrial Monitoring with Raspberry Pi (Industrial Shields)](https://www.industrialshields.com/blog/raspberry-pi-for-industry-26/industrial-monitoring-and-data-extraction-with-raspberry-pi-how-gateberry-raspberry-plc-and-touchberry-are-redefining-the-edge-675)

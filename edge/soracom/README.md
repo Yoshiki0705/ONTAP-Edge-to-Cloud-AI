@@ -15,13 +15,13 @@ This guide covers SORACOM service configuration for cellular connectivity scenar
 ## Architecture
 
 ```
-Raspberry Pi → SORACOM Air (cellular) → SORACOM Funnel → AWS Kinesis
-                                       → SORACOM Flux  → AWS S3 + Bedrock
+Raspberry Pi → SORACOM Air (cellular) → SORACOM Funnel → Amazon Kinesis
+                                       → SORACOM Flux  → Amazon S3 + Bedrock
 ```
 
 ## 1. SORACOM Funnel Configuration (Sensor Data → Kinesis)
 
-Funnel forwards device data directly to AWS Kinesis without device-side code changes.
+Funnel forwards device data directly to Amazon Kinesis without device-side code changes.
 
 ### Step 1: Create IAM Role for SORACOM
 

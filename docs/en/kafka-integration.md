@@ -15,18 +15,18 @@ Kafka + ClickHouse are provided as a managed open source platform (on-premises V
 ## 2. Deployment Topology
 
 ```
-[Tokyo Lab LAN]
+[Edge Site LAN]
 +------------------------------------------------------+
 |                                                      |
-|  [Pi 5]        [ESXi Host (DL380G10)]               |
-|  10.x.x.x     +---------------------------+         |
-|     |          | Kafka VM    (managed)     |         |
+|  [Pi 5]        [Hypervisor host]                     |
+|     |          +---------------------------+         |
+|     |          | Kafka VM      (managed)   |         |
 |     |          | ClickHouse VM (managed)   |         |
 |     |          +---------------------------+         |
 |     |                    |                           |
 |     +----[LAN]-----------+                           |
 |                          |                           |
-|  [ONTAP FAS2750]         |                           |
+|  [ONTAP storage system]  |                           |
 |  NFS: vol_images   ------+                           |
 |  S3: backup bucket (ClickHouse backup)               |
 |                                                      |
@@ -102,7 +102,7 @@ ClickHouse:
 ONTAP S3 protocol used as ClickHouse backup destination:
 
 ```
-# ONTAP configuration (FAS2750)
+# ONTAP configuration
 # 1. Create S3 SVM
 vserver create -vserver svm-s3 -subtype default
 
@@ -159,7 +159,7 @@ KAFKA_ENABLED=true S3_BUCKET=<bucket> \
 
 | Item | Status | Dependency |
 |------|--------|------------|
-| Kafka VM IP address | Waiting | Instaclustr deployment |
+| Kafka VM IP address | Waiting | Managed platform deployment |
 | TLS certificates | Waiting | PoC documentation approval |
-| ONTAP S3 bucket creation | In progress | FAS2750 access |
+| ONTAP S3 bucket creation | In progress | ONTAP access |
 | ClickHouse table DDL | Being designed in Lakehouse project | v3 schema finalization |

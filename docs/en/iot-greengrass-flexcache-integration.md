@@ -18,7 +18,7 @@
 1. **FSx for ONTAP S3 AP is the sole data aggregation point** — no S3 standard bucket intermediary. PutObject writes directly to FSx for ONTAP volumes; the same data is accessible via NFS/SMB/S3 multiprotocol
 2. **FlexCache write-back is the edge write buffer** — writes to edge ONTAP (ONTAP Select / FAS / AFF) FlexCache Cache Volume in write-back mode, asynchronously flushed to Origin (FSx for ONTAP). Offline-resilient + local-speed writes
 3. **FlexCache read cache provides data burst delivery** — delivers Origin-aggregated data to GPU/HPC workloads at multiple sites with low latency
-4. **Greengrass custom S3 client component** — uses AWS SDK directly to PutObject to S3 AP ARN, instead of Stream Manager (which only supports S3 bucket ARNs)
+4. **Greengrass custom S3 client component** — uses the AWS SDK directly to PutObject to an S3 AP ARN, instead of Stream Manager, which requires an S3 bucket name (unverified, [compatibility and constraints](./s3ap-compatibility-matrix.md) §4)
 
 ---
 
@@ -104,29 +104,34 @@
 
 - Greengrass custom component uses boto3 / AWS SDK to PutObject directly to FSx for ONTAP S3 AP ARN
 - Local disk buffer + exponential backoff retry for resilience
-- Stream Manager is NOT used (only supports standard S3 bucket ARNs)
+- Stream Manager is not used: it requires an S3 bucket name, and whether an access point ARN
+  passes is **untested here** ([compatibility and constraints](./s3ap-compatibility-matrix.md) §4)
 
 **IoT Core MQTT → Lambda → S3 AP path:**
 - Telemetry (small, high-frequency) sent via IoT Core MQTT
 - IoT Core rules engine → Lambda function → Lambda PutObject to S3 AP
-- Kinesis Firehose is NOT used (does not support S3 AP ARN as destination)
+- Amazon Data Firehose requires an S3 bucket ARN. **Unverified** ([compatibility and constraints](./s3ap-compatibility-matrix.md) §4),
+  so this design does not use it
 
-> **Cost optimization note**: Avoiding Kinesis Firehose eliminates processing fees ($0.029/GB). Lambda costs are invocation-based, optimizable via IoT Core Basic Ingest + batch window aggregation.
+> **Cost optimization note**: Avoiding Amazon Data Firehose eliminates processing fees ($0.029/GB). Lambda costs are invocation-based, optimizable via IoT Core Basic Ingest + batch window aggregation.
 
 ### Tier 2: FlexCache Write-Back (Edge Local Write → Async Origin Flush)
 
 **Target**: Intermittent connectivity / low-latency local write requirements
 
 - Edge ONTAP (ONTAP Select / FAS / AFF C-Series) hosts FlexCache Cache Volume in write-back mode
-- IoT devices write via NFS to local cache → immediate local acknowledgment (~1ms LAN)
+- IoT devices write via NFS to the local cache and are acknowledged from the edge, without
+  waiting for a WAN round trip (LAN-local latency; not measured in this configuration)
 - Data asynchronously flushed to Origin (FSx for ONTAP) at block level
-- **Offline resilient**: writes continue to local cache during network outage, differential flush on reconnect
+- **Offline resilient**: writes continue to the local cache during a network outage, with a
+  differential flush on reconnection. Data not yet flushed exists only at the edge, so a
+  cache-side disk failure loses it — RAID or HA on the edge system is a precondition
 
 **FlexCache Write-Back IoT value:**
 
 | Property | Effect |
 |----------|--------|
-| Local write response (~1ms) | Edge devices write without network latency awareness |
+| Local write response | Returns without waiting for a WAN round trip (LAN-local write latency; not measured in this configuration) |
 | Async Origin flush | Limited WAN bandwidth doesn't affect local write performance |
 | Offline resilience | Write continues to local cache during network outage |
 | Block-level differential transfer | Far more efficient than per-object S3 replication |
@@ -134,7 +139,13 @@
 | XLD (exclusive lock delegation) | Guarantees per-file write consistency |
 
 **Requirements:**
-- Both Origin (FSx for ONTAP) and Cache (edge ONTAP) must be ONTAP 9.15.1+
+- Both Origin (FSx for ONTAP) and Cache (edge ONTAP) must be ONTAP 9.15.1 or later
+  ([FlexCache write-back interoperability](https://docs.netapp.com/us-en/ontap/flexcache-writeback/flexcache-write-back-interoperability.html))
+- NetApp states that **9.15.1 does not carry all the fixes write-back needs and is not
+  recommended for production workloads**, and recommends the latest P release
+  ([guidelines](https://docs.netapp.com/us-en/ontap/flexcache-writeback/flexcache-write-back-guidelines.html) /
+  [FAQ](https://docs.netapp.com/us-en/ontap/flexcache-writeback/faq-flexcache-write-back.html)).
+  Treat 9.15.1 as the floor, not the choice
 - SVM peering + inter-cluster network (VPN / Direct Connect)
 - Same-file concurrent writes limited to 1 Cache by XLD — mitigate with per-device directory design
 
@@ -171,7 +182,11 @@ Delivers Origin-aggregated data to workloads at multiple sites with low latency.
 | Edge AI devices | ML model files (GGUF etc.) | Efficient delivery of multi-GB models at block level |
 | QA team workstations | Quality image database | Local-speed image browsing |
 
-> **Model delivery note**: FlexCache caches only accessed blocks, not entire files. Even multi-GB GGUF/ONNX model files only transfer the portions actually loaded. As an OTA alternative, NFS mount reference via FlexCache avoids double storage.
+> **Model delivery note**: FlexCache caches at block granularity rather than whole files, so a
+> large model file can be expected to transfer only the ranges actually read. How much that is
+> depends on how the inference runtime reads the model — whether it mmaps the whole file or reads
+> incrementally — and it is **not measured in this configuration**. The design of referencing the
+> model over NFS instead of an OTA push does avoid keeping two copies.
 
 ---
 
@@ -186,9 +201,53 @@ Delivers Origin-aggregated data to workloads at multiple sites with low latency.
 | Local processing | S3 GET from cloud required | NFS local mount for immediate access | Greengrass ML Inference |
 | Bandwidth constraints | Full object transfer | FlexCache block differential / SnapMirror differential | SORACOM Canal (private connectivity) |
 | Multiprotocol | S3 API only | NFS + SMB + S3 simultaneous access | IoT SiteWise (OPC-UA → structured) |
-| Data gravity | Cloud↔edge round-trips | Edge ONTAP for local processing closure | SageMaker Edge Manager |
+| Data gravity | Cloud↔edge round-trips | Edge ONTAP for local processing closure | Greengrass component-based model delivery |
 
-### 5.2 FabricPool for IoT Data Tiering
+### 5.2 Where the Additional Services Sit
+
+```
+┌─────────────────── Edge ──────────────────────┐   ┌─────────── Cloud ────────────────┐
+│                                               │   │                                  │
+│  ┌─────────────────────────────────────────┐  │   │  ┌────────────────────────────┐  │
+│  │ ONTAP Select (software-defined)         │  │   │  │ FSx for ONTAP              │  │
+│  │ - Runs on general-purpose servers       │  │   │  │ - Origin (aggregation)     │  │
+│  │ - FlexCache write-back capable          │  │   │  │ - S3 AP (analytics access) │  │
+│  │ - SnapMirror capable                    │  │   │  │ - FlexCache origin         │  │
+│  │ - Scales from a 1 TB minimum            │  │   │  │ - FabricPool (tiering)     │  │
+│  └─────────────────────────────────────────┘  │   │  └────────────────────────────┘  │
+│                                               │   │                                  │
+│  ┌─────────────────────────────────────────┐  │   │  ┌────────────────────────────┐  │
+│  │ IoT Greengrass V2                       │  │   │  │ AWS analytics / AI         │  │
+│  │ - Custom S3 client → S3 AP              │  │   │  │ - Athena (SQL on S3 AP)    │  │
+│  │ - ML inference (SageMaker Neo)          │  │   │  │ - Glue ETL (S3 AP R/W)     │  │
+│  │ - IoT Core MQTT (telemetry)             │  │   │  │ - SageMaker (training)     │  │
+│  └─────────────────────────────────────────┘  │   │  │ - Bedrock (generative AI)  │  │
+│                                               │   │  │ - Rekognition (images)     │  │
+│  ┌─────────────────────────────────────────┐  │   │  └────────────────────────────┘  │
+│  │ IoT SiteWise Edge gateway               │  │   │                                  │
+│  │ - OPC-UA → structured series            │  │   │  ┌────────────────────────────┐  │
+│  │ - Runs on Greengrass                    │  │   │  │ IoT Core                   │  │
+│  │ - Writes to edge ONTAP over NFS         │  │   │  │ - MQTT broker              │  │
+│  └─────────────────────────────────────────┘  │   │  │ - Rules → Lambda → S3 AP   │  │
+│                                               │   │  │ - Device Shadow            │  │
+│  ┌─────────────────────────────────────────┐  │   │  │ - Device Defender          │  │
+│  │ SORACOM (cellular connectivity)         │  │   │  └────────────────────────────┘  │
+│  │ - Air: LTE-M / NB-IoT / 4G              │  │   │                                  │
+│  │ - Canal: private connectivity           │  │   │  ┌────────────────────────────┐  │
+│  │ - Funnel: direct to Kinesis             │  │   │  │ Lambda (aggregate/convert) │  │
+│  └─────────────────────────────────────────┘  │   │  │ - IoT Core → PutObject     │  │
+│                                               │   │  │   to S3 AP                 │  │
+│  ┌─────────────────────────────────────────┐  │   │  │ - Batch aggregation (30s)  │  │
+│  │ FabricPool (ONTAP tiering)              │  │   │  │ - Parquet conversion       │  │
+│  │ - SSD (performance tier)                │  │   │  └────────────────────────────┘  │
+│  │ - S3-compatible (capacity tier)         │  │   │                                  │
+│  │ - Tiers cold IoT data                   │  │   │                                  │
+│  └─────────────────────────────────────────┘  │   │                                  │
+│                                               │   │                                  │
+└───────────────────────────────────────────────┘   └──────────────────────────────────┘
+```
+
+### 5.3 FabricPool for IoT Data Tiering
 
 IoT data access frequency decreases over time. FabricPool automatically tiers data from SSD to capacity pool (S3-compatible storage), optimizing FSx for ONTAP costs.
 
@@ -321,8 +380,8 @@ graph TD
 | Pattern | Problem | Mitigation |
 |---------|---------|------------|
 | Route through S3 standard bucket as Landing Zone | Per-object billing + double storage + DataSync delay | PutObject directly to FSx for ONTAP S3 AP |
-| Use Greengrass Stream Manager for S3 AP | Stream Manager only supports S3 bucket ARNs | Custom S3 client component (boto3) |
-| Kinesis Firehose → S3 AP | Firehose S3 Destination doesn't accept S3 AP ARN | IoT Core → Lambda → PutObject to S3 AP |
+| Use Greengrass Stream Manager for S3 AP | Requires an S3 bucket name (unverified, [detail](./s3ap-compatibility-matrix.md) §4) | Custom S3 client component (boto3) |
+| Amazon Data Firehose → S3 AP | Requires an S3 bucket ARN (unverified, [detail](./s3ap-compatibility-matrix.md) §4) | IoT Core → Lambda → PutObject to S3 AP |
 | Attach S3 AP to FlexCache Cache Volume | ONTAP S3 NAS bucket only supports Origin FlexVol/FlexGroup | Attach S3 AP to Origin side only |
 | Write-back from multiple Caches to same file | XLD conflict → performance degradation | Per-device directory isolation |
 | All devices write to single directory | FlexGroup constituent skew + FlexCache cache inefficiency | Device ID + time partition distribution |
@@ -336,19 +395,31 @@ graph TD
 
 ### Q1: Can Greengrass Stream Manager upload directly to FSx for ONTAP S3 AP?
 
-**A**: No. Stream Manager only supports S3 bucket ARNs, not S3 AP ARNs (FSx for ONTAP). Use a Greengrass custom component with boto3 / AWS SDK to PutObject to the S3 AP ARN directly. Implement local disk buffer + retry logic in the component.
+**A**: **Not confirmed.** Stream Manager's `S3ExportTaskDefinition` requires an S3 bucket name, and
+no statement was found about it accepting an access point ARN — but this project has not tried it
+([compatibility and constraints](./s3ap-compatibility-matrix.md) §4). This design uses a Greengrass custom component calling
+boto3 to PutObject to the S3 AP ARN, which means local disk buffering and retry are hand-written.
 
 ### Q2: Can IoT Core rules write directly to FSx for ONTAP S3 AP?
 
 **A**: The IoT Core S3 rule action specifies a bucket name and does not currently support S3 AP ARN directly. Recommended path: Lambda rule action → Lambda PutObject to S3 AP ARN.
 
-### Q3: Can Kinesis Data Firehose deliver to FSx for ONTAP S3 AP?
+### Q3: Can Amazon Data Firehose deliver to FSx for ONTAP S3 AP?
 
-**A**: No. Firehose S3 Destination requires a BucketARN and does not accept FSx for ONTAP S3 AP ARN. Lambda aggregation → S3 AP PutObject is the recommended path.
+**A**: **Not confirmed.** Firehose's S3 Destination requires a `BucketARN`, and whether an access
+point ARN passes is unverified ([compatibility and constraints](./s3ap-compatibility-matrix.md) §4).
+This design aggregates in Lambda and calls PutObject against the S3 AP. Where Kafka is in the path,
+materialising into an Iceberg table with MSK Express brokers streaming tables is another option.
 
 ### Q4: What ONTAP version supports FlexCache write-back?
 
-**A**: ONTAP 9.15.1+. Both Origin and Cache must be 9.15.1+. FSx for ONTAP supports 9.15.1+. New ONTAP Select deployments at the edge ship with latest versions.
+**A**: The floor is ONTAP 9.15.1, and both origin and cache must be at or above it
+([interoperability](https://docs.netapp.com/us-en/ontap/flexcache-writeback/flexcache-write-back-interoperability.html)).
+Meeting the floor is not sufficient, though: NetApp states that 9.15.1 "does not have all the
+necessary fixes and improvements for FlexCache write-back, and is not recommended for production
+workloads", and recommends the latest P release
+([guidelines](https://docs.netapp.com/us-en/ontap/flexcache-writeback/flexcache-write-back-guidelines.html)).
+Do not pick 9.15.1 exactly for production.
 
 ### Q5: Is data lost if network disconnects during FlexCache write-back?
 

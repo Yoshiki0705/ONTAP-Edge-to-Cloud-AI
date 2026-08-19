@@ -395,7 +395,7 @@ aws cloudformation wait stack-create-complete \
 |---------|------|---------|
 | FSx for ONTAP | 1 TiB SSD, 128 MBps, Multi-AZ | ~$500+ |
 | Kinesis Data Stream | ON_DEMAND モード | ~$15–50 |
-| Kinesis Firehose | 5 MB バッファ, 300s 間隔 | ~$5–20 |
+| Amazon Data Firehose | 5 MB バッファ, 300s 間隔 | ~$5–20 |
 | S3 | Standard, 数 GB | ~$1–10 |
 | Lambda | 1000 回/日, 256 MB, 90s | ~$5–15 |
 | Bedrock (Claude) | 1000 回/日 | ~$10–100 |

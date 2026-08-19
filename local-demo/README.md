@@ -2,7 +2,7 @@
 
 Run the full event pipeline (Kafka + ClickHouse + Grafana) locally — no physical
 hardware or managed services required. Useful for development, dashboard work,
-and demos before the Instaclustr/ONTAP environment is ready.
+and demos before the Kafka/ClickHouse and ONTAP environment is ready.
 
 ## Prerequisites
 

@@ -22,7 +22,10 @@ A: 9/9 correct in testing (public images + text-described scenarios). Real-envir
 
 **Q: How does two-stage analysis work?**
 
-A: Stage 1: Claude Haiku (cheap, fast) determines "defect yes/no." Only if "yes," Stage 2: Claude Sonnet (high accuracy) performs detailed analysis. In environments with mostly normal images, this reduces cost by 85%.
+A: Stage 1 has Claude Haiku (cheap, fast) decide "defect or not". Only on "defect" does Stage 2
+run Claude Sonnet (high accuracy) for detailed analysis. Where most images are normal, this
+**calculates** to roughly 85% less cost assuming a 10% anomaly rate — a calculation, not a
+measurement. A higher anomaly rate narrows the saving.
 
 **Q: Can this be used for inspections other than 3D printing?**
 
@@ -34,7 +37,10 @@ A: FPolicy adds latency to target file operations (several ms to tens of ms in s
 
 **Q: What are FSx for ONTAP S3 Access Points constraints?**
 
-A: No conditional writes (no direct Iceberg/Delta Lake writes), no S3 event notifications (no Lambda triggers), ListObjectsV2 30-80x slower, ONTAP 9.17.1+ required. See [use-case-research.md](use-case-research.md) section 5.1 and the [full compatibility matrix](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/docs/en/compatibility-matrix.md).
+A: The main ones are no conditional writes (so no direct Iceberg or Delta Lake writes), no S3
+event notifications (so no object-created Lambda trigger), ListObjectsV2 slower than native S3,
+and ONTAP 9.17.1 or later. The full list, with the basis for each claim, is collected in
+[S3 AP compatibility and constraints](./s3ap-compatibility-matrix.md).
 
 ## Cost
 

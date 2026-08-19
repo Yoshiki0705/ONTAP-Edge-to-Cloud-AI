@@ -1,6 +1,6 @@
 -- ClickHouse DDL: Kafka Table Engine (source for kafka_events_raw)
 -- Connects ClickHouse to Kafka topic factory.events.raw
--- NOTE: Replace <KAFKA_BROKER> with actual broker address after Instaclustr deployment
+-- NOTE: Replace <KAFKA_BROKER> with the broker address once the cluster is deployed
 
 CREATE TABLE IF NOT EXISTS kafka_events_queue
 (

@@ -29,7 +29,7 @@ change to one lands in both in the same commit.
 - Never `FSxN`, bare `FSx`, or `FSx ONTAP`
 - The only exception is a verbatim external citation title; mark that line `allow:naming`
 
-## Vendor neutrality
+## Writing comparisons
 
 Present options, not rankings. State trade-offs symmetrically, including the
 recommended option's own constraints. `最強`, `game-changer`, `競合ツール`,

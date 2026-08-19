@@ -99,7 +99,7 @@ jobs:
             exit 1
           fi
 
-      - name: "Hard-fail: Vendor neutrality (changed .md)"
+      - name: "Hard-fail: Comparison framing (changed .md)"
         if: steps.changed.outputs.md_count != '0'
         run: |
           FILES=$(cat /tmp/changed_md.txt | xargs)
@@ -107,7 +107,7 @@ jobs:
 
           HITS=$(grep -nE '最強|game-changer|ゲームチェンジャー|競合ツール|優位性|より優れ|is better than|is superior to' $FILES 2>/dev/null || true)
           if [ -n "$HITS" ]; then
-            echo "::error::Vendor neutrality violations found (use right-tool-for-the-job framing):"
+            echo "::error::Comparison framing violations found (present options, not rankings):"
             echo "$HITS"
             exit 1
           fi

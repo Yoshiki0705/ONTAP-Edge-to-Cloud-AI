@@ -3,7 +3,7 @@
 -- Databricks (Lakehouse project) picks up via DataSync → S3 → Auto Loader
 --
 -- NOTE: ClickHouse scheduled queries require ClickHouse Cloud or
--- clickhouse-keeper based scheduled tasks. For on-premises managed (Instaclustr),
+-- clickhouse-keeper based scheduled tasks. For a self-managed or managed
 -- use OS-level cron or the provided export script instead.
 
 -- Option 1: ClickHouse Cloud / recent versions with scheduled queries

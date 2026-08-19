@@ -107,7 +107,7 @@ Resources:
           Value: !Ref Environment
 
   # ============================================================
-  # Kinesis Firehose → S3
+  # Amazon Data Firehose → S3
   # ============================================================
   DeliveryStream:
     Type: AWS::KinesisFirehose::DeliveryStream

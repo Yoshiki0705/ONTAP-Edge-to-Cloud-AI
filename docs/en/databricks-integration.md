@@ -11,7 +11,19 @@
 
 Integration design for using edge-collected data as AI/ML training datasets in Databricks Lakehouse.
 
-**Constraint**: Unity Catalog cannot directly access FSx for ONTAP S3 Access Points (session policy limitation). Multiple alternative paths are designed.
+**Assumption (unverified)**: whether an FSx for ONTAP S3 access point can be registered as a
+Unity Catalog external location and read directly **has not been tested in this project**. This
+document previously stated it was impossible due to a session policy limitation; that claim has
+been withdrawn because no primary source for the mechanism could be found.
+
+- Databricks documents an external location as an S3 path plus a storage credential, with no
+  explicit statement about whether an access point is accepted
+  ([Connect to an AWS S3 external location](https://docs.databricks.com/aws/en/connect/storage/amazon-s3))
+- Only attempting the registration will settle it. Until then, read the alternative paths below
+  as routes that work *if* the direct access point route does not
+
+Tracked as an open item in §6 of
+[S3 AP compatibility and constraints](./s3ap-compatibility-matrix.md).
 
 ---
 

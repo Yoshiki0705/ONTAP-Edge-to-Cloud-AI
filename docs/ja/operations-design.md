@@ -438,6 +438,6 @@ AI分析の精度は時間とともに劣化する可能性がある（プリン
 
 **現時点で Iceberg が不要な理由:**
 - Append-only ワークロード（画像メタデータ、センサーデータ）
-- 単一書き込み元（Kinesis Firehose / Glue ETL）
+- 単一書き込み元（Amazon Data Firehose / Glue ETL）
 - データ量が小さい（PoC: 数GB/月）
 - クエリエンジンは Athena のみ

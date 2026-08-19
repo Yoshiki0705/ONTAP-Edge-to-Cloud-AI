@@ -438,6 +438,6 @@ Currently operating with Parquet + Hive-style partitions. Consider Apache Iceber
 
 **Why Iceberg is NOT needed now:**
 - Append-only workload (image metadata, sensor data)
-- Single write source (Kinesis Firehose / Glue ETL)
+- Single write source (Amazon Data Firehose / Glue ETL)
 - Small data volume (PoC: several GB/month)
 - Single query engine (Athena only)

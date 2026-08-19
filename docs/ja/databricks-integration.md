@@ -11,7 +11,18 @@
 
 エッジデバイスが収集したデータを Databricks Lakehouse で AI/ML 学習データセットとして活用する連携設計。
 
-**制約事項**: Unity Catalog は FSx for ONTAP S3 Access Points に直接アクセスできない（セッションポリシー制限）。このため、複数の代替パスを設計する。
+**前提（未検証）**: Unity Catalog の External Location に FSx for ONTAP の S3 Access Point を
+登録して直接読ませられるかは、**このプロジェクトでは検証していない**。以前は
+「セッションポリシーの制限により不可」と記載していたが、その機構を裏付ける一次情報を
+確認できなかったため断定を取り下げた。
+
+- Databricks 側のドキュメントは External Location を「S3 のパス + storage credential」として
+  定義しており、access point を受け付けるか否かの明示的な記述は見つからない
+  （[Connect to an AWS S3 external location](https://docs.databricks.com/aws/en/connect/storage/amazon-s3)）
+- 判定は登録を実際に試すことでしか得られない。結果が出るまで、以下の代替パスは
+  「access point 直結が使えない場合に成立する経路」として読むこと
+
+未確認項目としての追跡は [S3 AP 互換性と制約](./s3ap-compatibility-matrix.md) の §6 にある。
 
 ---
 
