@@ -1,0 +1,340 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  IoT Core → Lambda → FSx for ONTAP S3 Access Point ingestion pipeline.
+  Routes MQTT telemetry directly to FSx for ONTAP without S3 standard bucket intermediary.
+  Supports single-message (low latency) and SQS batch (cost optimized) modes.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: poc
+    AllowedValues: [poc, staging, production]
+
+  S3APAccessPointArn:
+    Type: String
+    Description: >
+      FSx for ONTAP S3 Access Point ARN.
+      Format: arn:aws:s3:<region>:<account-id>:accesspoint/<name>
+    AllowedPattern: "arn:aws:s3:[a-z0-9-]+:[0-9]+:accesspoint/.+"
+
+  MqttTopicFilter:
+    Type: String
+    Default: "edge/+/telemetry"
+    Description: >
+      MQTT topic filter for IoT Core rule.
+      Use + for single-level wildcard (e.g., edge/+/telemetry matches edge/rpi5-001/telemetry).
+
+  BatchMode:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: >
+      Enable SQS batch mode (Parquet aggregation).
+      false = IoT Core → Lambda direct (low latency).
+      true = IoT Core → SQS → Lambda batch (cost optimized for high volume).
+
+  BatchWindowSeconds:
+    Type: Number
+    Default: 30
+    MinValue: 1
+    MaxValue: 300
+    Description: SQS batch window in seconds (only used when BatchMode=true)
+
+  BatchSize:
+    Type: Number
+    Default: 100
+    MinValue: 1
+    MaxValue: 10000
+    Description: Max messages per Lambda batch invocation (only used when BatchMode=true)
+
+  PyArrowLayerArn:
+    Type: String
+    Default: ""
+    Description: >
+      ARN of Lambda Layer containing pyarrow (required for Parquet batch mode).
+      Leave empty to use NDJSON format instead.
+
+Conditions:
+  IsBatchMode: !Equals [!Ref BatchMode, "true"]
+  IsDirectMode: !Not [!Equals [!Ref BatchMode, "true"]]
+  HasPyArrowLayer: !Not [!Equals [!Ref PyArrowLayerArn, ""]]
+
+Resources:
+  # ============================================================
+  # Lambda Function — IoT Telemetry → S3 AP Writer
+  # ============================================================
+  IngestionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "edge-to-cloud-iot-s3ap-ingest-${Environment}"
+      Description: Writes IoT Core MQTT messages directly to FSx for ONTAP S3 Access Point
+      Runtime: python3.12
+      Handler: handler.handler
+      CodeUri: .
+      MemorySize: 256
+      Timeout: 30
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          S3AP_ACCESS_POINT_ARN: !Ref S3APAccessPointArn
+          DEVICE_PREFIX: ingest
+          BATCH_MODE: !Ref BatchMode
+          LOG_LEVEL: INFO
+      Layers: !If
+        - HasPyArrowLayer
+        - [!Ref PyArrowLayerArn]
+        - !Ref AWS::NoValue
+      Role: !GetAtt IngestionFunctionRole.Arn
+      Tags:
+        Project: edge-to-cloud-ai
+        Environment: !Ref Environment
+        Component: iot-ingestion
+
+  IngestionFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${IngestionFunction}"
+      RetentionInDays: 30
+
+  # ============================================================
+  # IAM Role — Lambda Execution
+  # ============================================================
+  IngestionFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "EdgeToCloud-IoTIngestion-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: S3APWriteAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: AllowS3APPutObject
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource: !Sub "${S3APAccessPointArn}/object/*"
+              - Sid: AllowS3APGetBucketLocation
+                Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                Resource: !Ref S3APAccessPointArn
+        - !If
+          - IsBatchMode
+          - PolicyName: SQSReadAccess
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Sid: AllowSQSRead
+                  Effect: Allow
+                  Action:
+                    - sqs:ReceiveMessage
+                    - sqs:DeleteMessage
+                    - sqs:GetQueueAttributes
+                  Resource: !GetAtt IngestionQueue.Arn
+          - !Ref AWS::NoValue
+      Tags:
+        - Key: Project
+          Value: edge-to-cloud-ai
+
+  # ============================================================
+  # IoT Core Rule — Direct Mode (Lambda invocation per message)
+  # ============================================================
+  IoTRuleDirect:
+    Type: AWS::IoT::TopicRule
+    Condition: IsDirectMode
+    Metadata:
+      cfn-lint:
+        config:
+          # E1040 false positive in cfn-lint 1.55.1: !GetAtt <AWS::Serverless::Function>.Arn
+          # into TopicRulePayload.Actions[].Lambda.FunctionArn is reported as not
+          # matching 'AWS::Lambda::Function.Arn', although the SAM transform produces
+          # exactly that. Reproduced in a 17-line template: the same GetAtt against a
+          # plain AWS::Lambda::Function passes. Scoped to this resource so E1040 keeps
+          # working everywhere else.
+          ignore_checks:
+            - E1040
+    Properties:
+      RuleName: !Sub "edge_to_cloud_s3ap_ingest_${Environment}"
+      TopicRulePayload:
+        Description: Route MQTT telemetry to Lambda for S3 AP write
+        # client_id and topic_device_id are named so a payload field cannot
+        # collide with them: `SELECT *` expands publisher-controlled keys, and
+        # the handler must be able to tell which values IoT Core attached.
+        # It prefers client_id > topic_device_id > payload device_id.
+        Sql: !Sub "SELECT *, clientid() as client_id, topic(2) as topic_device_id FROM '${MqttTopicFilter}'"
+        AwsIotSqlVersion: "2016-03-23"
+        RuleDisabled: false
+        Actions:
+          - Lambda:
+              FunctionArn: !GetAtt IngestionFunction.Arn
+        ErrorAction:
+          CloudwatchLogs:
+            LogGroupName: !Ref IoTRuleErrorLogGroup
+            RoleArn: !GetAtt IoTRuleRole.Arn
+
+  IoTRuleDirectPermission:
+    Type: AWS::Lambda::Permission
+    Condition: IsDirectMode
+    Properties:
+      FunctionName: !Ref IngestionFunction
+      Action: lambda:InvokeFunction
+      Principal: iot.amazonaws.com
+      SourceArn: !GetAtt IoTRuleDirect.Arn
+
+  # ============================================================
+  # IoT Core Rule — Batch Mode (IoT Core → SQS → Lambda)
+  # ============================================================
+  IoTRuleBatch:
+    Type: AWS::IoT::TopicRule
+    Condition: IsBatchMode
+    Properties:
+      RuleName: !Sub "edge_to_cloud_s3ap_batch_${Environment}"
+      TopicRulePayload:
+        Description: Route MQTT telemetry to SQS for batched S3 AP write
+        # See IoTRuleDirect: non-colliding names so the handler can prefer the
+        # IoT Core-attached identity over the payload's own device_id.
+        Sql: !Sub "SELECT *, clientid() as client_id, topic(2) as topic_device_id FROM '${MqttTopicFilter}'"
+        AwsIotSqlVersion: "2016-03-23"
+        RuleDisabled: false
+        Actions:
+          - Sqs:
+              QueueUrl: !Ref IngestionQueue
+              RoleArn: !GetAtt IoTRuleRole.Arn
+              UseBase64: false
+        ErrorAction:
+          CloudwatchLogs:
+            LogGroupName: !Ref IoTRuleErrorLogGroup
+            RoleArn: !GetAtt IoTRuleRole.Arn
+
+  # ============================================================
+  # SQS Queue — Batch Buffer (only in batch mode)
+  # ============================================================
+  IngestionQueue:
+    Type: AWS::SQS::Queue
+    Condition: IsBatchMode
+    Properties:
+      QueueName: !Sub "edge-to-cloud-iot-s3ap-batch-${Environment}"
+      VisibilityTimeout: 60
+      MessageRetentionPeriod: 86400
+      SqsManagedSseEnabled: true
+      Tags:
+        - Key: Project
+          Value: edge-to-cloud-ai
+
+  IngestionQueueDLQ:
+    Type: AWS::SQS::Queue
+    Condition: IsBatchMode
+    Properties:
+      QueueName: !Sub "edge-to-cloud-iot-s3ap-batch-dlq-${Environment}"
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  IngestionQueueRedrivePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Condition: IsBatchMode
+    Properties:
+      Queues:
+        - !Ref IngestionQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowIoTCoreSend
+            Effect: Allow
+            Principal:
+              Service: iot.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt IngestionQueue.Arn
+
+  # Lambda SQS Event Source Mapping (batch mode)
+  SQSEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Condition: IsBatchMode
+    Properties:
+      EventSourceArn: !GetAtt IngestionQueue.Arn
+      FunctionName: !Ref IngestionFunction
+      BatchSize: !Ref BatchSize
+      MaximumBatchingWindowInSeconds: !Ref BatchWindowSeconds
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
+
+  # ============================================================
+  # IoT Core Rule IAM Role
+  # ============================================================
+  IoTRuleRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "EdgeToCloud-IoTRule-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: iot.amazonaws.com
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: IoTRuleActions
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: AllowCloudWatchLogs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/iot/*"
+              - !If
+                - IsBatchMode
+                - Sid: AllowSQSSend
+                  Effect: Allow
+                  Action:
+                    - sqs:SendMessage
+                  Resource: !GetAtt IngestionQueue.Arn
+                - !Ref AWS::NoValue
+      Tags:
+        - Key: Project
+          Value: edge-to-cloud-ai
+
+  # ============================================================
+  # Error Logging
+  # ============================================================
+  IoTRuleErrorLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/iot/edge-to-cloud-s3ap-errors-${Environment}"
+      RetentionInDays: 14
+
+Outputs:
+  IngestionFunctionArn:
+    Description: IoT ingestion Lambda ARN
+    Value: !GetAtt IngestionFunction.Arn
+
+  IngestionFunctionName:
+    Description: IoT ingestion Lambda name
+    Value: !Ref IngestionFunction
+
+  IoTRuleName:
+    Description: IoT Core rule name
+    Value: !If
+      - IsDirectMode
+      - !Ref IoTRuleDirect
+      - !Ref IoTRuleBatch
+
+  QueueUrl:
+    Condition: IsBatchMode
+    Description: SQS queue URL for batch ingestion
+    Value: !Ref IngestionQueue
+
+  MqttTopicPattern:
+    Description: MQTT topic pattern to publish telemetry
+    Value: !Ref MqttTopicFilter

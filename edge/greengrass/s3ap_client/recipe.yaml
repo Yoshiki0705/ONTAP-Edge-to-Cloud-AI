@@ -1,0 +1,55 @@
+---
+# Greengrass V2 Component Recipe
+# Component: com.edge-to-cloud.S3APClient
+# Purpose: Upload IoT data directly to FSx for ONTAP S3 Access Points
+RecipeFormatVersion: "2020-01-25"
+
+ComponentName: com.edge-to-cloud.S3APClient
+ComponentVersion: "1.0.0"
+ComponentDescription: |
+  Custom S3 Access Point client for direct data ingest to FSx for ONTAP.
+  Replaces Stream Manager for S3 AP targets with local disk buffer,
+  exponential backoff retry, and dead letter handling.
+ComponentPublisher: edge-to-cloud-ai
+ComponentConfiguration:
+  DefaultConfiguration:
+    S3APAccessPointArn: ""
+    S3APAccessPointAlias: ""
+    AWSRegion: "ap-northeast-1"
+    DeviceId: "rpi5-001"
+    SiteId: "lab-tokyo"
+    BufferDbPath: "/var/lib/greengrass-s3ap/buffer.db"
+    BufferMaxSizeMB: "500"
+    FlushIntervalSeconds: "10"
+    FlushBatchSize: "10"
+    MaxRetries: "5"
+    LogLevel: "INFO"
+
+Manifests:
+  - Platform:
+      os: linux
+    Lifecycle:
+      install: |
+        pip3 install boto3 pyarrow
+      run:
+        script: |
+          export S3AP_ACCESS_POINT_ARN="{configuration:/S3APAccessPointArn}"
+          export S3AP_ACCESS_POINT_ALIAS="{configuration:/S3APAccessPointAlias}"
+          export AWS_REGION="{configuration:/AWSRegion}"
+          export DEVICE_ID="{configuration:/DeviceId}"
+          export SITE_ID="{configuration:/SiteId}"
+          export S3AP_BUFFER_DB_PATH="{configuration:/BufferDbPath}"
+          export S3AP_BUFFER_MAX_SIZE_MB="{configuration:/BufferMaxSizeMB}"
+          export S3AP_BUFFER_FLUSH_INTERVAL_SECONDS="{configuration:/FlushIntervalSeconds}"
+          export S3AP_BUFFER_FLUSH_BATCH_SIZE="{configuration:/FlushBatchSize}"
+          export S3AP_MAX_RETRIES="{configuration:/MaxRetries}"
+          export LOG_LEVEL="{configuration:/LogLevel}"
+          python3 -m s3ap_client.main
+    Artifacts:
+      - URI: "s3://ARTIFACT_BUCKET/com.edge-to-cloud.S3APClient/1.0.0/s3ap_client.zip"
+        Unarchive: ZIP
+
+ComponentDependencies:
+  aws.greengrass.TokenExchangeService:
+    VersionRequirement: ">=2.0.0"
+    DependencyType: HARD

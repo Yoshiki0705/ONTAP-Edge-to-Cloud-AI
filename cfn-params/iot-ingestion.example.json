@@ -1,0 +1,30 @@
+[
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "poc"
+  },
+  {
+    "ParameterKey": "S3APAccessPointArn",
+    "ParameterValue": "arn:aws:s3:ap-northeast-1:123456789012:accesspoint/iot-ingest-ap"
+  },
+  {
+    "ParameterKey": "MqttTopicFilter",
+    "ParameterValue": "edge/+/telemetry"
+  },
+  {
+    "ParameterKey": "BatchMode",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "BatchWindowSeconds",
+    "ParameterValue": "30"
+  },
+  {
+    "ParameterKey": "BatchSize",
+    "ParameterValue": "100"
+  },
+  {
+    "ParameterKey": "PyArrowLayerArn",
+    "ParameterValue": ""
+  }
+]
