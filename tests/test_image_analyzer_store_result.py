@@ -9,13 +9,15 @@ returned as a 500 — after the Bedrock call had already been paid for. Every
 invocation failed at the last step and no test touched that line. bandit does not
 look for undefined names; ruff's F821 found it in the second copy.
 
-The file exists twice, byte-identical: cloud/ai/image_analyzer/handler.py and
-usecases/3d-print-quality/lambda/handler.py. Both are loaded here, because fixing
-one copy of a duplicated bug is the usual way the other copy survives.
+The file used to exist twice, byte-identical, as
+usecases/3d-print-quality/lambda/handler.py as well. That is how the defect
+reached two places at once, so `test_handler_is_not_duplicated` below fails if a
+copy reappears.
 """
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import sys
@@ -26,10 +28,11 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-HANDLER_PATHS = [
-    REPO_ROOT / "cloud" / "ai" / "image_analyzer" / "handler.py",
-    REPO_ROOT / "usecases" / "3d-print-quality" / "lambda" / "handler.py",
-]
+# The single source. The deployment guide zips this directory, and both
+# usecases/3d-print-quality and usecases/visual-inspection point at it.
+HANDLER_PATH = REPO_ROOT / "cloud" / "ai" / "image_analyzer" / "handler.py"
+
+SKIP_DIR_PARTS = {".venv", ".aws-sam", "__pycache__", ".git", ".pytest_cache", ".ruff_cache"}
 
 
 def load_handler(path: Path, module_name: str):
@@ -41,22 +44,36 @@ def load_handler(path: Path, module_name: str):
     return module
 
 
-@pytest.fixture(params=HANDLER_PATHS, ids=lambda p: p.parent.parent.name)
-def handler(request, monkeypatch):
-    path = request.param
-    if not path.is_file():
-        pytest.skip(f"{path} not present")
+@pytest.fixture
+def handler(monkeypatch):
+    assert HANDLER_PATH.is_file(), f"{HANDLER_PATH} is missing"
     monkeypatch.setenv("RESULT_BUCKET", "results-bucket")
     monkeypatch.setenv("LOG_LEVEL", "CRITICAL")
-    module = load_handler(path, f"analyzer_{path.parent.parent.name.replace('-', '_')}")
+    module = load_handler(HANDLER_PATH, "image_analyzer_handler")
     monkeypatch.setattr(module, "RESULT_BUCKET", "results-bucket")
     return module
 
 
-def test_both_handler_copies_are_present():
-    """If one copy is deleted, this test says so instead of silently halving coverage."""
-    missing = [str(p.relative_to(REPO_ROOT)) for p in HANDLER_PATHS if not p.is_file()]
-    assert not missing, f"expected handler copies are missing: {missing}"
+def test_handler_is_not_duplicated():
+    """No other file in the repository may be a copy of this handler.
+
+    The MODEL_ID defect existed in two byte-identical files. A copy passes its
+    own tests right up until one side is edited, and then keeps passing.
+    Comparing content rather than filename catches a copy under any name.
+    """
+    canonical = hashlib.sha256(HANDLER_PATH.read_bytes()).hexdigest()
+    copies = []
+    for path in REPO_ROOT.rglob("*.py"):
+        if path == HANDLER_PATH or SKIP_DIR_PARTS & set(path.parts):
+            continue
+        if hashlib.sha256(path.read_bytes()).hexdigest() == canonical:
+            copies.append(path.relative_to(REPO_ROOT).as_posix())
+
+    assert not copies, (
+        f"these files are byte-identical copies of {HANDLER_PATH.relative_to(REPO_ROOT)}: "
+        f"{copies}. Reference the single source instead; the deployment guide zips "
+        f"cloud/ai/image_analyzer/ for every use case."
+    )
 
 
 def test_store_result_does_not_raise_on_a_screening_only_verdict(handler):
