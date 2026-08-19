@@ -149,10 +149,11 @@ def _handle_sqs_batch(event: dict) -> dict:
     # Determine device_id from first message (batch assumed same device or mixed)
     device_id = resolve_device_id(messages[0], fallback="mixed")
 
-    if BATCH_MODE and _parquet_available():
-        return _write_parquet_batch(messages, device_id, timestamp)
-    else:
-        return _write_ndjson_batch(messages, device_id, timestamp)
+    if BATCH_MODE:
+        if _parquet_available():
+            return _write_parquet_batch(messages, device_id, timestamp)
+        _warn_parquet_unavailable()
+    return _write_ndjson_batch(messages, device_id, timestamp)
 
 
 def _write_parquet_batch(
@@ -290,6 +291,36 @@ def _parquet_available() -> bool:
         return True
     except ImportError:
         return False
+
+
+_parquet_fallback_warned = False
+
+
+def _warn_parquet_unavailable() -> None:
+    """Say out loud that Parquet was asked for and NDJSON is being written instead.
+
+    `BatchMode=true` with `PyArrowLayerArn` left empty is a deploy CloudFormation
+    accepts: the parameter defaults to empty and nothing requires the layer. The
+    function then writes NDJSON on every invocation while the stack, the parameter
+    file and the guides all say Parquet. Before this warning the only difference was
+    the `format` field of the response body, which nothing reads — so a Glue table
+    declared with a Parquet SerDe returns zero rows over a prefix full of data, with
+    no failed invocation anywhere to point at.
+
+    Logged once per container rather than per invocation: the import cannot start
+    succeeding while a container is alive, so repeating it per batch would add
+    volume without adding information.
+    """
+    global _parquet_fallback_warned
+    if _parquet_fallback_warned:
+        return
+    _parquet_fallback_warned = True
+    logger.warning(
+        "BATCH_MODE=true but pyarrow is not importable; writing NDJSON instead of "
+        "Parquet. Attach the PyArrow layer (PyArrowLayerArn) or set BatchMode=false "
+        "so the stack and the stored objects agree. Readers expecting Parquet will "
+        "see no rows for this prefix."
+    )
 
 
 def _identify_event_type(event: dict) -> str:

@@ -84,6 +84,6 @@ flowchart LR
 aws cloudformation deploy \
   --template-file usecases/visual-inspection/template.yaml \
   --stack-name visual-inspection \
-  --parameter-overrides file://usecases/visual-inspection/params/poc.json \
+  --parameter-overrides file://cfn-params/visual-inspection.example.json \
   --capabilities CAPABILITY_NAMED_IAM
 ```

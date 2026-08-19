@@ -57,6 +57,7 @@ distinction here is the scope of the stage rather than read versus write.
 | Kafka / ClickHouse | Local only | [`local-demo/`](../../local-demo/) |
 | ONTAP telemetry collection (REST API polling) | Not run | No real ONTAP environment |
 | Deploying the SAM templates | Not run | cfn-lint passes. No record of a stack being created |
+| Stack teardown ([`scripts/teardown.sh`](../../scripts/teardown.sh)) | Not run | The order is derived from the templates' `Fn::ImportValue`, and the argument handling is exercised with a shimmed `aws`. The `delete-stack` and `wait` calls have no execution record |
 
 Nothing is at "real hardware, end-to-end" yet.
 

@@ -54,6 +54,7 @@ FSx for ONTAP を含む経路は実行していません。SAM テンプレー�
 | Kafka / ClickHouse | ローカルのみ | [`local-demo/`](../../local-demo/) |
 | ONTAP テレメトリ収集（REST API ポーリング） | 未実行 | 実 ONTAP 環境がない |
 | SAM テンプレートのデプロイ | 未実行 | cfn-lint は通る。スタック作成の記録はない |
+| スタック撤去（[`scripts/teardown.sh`](../../scripts/teardown.sh)） | 未実行 | 削除順はテンプレートの `Fn::ImportValue` から導出し、引数処理は `aws` を差し替えて確認した。`delete-stack` と `wait` の実行記録はない |
 
 「実機 E2E」の段はまだありません。
 
