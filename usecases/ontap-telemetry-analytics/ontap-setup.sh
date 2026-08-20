@@ -8,6 +8,10 @@
 #   - ONTAP 9.13.1+
 #   - SVM created (svm-iot)
 #   - REST API enabled (default on 9.13.1+)
+#   - Aggregate with available space
+#
+# Shared objects: the iot-devices export policy is also created by
+# usecases/3d-print-quality/ontap-setup.sh. Whichever runs first creates it.
 
 set -euo pipefail
 
@@ -46,6 +50,12 @@ security login create -vserver svm-iot \
 # ============================================================
 # 3. Configure export policy
 # ============================================================
+# The iot-devices policy is shared across use cases: 3d-print-quality's
+# ontap-setup.sh creates the same one. Skip this create if it already exists --
+# ONTAP errors on a duplicate rather than treating it as a no-op. This block used
+# to start at the rule below, which fails on a fresh SVM because the policy it
+# names does not exist yet.
+export-policy create -vserver svm-iot -policyname iot-devices
 
 export-policy rule create -vserver svm-iot \
   -policyname iot-devices \

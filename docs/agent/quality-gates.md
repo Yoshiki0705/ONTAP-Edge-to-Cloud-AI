@@ -24,7 +24,7 @@ make check           # lint + security + test + drift（CI と同じ）
 | `make hygiene` | git 追跡下の全ファイル | `.pre-commit-config.yaml` のフックが書き換えを要したとき（末尾改行、行末空白、YAML/JSON の構文、1 MB 超のファイル） |
 | `make bandit` | `PY_DIRS` | 重大度に関わらず 1 件でも |
 | `make secrets` | 作業ツリー（`.gitleaks.toml`） | 検出 1 件でも |
-| `make drift` | 下記の 11 ガード | ゲートが無音化する構造の検出 |
+| `make drift` | 下記の 12 ガード | ゲートが無音化する構造の検出 |
 | `make agent-config` | global/workspace の steering・skills・hooks | 到達不能な設定 |
 
 ## drift ガード
@@ -45,6 +45,7 @@ make check           # lint + security + test + drift（CI と同じ）
 | `check_verification_ledger.py` | 検証状態の台帳が出荷物を説明しなくなった状態（測定に使ったモデル ID がコードから消えた、片方の言語にだけ行が増えた、根拠リンクが切れた、借用した語彙にない段階が足された） |
 | `check_lambda_env_contract.py` | テンプレートが渡す環境変数とハンドラが読む環境変数の不一致、`usecases/handler-map.txt` が must-set と宣言した上書きの欠落、ハンドラが解析するキーを要求しないプロンプト、map に載っていない Lambda 定義 |
 | `check_cfn_params_contract.py` | パラメータファイルとテンプレートの不一致（テンプレートが宣言しないキー、`ParameterKey`/`ParameterValue` 以外のキー、Default なしパラメータの欠落や空値、プレースホルダ値）、テンプレートに対応しないパラメータファイル、`cfn-params/README.md` の表に行がないファイル |
+| `check_ontap_setup_scripts.py` | `usecases/*/ontap-setup.sh` が出力する ONTAP コマンドの自己矛盾（作られていない export policy を参照、誰も参照しない FPolicy event を作成、作られていないボリュームを modify）、コマンドブロックそのものの消失 |
 
 `scripts/tests/` に自己テストがある。`make test` で走る。
 

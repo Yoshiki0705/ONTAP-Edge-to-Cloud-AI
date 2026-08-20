@@ -26,7 +26,7 @@ make check           # lint + security + test + drift (what CI runs)
 | `make hygiene` | every git-tracked file | a hook in `.pre-commit-config.yaml` had to rewrite something (final newline, trailing whitespace, YAML/JSON syntax, a file over 1 MB) |
 | `make bandit` | `PY_DIRS` | any finding, at any severity |
 | `make secrets` | working tree, via `.gitleaks.toml` | any finding |
-| `make drift` | the eleven guards below | a gate is structurally able to go quiet |
+| `make drift` | the twelve guards below | a gate is structurally able to go quiet |
 | `make agent-config` | global and workspace steering, skills, hooks | unreachable configuration |
 
 ## Drift guards
@@ -47,6 +47,7 @@ in `scripts/` and run from `make drift`, `.githooks/pre-commit` and CI.
 | `check_verification_ledger.py` | the verification ledger no longer describing what ships (a model ID cited as measured has left the code, a row was added to one language only, a basis link rotted, a tier outside the borrowed vocabulary appeared) |
 | `check_lambda_env_contract.py` | a template's environment variables disagreeing with what the handler reads, an override declared must-set in `usecases/handler-map.txt` left unset, a prompt that never asks for the keys the handler parses, a Lambda function absent from the map |
 | `check_cfn_params_contract.py` | a parameter file disagreeing with its template (a key the template does not declare, a key besides `ParameterKey`/`ParameterValue`, a no-`Default` parameter missing or empty, a placeholder value), a parameter file matching no template, a file with no row in the `cfn-params/README.md` table |
+| `check_ontap_setup_scripts.py` | a `usecases/*/ontap-setup.sh` command block contradicting itself (an export policy referenced but never created, an FPolicy event created that nothing consumes, a volume modified but never created), or the block disappearing |
 
 Their self-tests are in `scripts/tests/` and run under `make test`.
 

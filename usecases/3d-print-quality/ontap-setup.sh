@@ -8,6 +8,10 @@
 #   - ONTAP 9.13.1+
 #   - SVM created (svm-iot)
 #   - Aggregate with available space
+#
+# Shared objects: the iot-devices export policy is also created by
+# usecases/ontap-telemetry-analytics/ontap-setup.sh. Whichever runs first creates it;
+# the second `export-policy create` errors on the duplicate, so skip that one line.
 
 set -euo pipefail
 
@@ -50,11 +54,14 @@ vol modify -vserver svm-iot -volume vol_results -policy iot-devices
 # ============================================================
 
 # Create FPolicy event (monitor JPEG file creation)
-fpolicy policy event create -vserver svm-iot \
-  -event-name img-create \
-  -protocol nfs \
-  -file-operations create \
-  -filters first-write
+# Commented out with the rest of this optional section. It used to be the one live
+# command here, which left an img-create event on the SVM that no policy consumed:
+# the engine, policy and enable below were all commented, so nothing referenced it.
+# fpolicy policy event create -vserver svm-iot \
+#   -event-name img-create \
+#   -protocol nfs \
+#   -file-operations create \
+#   -filters first-write
 
 # Create FPolicy external engine (Pi as FPolicy server)
 # fpolicy policy external-engine create -vserver svm-iot \
