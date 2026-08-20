@@ -39,6 +39,7 @@ GUARDS = [
     "check_doc_parity.py",
     "check_verification_ledger.py",
     "check_lambda_env_contract.py",
+    "check_ontap_setup_scripts.py",
     "check_git_hooks_wiring.py",
     "check_sql_interpolation.py",
     "check_sunset_services.py",
@@ -1325,3 +1326,146 @@ def test_parity_block_drift_can_be_recorded_as_a_known_gap(tmp_path):
     _parity_fixture(tmp_path, _BLOCKS_JA, thinner, known="docs/ja/guide.md\n")
     result = run_guard(tmp_path, "check_doc_parity.py")
     assert result.returncode == 0, result.stderr
+
+
+# --------------------------------------------------------------------------------------
+# check_ontap_setup_scripts.py
+#
+# These scripts configure nothing. Each prints a block of ONTAP CLI commands for an
+# operator to paste, so the block is the deliverable and nothing executes it. Two defects
+# of that shape shipped: ontap-telemetry-analytics referenced an export policy it never
+# created (working only because another use case's script creates the same one), and
+# 3d-print-quality created an FPolicy event as the single live command in an otherwise
+# commented-out section, leaving an object on the SVM that nothing consumed.
+# --------------------------------------------------------------------------------------
+
+
+def _ontap_script(commands: str) -> str:
+    return (
+        "#!/bin/bash\n"
+        "# ONTAP Setup\n"
+        "set -euo pipefail\n\n"
+        "cat << 'ONTAP_COMMANDS'\n"
+        f"{commands}\n"
+        "ONTAP_COMMANDS\n"
+        'echo "done"\n'
+    )
+
+
+_CONSISTENT = """\
+vol create -vserver svm-iot -volume vol_data \\
+  -aggregate aggr1 -size 50GB \\
+  -junction-path /vol_data \\
+  -security-style unix
+
+export-policy create -vserver svm-iot -policyname iot-devices
+
+export-policy rule create -vserver svm-iot \\
+  -policyname iot-devices \\
+  -clientmatch <PI_IP> \\
+  -rorule sys -rwrule sys -superuser sys \\
+  -protocol nfs
+
+vol modify -vserver svm-iot -volume vol_data -policy iot-devices
+"""
+
+
+def _ontap_fixture(root: Path, commands: str = _CONSISTENT, usecase: str = "demo") -> None:
+    directory = root / "usecases" / usecase
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "ontap-setup.sh").write_text(_ontap_script(commands), encoding="utf-8")
+
+
+def test_ontap_allows_a_self_consistent_block(tmp_path):
+    _ontap_fixture(tmp_path)
+    result = run_guard(tmp_path, "check_ontap_setup_scripts.py")
+    assert result.returncode == 0, result.stderr
+    assert "internally consistent" in result.stdout
+
+
+def test_ontap_blocks_a_policy_used_without_being_created(tmp_path):
+    """The telemetry defect: a rule naming a policy that does not exist on a fresh SVM."""
+    _ontap_fixture(
+        tmp_path,
+        _CONSISTENT.replace("export-policy create -vserver svm-iot -policyname iot-devices\n", ""),
+    )
+    result = run_guard(tmp_path, "check_ontap_setup_scripts.py")
+    assert result.returncode == 1
+    assert "iot-devices" in result.stderr
+    assert "never creates it" in result.stderr
+
+
+def test_ontap_does_not_accept_a_commented_out_create(tmp_path):
+    """An operator pastes what is printed; a comment creates nothing."""
+    _ontap_fixture(
+        tmp_path,
+        _CONSISTENT.replace(
+            "export-policy create -vserver svm-iot -policyname iot-devices",
+            "# export-policy create -vserver svm-iot -policyname iot-devices",
+        ),
+    )
+    result = run_guard(tmp_path, "check_ontap_setup_scripts.py")
+    assert result.returncode == 1
+    assert "never creates it" in result.stderr
+
+
+def test_ontap_blocks_an_fpolicy_event_nothing_consumes(tmp_path):
+    """The 3d-print defect: one live command in an otherwise commented-out section."""
+    _ontap_fixture(
+        tmp_path,
+        _CONSISTENT
+        + "\nfpolicy policy event create -vserver svm-iot \\\n"
+        "  -event-name img-create \\\n"
+        "  -protocol nfs \\\n"
+        "  -file-operations create\n",
+    )
+    result = run_guard(tmp_path, "check_ontap_setup_scripts.py")
+    assert result.returncode == 1
+    assert "img-create" in result.stderr
+    assert "nothing consumes" in result.stderr
+
+
+def test_ontap_allows_an_event_a_policy_references(tmp_path):
+    _ontap_fixture(
+        tmp_path,
+        _CONSISTENT
+        + "\nfpolicy policy event create -vserver svm-iot -event-name img-create\n"
+        "fpolicy policy create -vserver svm-iot -policy-name mon -events img-create\n",
+    )
+    result = run_guard(tmp_path, "check_ontap_setup_scripts.py")
+    assert result.returncode == 0, result.stderr
+
+
+def test_ontap_blocks_a_policy_referencing_an_event_that_is_never_created(tmp_path):
+    _ontap_fixture(
+        tmp_path,
+        _CONSISTENT
+        + "\nfpolicy policy create -vserver svm-iot -policy-name mon -events ghost-event\n",
+    )
+    result = run_guard(tmp_path, "check_ontap_setup_scripts.py")
+    assert result.returncode == 1
+    assert "ghost-event" in result.stderr
+
+
+def test_ontap_blocks_a_volume_modified_without_being_created(tmp_path):
+    _ontap_fixture(tmp_path, _CONSISTENT.replace("-volume vol_data -policy", "-volume vol_ghost -policy"))
+    result = run_guard(tmp_path, "check_ontap_setup_scripts.py")
+    assert result.returncode == 1
+    assert "vol_ghost" in result.stderr
+
+
+def test_ontap_blocks_a_script_that_prints_no_command_block(tmp_path):
+    directory = tmp_path / "usecases" / "demo"
+    directory.mkdir(parents=True)
+    (directory / "ontap-setup.sh").write_text('#!/bin/bash\necho "nothing here"\n', encoding="utf-8")
+    result = run_guard(tmp_path, "check_ontap_setup_scripts.py")
+    assert result.returncode == 1
+    assert "no commands found" in result.stderr
+
+
+def test_ontap_blocks_a_tree_with_no_setup_scripts(tmp_path):
+    """A guard that finds nothing to check must not report success."""
+    (tmp_path / "usecases").mkdir(parents=True)
+    result = run_guard(tmp_path, "check_ontap_setup_scripts.py")
+    assert result.returncode == 1
+    assert "vacuously" in result.stderr
