@@ -9,6 +9,18 @@
 # Environment & Secrets
 *.env
 .env.*
+# The template is the one file here that must be tracked. Without this negation the
+# rule above swallows it and `git add .env.example` silently does nothing -- verified
+# with `git check-ignore`, which reported .env.example as ignored by `.env.*`.
+!.env.example
+!**/.env.example
+.secrets
+.secrets.*
+secrets/
+# Raw device transcripts from scripts/lab: these carry management addresses and
+# controller serial numbers verbatim. The redacted summaries under
+# docs/verification-evidence/ are the tracked artefact.
+scripts/lab/.evidence/
 *.pem
 *.key
 *.tfvars
