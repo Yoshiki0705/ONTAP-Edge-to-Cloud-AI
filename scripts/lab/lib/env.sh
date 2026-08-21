@@ -217,7 +217,7 @@ lab_present_warn() {
 # ---------------------------------------------------------------------------
 # lab_probe_tcp VAR_HOST PORT — bounded TCP connect test, no external binaries.
 #
-# Measured on macOS 
+# Measured on macOS
 #   nc -z -w 1 <black-holed addr> 22   ->  returned after 75 seconds
 # because BSD nc treats -w as an idle/read timeout, not a connect timeout. GNU
 # `timeout` is not present on macOS either, so the obvious fallback silently reports
