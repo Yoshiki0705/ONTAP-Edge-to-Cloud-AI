@@ -66,6 +66,14 @@ jobs:
         # Offline. `make links-external` probes URLs and is deliberately absent:
         # it would make this job fail for a third party's outage.
         run: make links
+      - name: Actions pins exist and match their version comments
+        # The verifying half runs here, unlike links-external, because it asks
+        # api.github.com rather than arbitrary hosts and a rate limit is reported
+        # as undetermined rather than failing. Without it a pin to a SHA that does
+        # not exist is invisible until the workflow it sits in happens to run.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: make action-pins-verify
       - name: bandit over PY_DIRS
         run: make bandit
 

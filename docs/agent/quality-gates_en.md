@@ -25,6 +25,8 @@ make check           # lint + security + test + drift (what CI runs)
 | `make lint-cfn` | `CFN_TEMPLATES` | cfn-lint reports anything |
 | `make links` | relative links and anchors in every `*.md` (no network) | a link that does not resolve, a heading anchor that does not exist, a path leaving the repository, a directory that would not survive a clone |
 | `make links-external` | the above plus http(s) URLs | HTTP 4xx. **Deliberately outside `check`**, since a third party's outage would fail it. 5xx and unreachable are reported separately as undetermined and do not fail the run |
+| `make action-pins` | every `uses:` in `.github/workflows/` | a pin that is not a SHA, a pin with no version comment |
+| `make action-pins-verify` | the above plus existence on GitHub | a SHA that does not exist, a comment whose tag resolves to another commit. A rate limit is undetermined and does not fail. Also runs in the CI lint job |
 | `make hygiene` | every git-tracked file | a hook in `.pre-commit-config.yaml` had to rewrite something (final newline, trailing whitespace, YAML/JSON syntax, a file over 1 MB) |
 | `make bandit` | `PY_DIRS` | any finding, at any severity |
 | `make secrets` | working tree, via `.gitleaks.toml` | any finding |
@@ -67,6 +69,7 @@ gate until it has failed on an input that should fail it.**
 | `# nosec` had no effect | bandit reads the comment on the **reported line only**. Placed a line above, the run shows `Total lines skipped (#nosec): 0` |
 | A newly added parity gate never compared one of the pairs | it walked `*_en.md` only, so `edge/soracom/README.md` ↔ `README_ja.md` — the reversed suffix — was out of scope. Not walking a path does not show up in the output |
 | A newly added sunset gate reported one of two identical defects | `maintenance` was in the list of status phrases as a bare word, so a document containing `predictive maintenance` passed. 7 of 60 documents carry that word |
+| the Scorecard workflow had never run | `github/codeql-action/upload-sarif` was pinned to **a commit that does not exist** (`ce28f5bb`, commented v3.28.0; the real v3.28.0 is `48ab28a6`). Action resolution fails, so no step runs, and the README badge pointed at a scan that had never happened. **The red X was indistinguishable from the Scorecard checks that depend on repository settings**, and was read that way. Detail in [supply-chain security](supply-chain-security_en.md#actions-pinning) |
 | seven links into a sibling repository returned 404 | that repository reorganised its implementations under `solutions/<category>/<name>/` and four paths under `usecases/` still pointed at the old location. Found by the first run of `make links-external`. **That no link was being checked at all appeared in no output** |
 | the link gate's first run reported 990 links OK | the same output a no-op prints. That it can fail was established by the blocking cases in `scripts/tests/test_link_gate.py` and by breaking one real link. **Anchors rot the most quietly**: GitHub answers an unknown fragment with the top of the page, so renaming a heading leaves neither reader nor crawler able to tell |
 | `pytest` and CI checked different sets | no `testpaths`. `scripts/tests/` was in neither, and `edge/raspberry-pi/camera/test_prompt.py` is a CLI script with zero test functions that looked like a suite |
