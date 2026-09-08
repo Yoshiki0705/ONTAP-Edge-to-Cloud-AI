@@ -1,0 +1,19 @@
+name: "CodeQL config for ontap-edge-to-cloud-ai"
+
+# security-extended rather than the default suite. The default is tuned for a low
+# false-positive rate on application code; this tree is mostly small handlers and
+# gate scripts, so the extra queries cost little review time and cover the
+# injection shapes that matter here (a publisher-controlled identifier reaching a
+# path, an S3 key or a SQL statement).
+queries:
+  - uses: security-extended
+
+paths-ignore:
+  # Gate self-tests build synthetic repositories and deliberately write the defect
+  # they assert on — a fabricated Actions pin, a SQL string built by interpolation,
+  # a path that escapes a root. Flagging those is flagging the test fixture.
+  - scripts/tests
+  - tests
+  # Generated or vendored, not authored here.
+  - .aws-sam
+  - .venv

@@ -27,7 +27,7 @@ make check           # lint + security + test + drift（CI と同じ）
 | `make action-pins-verify` | 上記に加えて GitHub 上の実在性 | SHA が存在しない、コメントのタグが別の commit を指す。レート制限は「判定不能」で落とさない。CI の lint ジョブでも走る |
 | `make deps-audit` | 固定した依存バージョン（OSV に問い合わせ） | 既知の脆弱性 1 件でも。**`check` には入れない**（こちらのコミットなしに判定が変わるため）。公開前と定期実行 |
 | `make hygiene` | git 追跡下の全ファイル | `.pre-commit-config.yaml` のフックが書き換えを要したとき（末尾改行、行末空白、YAML/JSON の構文、1 MB 超のファイル） |
-| `make bandit` | `PY_DIRS` | 重大度に関わらず 1 件でも |
+| `make bandit` | `PY_DIRS` | 重大度に関わらず 1 件でも。**ファイル内のパターンを見る。関数やモジュールを越えるデータフローは見ない** — そちらは CodeQL（`.github/workflows/codeql.yml`、ローカル実行なし） |
 | `make secrets` | 作業ツリー（`.gitleaks.toml`） | 検出 1 件でも |
 | `make drift` | 下記の 12 ガード | ゲートが無音化する構造の検出 |
 | `make agent-config` | global/workspace の steering・skills・hooks | 到達不能な設定 |
