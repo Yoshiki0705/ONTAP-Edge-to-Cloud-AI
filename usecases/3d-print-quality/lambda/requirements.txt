@@ -1,1 +1,5 @@
-boto3>=1.34.0
+# Lambda dependencies — exact pin.
+#
+# The runtime provides boto3, at whichever version AWS ships. Pinning is what makes a
+# SAM build reproducible and keeps a scanner able to say which version runs.
+boto3==1.43.89

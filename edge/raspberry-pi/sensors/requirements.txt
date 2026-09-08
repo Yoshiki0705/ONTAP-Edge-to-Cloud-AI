@@ -1,2 +1,6 @@
-# ONTAP telemetry collector dependencies
-requests>=2.31.0,<3.0.0
+# ONTAP telemetry collector dependencies — exact pin.
+#
+# 2.34.2 rather than the old `>=2.31.0` floor: 2.31.0 leaks .netrc credentials to a
+# malicious redirect (PYSEC-2026-1872, fixed in 2.32.4). This collector authenticates
+# to ONTAP, so a credential leak on redirect is the relevant failure here.
+requests==2.34.2

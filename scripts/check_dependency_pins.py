@@ -20,6 +20,14 @@ Three things are checked:
      after deploying.
   3. Workflows install tooling through requirements-dev.txt rather than naming
      versions inline, so bumping a pin updates both sides in one commit.
+  4. Every runtime requirements file uses `==` as well. This was deliberately not
+     required at first — the edge files carried ranges "for the device" — and an
+     OSV scan then reported 26 known vulnerabilities against the repository. A
+     range does not say which version runs, so a scanner reports every advisory
+     ever filed against the package; and the floors were genuinely stale, with
+     `requests>=2.31.0` allowing a release that leaks .netrc credentials to a
+     malicious redirect. Ranges here are a supply-chain finding, not a
+     convenience.
 
 Exit codes: 0 consistent, 1 a divergence that can produce different verdicts.
 """
@@ -75,6 +83,37 @@ def check_dev_pins(problems: list[str]) -> None:
         problems.append(
             f"{tool} decides whether a gate passes but is not pinned in requirements-dev.txt."
         )
+
+
+def runtime_requirements() -> list[Path]:
+    """Every requirements.txt that describes what ships, dev tooling excluded."""
+    skip = {".venv", ".aws-sam", "node_modules", "__pycache__", ".git", ".kiro", ".private"}
+    found = []
+    for path in sorted(REPO_ROOT.rglob("requirements*.txt")):
+        if skip & set(path.relative_to(REPO_ROOT).parts):
+            continue
+        if path == DEV_REQUIREMENTS:
+            continue
+        found.append(path)
+    return found
+
+
+def check_runtime_pins(problems: list[str]) -> None:
+    files = runtime_requirements()
+    if not files:
+        problems.append(
+            "no runtime requirements file was found — the sweep is looking in the wrong place."
+        )
+        return
+    for path in files:
+        relative = path.relative_to(REPO_ROOT).as_posix()
+        for name, spec in parse_requirements(path):
+            if not spec.startswith("=="):
+                problems.append(
+                    f"{relative} specifies {name} as '{spec or '(unconstrained)'}'. "
+                    f"Pin with == : a range does not say which version ships, so a "
+                    f"vulnerability scan cannot rule an advisory out."
+                )
 
 
 def lambda_runtimes() -> set[str]:
@@ -147,6 +186,7 @@ def check_ci_installs_from_requirements(problems: list[str]) -> None:
 def main() -> int:
     problems: list[str] = []
     check_dev_pins(problems)
+    check_runtime_pins(problems)
     check_python_versions(problems)
     check_ci_installs_from_requirements(problems)
 

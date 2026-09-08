@@ -240,8 +240,13 @@ def test_hooks_wiring_blocks_a_dangling_agents_reference(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def _pins_fixture(root: Path, requirements: str, runtime: str, ci_python: str) -> None:
+def _pins_fixture(
+    root: Path, requirements: str, runtime: str, ci_python: str, shipped: str = "boto3==1.43.89\n"
+) -> None:
     (root / "requirements-dev.txt").write_text(requirements, encoding="utf-8")
+    # A runtime file too: the guard also requires `==` in what ships, and reports a
+    # sweep that finds no such file rather than passing over an empty set.
+    (root / "requirements.txt").write_text(shipped, encoding="utf-8")
     template_dir = root / "cloud" / "svc"
     template_dir.mkdir(parents=True)
     (template_dir / "template.yaml").write_text(
@@ -301,6 +306,30 @@ def test_pins_block_a_range(tmp_path):
     result = run_guard(tmp_path, "check_dependency_pins.py")
     assert result.returncode == 1
     assert "Use == so local and CI resolve to the same build" in result.stderr
+
+
+def test_pins_block_a_range_in_what_ships(tmp_path):
+    """The measured defect: every runtime file used lower-bound ranges, an OSV scan
+    reported 26 advisories, and two of them applied at the floor."""
+    _pins_fixture(tmp_path, PINNED, "3.12", "3.12", shipped="requests>=2.31.0\n")
+    result = run_guard(tmp_path, "check_dependency_pins.py")
+    assert result.returncode == 1
+    assert "a range does not say which version ships" in result.stderr
+
+
+def test_pins_block_a_runtime_dependency_with_no_constraint(tmp_path):
+    _pins_fixture(tmp_path, PINNED, "3.12", "3.12", shipped="requests\n")
+    result = run_guard(tmp_path, "check_dependency_pins.py")
+    assert result.returncode == 1
+    assert "(unconstrained)" in result.stderr
+
+
+def test_pins_block_when_no_runtime_file_exists_at_all(tmp_path):
+    """A sweep that finds nothing must say so rather than report OK."""
+    (tmp_path / "requirements-dev.txt").write_text(PINNED, encoding="utf-8")
+    result = run_guard(tmp_path, "check_dependency_pins.py")
+    assert result.returncode == 1
+    assert "looking in the wrong place" in result.stderr
 
 
 def test_pins_block_an_unpinned_gate_tool(tmp_path):

@@ -25,6 +25,7 @@ make check           # lint + security + test + drift（CI と同じ）
 | `make links-external` | 上記に加えて http(s) URL | HTTP 4xx。**`check` には入れない**（他者の障害で落ちるため）。5xx と到達不能は「判定不能」として別枠で報告し、落とさない |
 | `make action-pins` | `.github/workflows/` の `uses:` | SHA でないピン、バージョンコメントの無いピン |
 | `make action-pins-verify` | 上記に加えて GitHub 上の実在性 | SHA が存在しない、コメントのタグが別の commit を指す。レート制限は「判定不能」で落とさない。CI の lint ジョブでも走る |
+| `make deps-audit` | 固定した依存バージョン（OSV に問い合わせ） | 既知の脆弱性 1 件でも。**`check` には入れない**（こちらのコミットなしに判定が変わるため）。公開前と定期実行 |
 | `make hygiene` | git 追跡下の全ファイル | `.pre-commit-config.yaml` のフックが書き換えを要したとき（末尾改行、行末空白、YAML/JSON の構文、1 MB 超のファイル） |
 | `make bandit` | `PY_DIRS` | 重大度に関わらず 1 件でも |
 | `make secrets` | 作業ツリー（`.gitleaks.toml`） | 検出 1 件でも |
@@ -67,6 +68,7 @@ make check           # lint + security + test + drift（CI と同じ）
 | `# nosec` が効かない | bandit は**報告行そのもの**のコメントしか見ない。前の行に書いた場合 `Total lines skipped (#nosec): 0` になる |
 | 新設の parity ゲートが対訳 1 組を検査していなかった | `*_en.md` だけを walk しており、`edge/soracom/README.md` ↔ `README_ja.md` という逆向きの接尾辞の組が対象外だった。検査していないことは出力に現れない |
 | 新設の sunset ゲートが同一欠陥 2 件のうち 1 件だけを報告 | 状況を示す語に `maintenance` を単語で入れたため、`predictive maintenance` を含む doc が通過した。60 doc のうち 7 件がこの語を持つ |
+| 既知の脆弱性 26 件が「エッジ向けの配慮」として残っていた | ランタイムの requirements が全て下限のみのレンジで、**レンジはどのバージョンが動くかを述べないので**スキャナが過去の advisory を全部数えていた。加えて下限自体が古く、`requests>=2.31.0` は `.netrc` の資格情報をリダイレクト先に渡す 2.31.0 を許していた。`check_dependency_pins.py` はレンジを**開発ツールについてだけ**禁じており、出荷物は対象外だった |
 | Scorecard ワークフローが一度も走っていなかった | `github/codeql-action/upload-sarif` のピンが**存在しない commit**（`ce28f5bb`、コメントは v3.28.0、実際の v3.28.0 は `48ab28a6`）。action の解決で失敗するのでステップが 1 つも走らず、README のバッジは実行されていないスキャンを指していた。**赤い X はリポジトリ設定依存の Scorecard 検査による赤と区別できず**、そう解釈されて放置されていた。詳細は[サプライチェーンセキュリティ](supply-chain-security.md#actions-のピン留め) |
 | 姉妹リポジトリへのリンク 7 本が 404 | 相手が実装を `solutions/<カテゴリ>/<名前>/` に再編した後も、`usecases/` の 4 パスが旧位置を指したままだった。`make links-external` の初回実行で判明。**リンクを 1 本も検査していなかったことは、どの出力にも現れていなかった** |
 | リンクゲートの初回実行が 990 件「OK」 | 無検査と同じ出力。落ちることは `scripts/tests/test_link_gate.py` の block 側と、実リンクを 1 本壊した実行で確認した。**アンカーは特に静かに腐る** — GitHub は未知のフラグメントをページ先頭で返すので、見出しを改名しても読者もクローラも壊れたと気づけない |

@@ -135,6 +135,13 @@ action-pins: venv-check ## Actions must be pinned to a SHA with a version commen
 action-pins-verify: venv-check ## Resolve every pin against GitHub (needs a network)
 	$(PY) scripts/check_action_pins.py --verify
 
+# Asks OSV about the pinned versions. Networked, and its verdict changes without a
+# commit here: an advisory published overnight turns a green run red. That is
+# information rather than grounds to block a commit, so it stays out of `check` and
+# is run before publishing. `make drift` is what keeps the pins pinnable at all.
+deps-audit: venv-check ## Known vulnerabilities in the pinned versions (needs a network)
+	$(PY) scripts/audit_dependency_vulns.py
+
 security: bandit secrets ## Static analysis and secret scan
 
 bandit: venv-check ## bandit over PY_DIRS
@@ -199,5 +206,5 @@ clean: ## Remove caches and build output
 
 .PHONY: help venv-check dev-install tool-versions test test-verbose lint lint-py \
 	lint-cfn headings links links-external action-pins action-pins-verify hygiene \
-	security bandit secrets drift agent-config diagram-fonts diagram-flow check \
+	security bandit secrets deps-audit drift agent-config diagram-fonts diagram-flow check \
 	precommit-install clean
