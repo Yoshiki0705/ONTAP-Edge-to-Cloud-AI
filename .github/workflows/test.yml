@@ -62,6 +62,10 @@ jobs:
         run: make lint-py
       - name: cfn-lint over CFN_TEMPLATES
         run: make lint-cfn
+      - name: Relative Markdown links and anchors resolve
+        # Offline. `make links-external` probes URLs and is deliberately absent:
+        # it would make this job fail for a third party's outage.
+        run: make links
       - name: bandit over PY_DIRS
         run: make bandit
 

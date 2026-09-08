@@ -21,6 +21,8 @@ make check           # lint + security + test + drift（CI と同じ）
 | `make test` | `TEST_DIRS` | テスト失敗 |
 | `make lint-py` | `PY_DIRS` | ruff の指摘 |
 | `make lint-cfn` | `CFN_TEMPLATES` | cfn-lint の指摘 |
+| `make links` | 全 `*.md` の相対リンクとアンカー（ネットワーク不要） | 解決しないリンク、存在しない見出しアンカー、リポジトリ外へ出るパス、クローン後に消える空ディレクトリ |
+| `make links-external` | 上記に加えて http(s) URL | HTTP 4xx。**`check` には入れない**（他者の障害で落ちるため）。5xx と到達不能は「判定不能」として別枠で報告し、落とさない |
 | `make hygiene` | git 追跡下の全ファイル | `.pre-commit-config.yaml` のフックが書き換えを要したとき（末尾改行、行末空白、YAML/JSON の構文、1 MB 超のファイル） |
 | `make bandit` | `PY_DIRS` | 重大度に関わらず 1 件でも |
 | `make secrets` | 作業ツリー（`.gitleaks.toml`） | 検出 1 件でも |
@@ -63,6 +65,8 @@ make check           # lint + security + test + drift（CI と同じ）
 | `# nosec` が効かない | bandit は**報告行そのもの**のコメントしか見ない。前の行に書いた場合 `Total lines skipped (#nosec): 0` になる |
 | 新設の parity ゲートが対訳 1 組を検査していなかった | `*_en.md` だけを walk しており、`edge/soracom/README.md` ↔ `README_ja.md` という逆向きの接尾辞の組が対象外だった。検査していないことは出力に現れない |
 | 新設の sunset ゲートが同一欠陥 2 件のうち 1 件だけを報告 | 状況を示す語に `maintenance` を単語で入れたため、`predictive maintenance` を含む doc が通過した。60 doc のうち 7 件がこの語を持つ |
+| 姉妹リポジトリへのリンク 7 本が 404 | 相手が実装を `solutions/<カテゴリ>/<名前>/` に再編した後も、`usecases/` の 4 パスが旧位置を指したままだった。`make links-external` の初回実行で判明。**リンクを 1 本も検査していなかったことは、どの出力にも現れていなかった** |
+| リンクゲートの初回実行が 990 件「OK」 | 無検査と同じ出力。落ちることは `scripts/tests/test_link_gate.py` の block 側と、実リンクを 1 本壊した実行で確認した。**アンカーは特に静かに腐る** — GitHub は未知のフラグメントをページ先頭で返すので、見出しを改名しても読者もクローラも壊れたと気づけない |
 | `pytest` と CI が別の集合を検査 | `testpaths` 未設定。`scripts/tests/` はどちらにも入っておらず、`edge/raspberry-pi/camera/test_prompt.py` は test 関数 0 個の CLI スクリプトなのに名前だけテストに見えていた |
 
 ## ゲートを足すときの手順
