@@ -41,6 +41,11 @@ jobs:
         with:
           persist-credentials: false
 
+      # The codeql-action pins below are v4. v3 still works today, and the first run
+      # of this workflow warned that the v3 line is announced for deprecation in
+      # December 2026 — worth taking before it becomes a broken pin rather than a
+      # warning. scorecard.yml uses the same commit for upload-sarif.
+
       # Must match the Runtime: in the Lambda templates, for the same reason the
       # test job pins it: analysing the code on an interpreter that never runs it
       # can resolve imports differently. scripts/check_dependency_pins.py fails if
@@ -49,7 +54,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - uses: github/codeql-action/init@6f5948dfacef28e207b48d0905cf90c03365536d # v3.37.9
+      - uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
         with:
           languages: python
           # build-mode is not set: Python needs no build. Dependencies are
@@ -58,6 +63,6 @@ jobs:
           # library, not on the paths through code committed here.
           config-file: .github/codeql-config.yml
 
-      - uses: github/codeql-action/analyze@6f5948dfacef28e207b48d0905cf90c03365536d # v3.37.9
+      - uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
         with:
           category: "/language:python"
