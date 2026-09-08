@@ -35,11 +35,15 @@ jobs:
           python-version: "3.12"
       - name: Create virtualenv the Makefile expects
         run: python -m venv .venv
-      - name: Install pinned tooling
-        run: make dev-install
-      - name: Install runtime dependencies for import-time collection
-        # conftest.py mocks cv2 and confluent_kafka; the rest must be importable.
-        run: .venv/bin/pip install requests opencv-python-headless numpy boto3
+      - name: Install the hash-pinned CI set
+        # Was `make dev-install` followed by
+        # `pip install requests opencv-python-headless numpy boto3`: no hashes on the
+        # first, no versions at all on the second. conftest.py mocks cv2 and
+        # confluent_kafka, the rest must be importable for collection — and CI was
+        # resolving them to whatever the index served that morning while
+        # requirements.txt pinned what ships. requirements-ci.lock names both sets
+        # with hashes; `make ci-lock` regenerates it.
+        run: make ci-install
       - name: Report tool versions actually in use
         run: make tool-versions
       - name: Run every test directory in TEST_DIRS
@@ -56,8 +60,8 @@ jobs:
           python-version: "3.12"
       - name: Create virtualenv the Makefile expects
         run: python -m venv .venv
-      - name: Install pinned tooling
-        run: make dev-install
+      - name: Install the hash-pinned CI set
+        run: make ci-install
       - name: ruff over PY_DIRS
         run: make lint-py
       - name: cfn-lint over CFN_TEMPLATES
@@ -90,8 +94,8 @@ jobs:
           python-version: "3.12"
       - name: Create virtualenv the Makefile expects
         run: python -m venv .venv
-      - name: Install pinned tooling
-        run: make dev-install
+      - name: Install the hash-pinned CI set
+        run: make ci-install
       - name: Guards that detect a silently-disabled gate
         # check_git_hooks_wiring.py is deliberately absent: core.hooksPath is a
         # developer's local setting and a runner has no hooks to wire. It runs

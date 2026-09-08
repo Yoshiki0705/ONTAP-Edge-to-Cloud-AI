@@ -1,0 +1,26 @@
+# What CI installs — the source file. requirements-ci.lock is generated from it.
+#
+# Two things used to happen in the workflow instead of here:
+#
+#   - `make dev-install` installed the pinned gate tooling, which is right, but
+#     without hashes: pip accepted whatever the index served for that version.
+#   - `pip install requests opencv-python-headless numpy boto3` named no versions at
+#     all. conftest.py mocks cv2 and confluent_kafka; the rest have to be importable
+#     for collection to work. So CI resolved those four to whatever was current that
+#     morning, while requirements.txt pins the versions that ship. The suite was
+#     running against a set nobody had chosen.
+#
+# Regenerate after editing this file or requirements-dev.txt:
+#
+#   make ci-lock        # needs uv and network; resolves for Python 3.12
+#
+# scripts/check_dependency_pins.py fails when the lock disagrees with either source.
+
+-r requirements-dev.txt
+
+# Importable for pytest collection. Versions match requirements.txt, so CI exercises
+# what the edge and Lambda code is pinned to rather than the latest release.
+requests==2.34.2
+opencv-python-headless==4.14.0.94
+numpy==2.5.3
+boto3==1.43.89

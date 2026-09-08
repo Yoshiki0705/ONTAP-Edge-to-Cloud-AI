@@ -69,6 +69,14 @@ zizmor .github/workflows/
   実測: `cfn-lint>=0.87.0` の指定下で PATH 側 1.52.1 / `.venv` 側 1.52.0 だった。
 - CI は `pip install -r requirements-dev.txt` で入れる。workflow に
   バージョンを直接書かない。`check_dependency_pins.py` がインライン指定で落ちる。
+- **CI が入れるものはハッシュ固定された `requirements-ci.lock`。** ワークフローは
+  `make ci-install`（`pip install --require-hashes`）だけを使う。
+  ローカルの `make dev-install` は `requirements-dev.txt` のまま
+  （lock は Python 3.12 向けに解決してあり、`.venv` はより新しいことがある）。
+  **2 つが同じバージョンを指していることは `check_dependency_pins.py` が検査する。**
+  lock は生成物で、`make ci-lock`（uv、ネットワーク必要）で再生成する。
+- **`make deps-resolve` で、各 requirements ファイルがそもそもインストール可能かを確認する。**
+  ここでしか分からない類の誤りがある — 下記。
 - **ランタイム依存（`requirements.txt` 系）も `==` で固定する。**
   `check_dependency_pins.py` が全 requirements ファイルを検査して落ちる。
   以前は「エッジデバイス向けにレンジを残す」としていたが、それが 0 点の直接の原因だった
@@ -91,6 +99,21 @@ zizmor .github/workflows/
 >
 > **固定は曖昧さを消すもので、リスクを消すものではない。** 固定した時点で clean だった
 > という記録に過ぎず、advisory は後から公開される。だから `make deps-audit` が要る。
+
+> **固定した組み合わせがインストールできるかは、別の問いである。** 上のレンジを固定した
+> 最初の版は、`opencv-python-headless==4.14.0.94` と `numpy==1.26.4` を組にしていた。
+> 根拠として「OpenCV 4.x の wheel は NumPy 1.x ABI ビルド」と書いたが、**4.14 の
+> メタデータは `numpy>=2` を要求しており、この組は解決しない**。`pip install` は
+> デバイス上で失敗する。
+>
+> **どのゲートも見ていなかった。** ruff も bandit も requirements を読まない。
+> `check_dependency_pins.py` は `==` の形しか見ない。CI はこれらのファイルを
+> インストールせず、独自のリストを入れていた。**「固定した」ことと「入る」ことの間に
+> 検査が無かった。** それが `make deps-resolve` で、`uv pip compile` が解けるかを問う。
+>
+> 同じ理由で `check_dependency_pins.py` は**同じパッケージが複数ファイルで別バージョンに
+> 固定されていないか**も見る。エッジ機は `requirements.txt` と役割別ファイルの両方を
+> 入れるので、食い違えば後に走った pip が黙って勝つ。
 
 > **未解消**: `.venv` は Python 3.14 で、CI と Lambda ランタイムは 3.12。
 > `make test` は配布されるインタプリタを検証していない。

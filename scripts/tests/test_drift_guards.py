@@ -240,13 +240,36 @@ def test_hooks_wiring_blocks_a_dangling_agents_reference(tmp_path):
 # ---------------------------------------------------------------------------
 
 
+def _lock_from(*sources: str) -> str:
+    """A minimal generated lock: every pinned entry, each with a hash line."""
+    lines = []
+    for source in sources:
+        for raw in source.splitlines():
+            entry = raw.split("#", 1)[0].strip()
+            if "==" in entry and not entry.startswith("-"):
+                lines.append(f"{entry} \\\n    --hash=sha256:{'0' * 64}\n")
+    return "".join(lines)
+
+
 def _pins_fixture(
-    root: Path, requirements: str, runtime: str, ci_python: str, shipped: str = "boto3==1.43.89\n"
+    root: Path,
+    requirements: str,
+    runtime: str,
+    ci_python: str,
+    shipped: str = "boto3==1.43.89\n",
+    lock: str | None = None,
 ) -> None:
     (root / "requirements-dev.txt").write_text(requirements, encoding="utf-8")
     # A runtime file too: the guard also requires `==` in what ships, and reports a
     # sweep that finds no such file rather than passing over an empty set.
     (root / "requirements.txt").write_text(shipped, encoding="utf-8")
+    # CI installs a generated, hash-carrying lock. The guard checks it exists, has
+    # hashes, and agrees with both sources.
+    ci_source = "-r requirements-dev.txt\nrequests==2.34.2\n"
+    (root / "requirements-ci.txt").write_text(ci_source, encoding="utf-8")
+    (root / "requirements-ci.lock").write_text(
+        lock if lock is not None else _lock_from(requirements, ci_source), encoding="utf-8"
+    )
     template_dir = root / "cloud" / "svc"
     template_dir.mkdir(parents=True)
     (template_dir / "template.yaml").write_text(
@@ -330,6 +353,59 @@ def test_pins_block_when_no_runtime_file_exists_at_all(tmp_path):
     result = run_guard(tmp_path, "check_dependency_pins.py")
     assert result.returncode == 1
     assert "looking in the wrong place" in result.stderr
+
+
+def test_pins_block_a_lock_that_never_got_the_bump(tmp_path):
+    """CI installs the lock. A version that only reached the source file means the
+    gate tool deciding a verdict is not the one the repository says it is."""
+    stale = _lock_from(PINNED, "requests==2.34.2\n").replace("ruff==1.0.0", "ruff==0.16.3")
+    _pins_fixture(tmp_path, PINNED, "3.12", "3.12", lock=stale)
+    result = run_guard(tmp_path, "check_dependency_pins.py")
+    assert result.returncode == 1
+    assert "the bump has not landed where it runs" in result.stderr
+
+
+def test_pins_block_a_lock_with_no_hashes(tmp_path):
+    without = "".join(
+        line + "\n"
+        for line in _lock_from(PINNED, "requests==2.34.2\n").splitlines()
+        if "--hash" not in line
+    ).replace(" \\", "")
+    _pins_fixture(tmp_path, PINNED, "3.12", "3.12", lock=without)
+    result = run_guard(tmp_path, "check_dependency_pins.py")
+    assert result.returncode == 1
+    assert "--require-hashes has nothing to check" in result.stderr
+
+
+def test_pins_block_a_missing_lock(tmp_path):
+    _pins_fixture(tmp_path, PINNED, "3.12", "3.12")
+    (tmp_path / "requirements-ci.lock").unlink()
+    result = run_guard(tmp_path, "check_dependency_pins.py")
+    assert result.returncode == 1
+    assert "requirements-ci.lock is missing" in result.stderr
+
+
+def test_pins_block_a_workflow_install_without_hash_checking(tmp_path):
+    _pins_fixture(tmp_path, PINNED, "3.12", "3.12")
+    workflow = tmp_path / ".github" / "workflows" / "test.yml"
+    workflow.write_text(
+        workflow.read_text(encoding="utf-8") + "      - run: pip install -r requirements-ci.txt\n",
+        encoding="utf-8",
+    )
+    result = run_guard(tmp_path, "check_dependency_pins.py")
+    assert result.returncode == 1
+    assert "installs without --require-hashes" in result.stderr
+
+
+def test_pins_block_two_files_disagreeing_about_one_package(tmp_path):
+    """The edge device installs both files; whichever pip runs last wins."""
+    _pins_fixture(tmp_path, PINNED, "3.12", "3.12", shipped="numpy==2.5.3\n")
+    role = tmp_path / "edge" / "camera"
+    role.mkdir(parents=True)
+    (role / "requirements.txt").write_text("numpy==1.26.4\n", encoding="utf-8")
+    result = run_guard(tmp_path, "check_dependency_pins.py")
+    assert result.returncode == 1
+    assert "Whichever pip runs last decides" in result.stderr
 
 
 def test_pins_block_an_unpinned_gate_tool(tmp_path):
