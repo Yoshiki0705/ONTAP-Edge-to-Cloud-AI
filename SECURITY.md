@@ -19,9 +19,12 @@
 
 ## 報告の方法
 
+非公開の報告フォームはこちらです:
+<https://github.com/Yoshiki0705/ONTAP-Edge-to-Cloud-AI/security/advisories/new>
+
 | 内容 | 報告先 |
 |---|---|
-| 悪用可能な欠陥（IAM、入力検証、認可、依存） | **Security タブの「Report a vulnerability」から非公開で**報告してください |
+| 悪用可能な欠陥（IAM、入力検証、認可、依存） | 上記フォームから**非公開で**報告してください（Security タブの「Report a vulnerability」と同じ） |
 | 非公開情報の混入 | 同じく非公開で。**該当箇所のパスと行だけを書き、値そのものは引用しないでください**。公開 Issue は露出を拡大します |
 | 安全でない構成に読者を導く記述 | 公開 Issue で構いません。議論が他の読者にも役立ちます |
 
@@ -67,9 +70,12 @@ environment but the absence of defects that would put *a reader's* environment a
 
 ## Reporting
 
+The private reporting form:
+<https://github.com/Yoshiki0705/ONTAP-Edge-to-Cloud-AI/security/advisories/new>
+
 | Concern | Where |
 |---|---|
-| An exploitable defect (IAM, input validation, authorisation, dependencies) | **Privately, via "Report a vulnerability" on the Security tab** |
+| An exploitable defect (IAM, input validation, authorisation, dependencies) | **Privately**, through the form above ("Report a vulnerability" on the Security tab) |
 | Non-public information committed | Also privately. **Give the path and line only; do not quote the value itself.** A public issue amplifies the exposure |
 | Guidance that would lead a reader to an insecure configuration | A public issue is fine; discussing it openly helps other readers |
 
