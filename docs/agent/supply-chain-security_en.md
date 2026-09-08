@@ -71,8 +71,29 @@ would otherwise stop the global checks (staged-path blocking for `.kiro/`,
   `cfn-lint>=0.87.0`, PATH had 1.52.1 and `.venv` had 1.52.0.
 - CI installs them with `pip install -r requirements-dev.txt`. Do not name
   versions in a workflow; `check_dependency_pins.py` fails on inline installs.
-- Runtime dependencies in `requirements.txt` keep ranges for edge devices. A
-  production artifact should carry a separate lock file.
+- **Runtime dependencies use `==` as well.** `check_dependency_pins.py` sweeps every
+  requirements file and fails on a range. These used to keep ranges "for edge
+  devices", and that was the direct cause of the score below. Renovate proposes the
+  bumps.
+- `make deps-audit` asks OSV about the pinned versions. **It needs a network and its
+  verdict changes without a commit here** — an advisory published overnight turns a
+  green run red — so it stays out of `check` and is run before publishing.
+
+> **A range is a supply-chain finding, not a convenience.** Scorecard's
+> Vulnerabilities check scored **0, with 26 known vulnerabilities**, and the cause was
+> the shape of the requirements files rather than one dangerous dependency.
+>
+> - **A range does not state which version runs**, so a scanner counts every advisory
+>   ever filed against the package. NumPy items from 2018 were being reported against
+>   `numpy>=1.26.0`
+> - **The floors were genuinely stale.** `requests>=2.31.0` allowed 2.31.0, which
+>   leaks `.netrc` credentials to a malicious redirect (PYSEC-2026-1872, fixed in
+>   2.32.4) — and that is the `requests` used by `sensors/ontap_telemetry.py`, which
+>   authenticates to ONTAP. `pyarrow>=15.0.0` predated the fixes in 17.0.0 and 23.0.1
+>
+> **Pinning removes the ambiguity, not the risk.** A pin records that a version was
+> clean when it was written; advisories are published afterwards. Hence `make
+> deps-audit`.
 
 > **Open**: `.venv` is Python 3.14 while CI and the Lambda runtime are 3.12, so
 > `make test` does not exercise the interpreter that ships.

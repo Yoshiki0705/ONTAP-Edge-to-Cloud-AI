@@ -1,2 +1,9 @@
-boto3>=1.34.0
-pyarrow>=15.0.0
+# Lambda dependencies — exact pins.
+#
+# boto3 is present in the Lambda runtime, but at whichever version AWS ships that
+# week. Pinning here is what makes a SAM build reproducible; pyarrow has to be
+# packaged either way.
+boto3==1.43.89
+# 23.0.1 is the first release clear of both advisories that applied to the old floor
+# of 15.0.0 (PYSEC-2024-161 and PYSEC-2026-113).
+pyarrow==23.0.1

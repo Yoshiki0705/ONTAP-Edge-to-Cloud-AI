@@ -68,8 +68,28 @@ zizmor .github/workflows/
   実測: `cfn-lint>=0.87.0` の指定下で PATH 側 1.52.1 / `.venv` 側 1.52.0 だった。
 - CI は `pip install -r requirements-dev.txt` で入れる。workflow に
   バージョンを直接書かない。`check_dependency_pins.py` がインライン指定で落ちる。
-- ランタイム依存（`requirements.txt`）はエッジデバイス向けにレンジを残している。
-  本番配布物として固める場合はロックファイルを別に持つ。
+- **ランタイム依存（`requirements.txt` 系）も `==` で固定する。**
+  `check_dependency_pins.py` が全 requirements ファイルを検査して落ちる。
+  以前は「エッジデバイス向けにレンジを残す」としていたが、それが 0 点の直接の原因だった
+  （下記）。バージョンの追随は Renovate に任せる。
+- `make deps-audit` が、固定したバージョンについて OSV に既知の脆弱性を問う。
+  **ネットワークが必要で、こちらのコミットなしに判定が変わる**（夜間に advisory が
+  公開されれば翌日は赤）ため `check` には入れない。公開前と定期的に流す。
+
+> **レンジは供給網の所見であって利便性ではない。** OpenSSF Scorecard の
+> Vulnerabilities が **0 点 / 既知の脆弱性 26 件**だった原因は、個別の危険な依存では
+> なく requirements の書き方だった。
+>
+> - **レンジは「どのバージョンが動くか」を述べていない。** そのためスキャナはその
+>   パッケージに対する過去の advisory を全部数える。numpy の 2018 年の項目が
+>   `numpy>=1.26.0` に対して報告されていた
+> - **下限自体も古かった。** `requests>=2.31.0` は 2.31.0 を許し、これは悪意ある
+>   リダイレクトに `.netrc` の資格情報を渡す（PYSEC-2026-1872、2.32.4 で修正）。
+>   ONTAP に認証する `sensors/ontap_telemetry.py` が使うのはこの `requests` である。
+>   `pyarrow>=15.0.0` も 17.0.0 と 23.0.1 の修正より前を許していた
+>
+> **固定は曖昧さを消すもので、リスクを消すものではない。** 固定した時点で clean だった
+> という記録に過ぎず、advisory は後から公開される。だから `make deps-audit` が要る。
 
 > **未解消**: `.venv` は Python 3.14 で、CI と Lambda ランタイムは 3.12。
 > `make test` は配布されるインタプリタを検証していない。

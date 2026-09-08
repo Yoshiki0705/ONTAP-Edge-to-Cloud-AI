@@ -10,13 +10,19 @@ on:
   schedule:
     - cron: '0 0 * * 1'  # Weekly on Monday
 
+# Read-only at the top level. `security-events: write` used to sit here, which grants
+# it to every job in the file: Scorecard's Token-Permissions check scores that at 9
+# rather than 10, and the reason is that a job added later inherits a write scope
+# nobody chose for it.
 permissions:
   contents: read
-  security-events: write
 
 jobs:
   zizmor:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:

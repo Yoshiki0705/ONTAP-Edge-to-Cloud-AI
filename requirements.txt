@@ -1,17 +1,36 @@
+# Runtime dependencies — exact pins.
+#
+# These were lower-bound ranges (`paho-mqtt>=2.0.0`, `numpy>=1.26.0`, …) until an
+# OSV scan reported 26 known vulnerabilities against this repository. A range does
+# not say which version runs, so a scanner reports every advisory ever filed
+# against the package, and — more to the point — `requests>=2.31.0` really did
+# allow 2.31.0, which leaks .netrc credentials to a malicious redirect
+# (PYSEC-2026-1872, fixed in 2.32.4).
+#
+# Each pin below was checked against OSV at the version stated. `make deps-audit`
+# re-asks, and scripts/check_dependency_pins.py fails if a range comes back.
+#
+# Versions stay inside the major line the code was written against: this is a
+# security floor, not a migration. Renovate proposes the bumps (renovate.json).
+
 # Edge (Raspberry Pi)
-paho-mqtt>=2.0.0
-boto3>=1.34.0
-gpiozero>=2.0.0
-requests>=2.31.0
-numpy>=1.26.0
-confluent-kafka>=2.4.0
+paho-mqtt==2.1.0
+boto3==1.43.89
+gpiozero==2.0.1.post3
+requests==2.34.2
+# 1.26.x rather than 2.x: the camera path pins OpenCV 4.x, whose wheels are built
+# against the 1.x ABI. Moving both is a change to verify on the device, not here.
+numpy==1.26.4
+confluent-kafka==2.15.0
 
 # Data processing
-pandas>=2.2.0
-pyarrow>=15.0.0
+pandas==2.3.3
+# 23.0.1 is the first release clear of both advisories that applied to the old
+# floor of 15.0.0 (PYSEC-2024-161, fixed in 17.0.0; PYSEC-2026-113, in 23.0.1).
+pyarrow==23.0.1
 
 # AI/ML
-langchain-aws>=0.2.0
+langchain-aws==0.2.35
 
 # Development and CI tooling lives in requirements-dev.txt with exact pins.
 # It used to be listed here as `pytest>=8.0.0` / `cfn-lint>=0.87.0` as well, so
