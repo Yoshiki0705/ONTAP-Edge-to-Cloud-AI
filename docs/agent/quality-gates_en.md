@@ -29,7 +29,7 @@ make check           # lint + security + test + drift (what CI runs)
 | `make action-pins-verify` | the above plus existence on GitHub | a SHA that does not exist, a comment whose tag resolves to another commit. A rate limit is undetermined and does not fail. Also runs in the CI lint job |
 | `make deps-audit` | the pinned dependency versions, against OSV | any known advisory. **Outside `check`**: its verdict changes without a commit here. Run before publishing and periodically |
 | `make hygiene` | every git-tracked file | a hook in `.pre-commit-config.yaml` had to rewrite something (final newline, trailing whitespace, YAML/JSON syntax, a file over 1 MB) |
-| `make bandit` | `PY_DIRS` | any finding, at any severity |
+| `make bandit` | `PY_DIRS` | any finding, at any severity. **Matches patterns within a file; it does not follow data across functions or modules** — CodeQL does that (`.github/workflows/codeql.yml`, no local run) |
 | `make secrets` | working tree, via `.gitleaks.toml` | any finding |
 | `make drift` | the twelve guards below | a gate is structurally able to go quiet |
 | `make agent-config` | global and workspace steering, skills, hooks | unreachable configuration |

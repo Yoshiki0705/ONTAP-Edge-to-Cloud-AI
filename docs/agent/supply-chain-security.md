@@ -11,6 +11,7 @@
 | zizmor | `.github/workflows/zizmor.yml` | Actions のセキュリティ lint（`paths: .github/workflows/**` のみで発火） |
 | gitleaks | `.github/workflows/gitleaks.yml` | シークレット検出。`fetch-depth: 0` で履歴全体 |
 | OpenSSF Scorecard | `.github/workflows/scorecard.yml` | セキュリティ健全性スコア |
+| CodeQL | `.github/workflows/codeql.yml` | データフロー解析（`security-extended`）。PR・main への push・週次 |
 | Agent Output Audit | `.github/workflows/agent-output-audit.yml` | 命名・比較表現・リーク・JA/EN parity |
 | Security & Privacy | `.github/workflows/security-check.yml` | 追跡してはいけないパス、実 IP、ペルソナ名 |
 

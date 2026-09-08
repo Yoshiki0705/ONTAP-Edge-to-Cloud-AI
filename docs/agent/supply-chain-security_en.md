@@ -11,6 +11,7 @@
 | zizmor | `.github/workflows/zizmor.yml` | Actions security lint (fires only on `paths: .github/workflows/**`) |
 | gitleaks | `.github/workflows/gitleaks.yml` | Secret detection over full history (`fetch-depth: 0`) |
 | OpenSSF Scorecard | `.github/workflows/scorecard.yml` | Security health scoring |
+| CodeQL | `.github/workflows/codeql.yml` | Data-flow analysis (`security-extended`). On PRs, pushes to main, and weekly |
 | Agent Output Audit | `.github/workflows/agent-output-audit.yml` | Naming, comparison framing, leaks, JA/EN parity |
 | Security & Privacy | `.github/workflows/security-check.yml` | Paths that must not be tracked, real IPs, persona names |
 

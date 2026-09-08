@@ -33,11 +33,15 @@ jobs:
           path: results.sarif
           retention-days: 5
 
-        # The previous pin, ce28f5bb commented v3.28.0, is not a commit in that
+        # The pin before last, ce28f5bb commented v3.28.0, is not a commit in that
         # repository at all, so every run failed at action resolution before a step
         # ran. scripts/check_action_pins.py --verify is what now asks GitHub whether
         # a pin exists and matches the version its comment claims.
-      - uses: github/codeql-action/upload-sarif@6f5948dfacef28e207b48d0905cf90c03365536d # v3.37.9
+        #
+        # v4, not v3: the CodeQL Action v3 line is announced for deprecation in
+        # December 2026, which its own run log warns about. The same commit is used
+        # by codeql.yml so the tree names one version.
+      - uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
         if: always()
         with:
           sarif_file: results.sarif
