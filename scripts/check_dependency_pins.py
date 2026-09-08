@@ -40,6 +40,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEV_REQUIREMENTS = REPO_ROOT / "requirements-dev.txt"
+CI_REQUIREMENTS = REPO_ROOT / "requirements-ci.txt"
+CI_LOCK = REPO_ROOT / "requirements-ci.lock"
 WORKFLOWS = REPO_ROOT / ".github" / "workflows"
 
 # Tools whose version changes the verdict of a gate.
@@ -116,6 +118,109 @@ def check_runtime_pins(problems: list[str]) -> None:
                 )
 
 
+def check_one_version_per_package(problems: list[str]) -> None:
+    """A package pinned in two files must be pinned to the same version.
+
+    The edge device installs requirements.txt and the per-role file. When those
+    disagree, whichever pip runs last wins, silently — and the tests here would
+    still pass, since nothing installs either file.
+    """
+    seen: dict[str, tuple[str, str]] = {}
+    for path in runtime_requirements():
+        relative = path.relative_to(REPO_ROOT).as_posix()
+        for name, spec in parse_requirements(path):
+            if not spec.startswith("=="):
+                continue
+            version = spec[2:].strip()
+            if name in seen and seen[name][0] != version:
+                first_version, first_file = seen[name]
+                problems.append(
+                    f"{name} is pinned to {first_version} in {first_file} and {version} "
+                    f"in {relative}. Whichever pip runs last decides, without saying so."
+                )
+            seen.setdefault(name, (version, relative))
+
+
+def parse_lock() -> dict[str, str]:
+    """Package to version from the generated lock, ignoring hash and comment lines."""
+    if not CI_LOCK.is_file():
+        return {}
+    found: dict[str, str] = {}
+    for raw in CI_LOCK.read_text(encoding="utf-8").splitlines():
+        line = raw.split("#", 1)[0].strip().rstrip("\\").strip()
+        match = re.match(r"^([A-Za-z0-9._-]+)\s*==\s*([^\s;]+)", line)
+        if match:
+            found[match.group(1).lower().replace("_", "-")] = match.group(2)
+    return found
+
+
+def check_ci_lock(problems: list[str]) -> None:
+    """The lock must exist, carry hashes, and agree with the files it comes from.
+
+    A generated file that nobody regenerates is worse than no generated file: CI
+    installs the lock, so a bump to requirements-dev.txt that never reaches the lock
+    means the linter deciding a gate is the old one, while the file everyone reads
+    says otherwise.
+    """
+    if not CI_REQUIREMENTS.is_file():
+        problems.append("requirements-ci.txt is missing; CI then has no declared input.")
+        return
+    if not CI_LOCK.is_file():
+        problems.append(
+            "requirements-ci.lock is missing. CI installs with --require-hashes and "
+            "cannot run without it: regenerate with `make ci-lock`."
+        )
+        return
+
+    locked = parse_lock()
+    if not locked:
+        problems.append("requirements-ci.lock parsed to zero entries — check the parser.")
+        return
+    if "--hash=" not in CI_LOCK.read_text(encoding="utf-8"):
+        problems.append(
+            "requirements-ci.lock carries no hashes, so --require-hashes has nothing to "
+            "check. Regenerate with `make ci-lock`."
+        )
+
+    for source in (DEV_REQUIREMENTS, CI_REQUIREMENTS):
+        if not source.is_file():
+            continue
+        for name, spec in parse_requirements(source):
+            if not spec.startswith("=="):
+                continue
+            wanted = spec[2:].strip()
+            key = name.replace("_", "-")
+            if key not in locked:
+                problems.append(
+                    f"{name} is pinned in {source.name} but absent from "
+                    f"requirements-ci.lock. Regenerate with `make ci-lock`."
+                )
+            elif locked[key] != wanted:
+                problems.append(
+                    f"{name} is {wanted} in {source.name} and {locked[key]} in "
+                    f"requirements-ci.lock. CI installs the lock, so the bump has not "
+                    f"landed where it runs."
+                )
+
+
+def check_workflow_installs_are_hash_checked(problems: list[str]) -> None:
+    """A pip install in CI must check hashes, directly or through a make target."""
+    if not WORKFLOWS.is_dir():
+        return
+    for workflow in sorted(WORKFLOWS.glob("*.y*ml")):
+        for lineno, line in enumerate(workflow.read_text(encoding="utf-8").splitlines(), 1):
+            stripped = line.split("#", 1)[0]
+            if "pip install" not in stripped:
+                continue
+            if "--require-hashes" in stripped:
+                continue
+            problems.append(
+                f"{workflow.name}:{lineno} installs without --require-hashes. Call "
+                f"`make ci-install`, which installs requirements-ci.lock: pip otherwise "
+                f"accepts whatever the index serves for that version."
+            )
+
+
 def lambda_runtimes() -> set[str]:
     versions = set()
     for template in list(REPO_ROOT.glob("cloud/*/template.yaml")) + list(
@@ -187,6 +292,9 @@ def main() -> int:
     problems: list[str] = []
     check_dev_pins(problems)
     check_runtime_pins(problems)
+    check_one_version_per_package(problems)
+    check_ci_lock(problems)
+    check_workflow_installs_are_hash_checked(problems)
     check_python_versions(problems)
     check_ci_installs_from_requirements(problems)
 

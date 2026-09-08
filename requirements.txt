@@ -18,9 +18,11 @@ paho-mqtt==2.1.0
 boto3==1.43.89
 gpiozero==2.0.1.post3
 requests==2.34.2
-# 1.26.x rather than 2.x: the camera path pins OpenCV 4.x, whose wheels are built
-# against the 1.x ABI. Moving both is a change to verify on the device, not here.
-numpy==1.26.4
+# 2.x, because opencv-python-headless 4.14 requires numpy>=2. The first attempt at
+# these pins paired it with 1.26.4 on the belief that OpenCV 4.x needs the NumPy 1.x
+# ABI; that combination does not resolve at all, and nothing installed these files, so
+# only `make deps-resolve` found it.
+numpy==2.5.3
 confluent-kafka==2.15.0
 
 # Data processing

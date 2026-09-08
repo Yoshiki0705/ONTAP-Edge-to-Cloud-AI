@@ -60,6 +60,42 @@ venv-check: ## Fail early if the pinned toolchain is missing
 dev-install: venv-check ## Install pinned dev tooling into .venv
 	$(PIP) install --require-virtualenv -r requirements-dev.txt
 
+# What CI installs: the same tool versions, plus what pytest collection has to be
+# able to import, and every artifact checked against a recorded hash.
+#
+# Local `dev-install` deliberately stays on requirements-dev.txt. The lock is
+# resolved for Python 3.12 — the Lambda runtime and the version CI uses — and this
+# .venv may be newer, so installing a 3.12 resolution here would be wrong rather
+# than merely strict. check_dependency_pins.py is what keeps the two files naming
+# the same versions, instead of hoping they do.
+ci-install: venv-check ## Install the hash-pinned CI set (what the workflows use)
+	$(PIP) install --require-virtualenv --require-hashes -r requirements-ci.lock
+
+# Needs uv and a network. Run after editing requirements-ci.txt or
+# requirements-dev.txt; the lock is generated, not hand-edited.
+ci-lock: ## Regenerate requirements-ci.lock from its sources
+	uv pip compile --python-version 3.12 --generate-hashes --no-header \
+		requirements-ci.txt -o requirements-ci.lock
+
+# Whether each requirements file can be installed at all. Nothing here installs the
+# runtime files, so an impossible set of pins is invisible: the first version of
+# these pins paired opencv-python-headless 4.14 with numpy 1.26.4, and 4.14 requires
+# numpy>=2. That is not a lint failure, it is `pip install` failing on the device.
+deps-resolve: ## Every requirements file must be jointly satisfiable (needs a network)
+	@for f in requirements.txt requirements-ci.txt \
+		edge/raspberry-pi/camera/requirements.txt \
+		edge/raspberry-pi/sensors/requirements.txt \
+		cloud/iot_ingestion/requirements.txt \
+		usecases/3d-print-quality/lambda/requirements.txt; do \
+		printf '%-52s' "$$f"; \
+		out=$$(mktemp); err=$$(mktemp); \
+		if uv pip compile --python-version 3.12 --quiet "$$f" -o "$$out" >/dev/null 2>"$$err"; then \
+			echo "resolves"; rm -f "$$out" "$$err"; \
+		else \
+			echo "UNSATISFIABLE"; cat "$$err"; rm -f "$$out" "$$err"; exit 1; \
+		fi; \
+	done
+
 tool-versions: venv-check ## Print the versions actually in use
 	@printf 'python    '; $(PY) --version
 	@printf 'pytest    '; $(PYTEST) --version 2>&1 | head -1
@@ -206,5 +242,6 @@ clean: ## Remove caches and build output
 
 .PHONY: help venv-check dev-install tool-versions test test-verbose lint lint-py \
 	lint-cfn headings links links-external action-pins action-pins-verify hygiene \
-	security bandit secrets deps-audit drift agent-config diagram-fonts diagram-flow check \
+	security bandit secrets deps-audit deps-resolve ci-install ci-lock drift \
+	agent-config diagram-fonts diagram-flow check \
 	precommit-install clean

@@ -46,7 +46,12 @@ def pinned() -> dict[tuple[str, str], list[str]]:
     """Map (package, version) to the files pinning it. Dev tooling included: a
     linter with a known vulnerability is still running on this machine."""
     found: dict[tuple[str, str], list[str]] = {}
-    for path in sorted(REPO_ROOT.rglob("requirements*.txt")):
+    # The lock is included on purpose: it is the only file naming the transitive
+    # dependencies, and those are installed too. Auditing the direct pins alone
+    # would have said "OK" about a tree of 42 packages while looking at 15.
+    for path in sorted(
+        [*REPO_ROOT.rglob("requirements*.txt"), *REPO_ROOT.rglob("requirements*.lock")]
+    ):
         if SKIP_DIR_PARTS & set(path.relative_to(REPO_ROOT).parts):
             continue
         for raw in path.read_text(encoding="utf-8").splitlines():

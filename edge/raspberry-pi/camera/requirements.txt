@@ -1,8 +1,9 @@
 # Edge camera capture dependencies — exact pins.
 #
-# OpenCV stays on 4.x and NumPy on 1.26.x together: the 4.x wheels are built
-# against the NumPy 1.x ABI. Bumping either alone is what breaks the device.
+# These two move together: opencv-python-headless 4.14 requires numpy>=2, so the
+# earlier pairing with 1.26.4 was unsatisfiable — pip would have failed on the device.
+# `make deps-resolve` is what asks whether a file's pins can be installed at all.
 opencv-python-headless==4.14.0.94
-numpy==1.26.4
+numpy==2.5.3
 boto3==1.43.89
 requests==2.34.2

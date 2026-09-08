@@ -72,6 +72,13 @@ would otherwise stop the global checks (staged-path blocking for `.kiro/`,
   `cfn-lint>=0.87.0`, PATH had 1.52.1 and `.venv` had 1.52.0.
 - CI installs them with `pip install -r requirements-dev.txt`. Do not name
   versions in a workflow; `check_dependency_pins.py` fails on inline installs.
+- **What CI installs is the hash-pinned `requirements-ci.lock`.** Workflows call only
+  `make ci-install` (`pip install --require-hashes`). Local `make dev-install` stays on
+  `requirements-dev.txt`, because the lock is resolved for Python 3.12 and `.venv` may
+  be newer. **`check_dependency_pins.py` is what keeps the two naming the same
+  versions.** The lock is generated: `make ci-lock` (needs uv and a network).
+- **`make deps-resolve` asks whether each requirements file can be installed at all.**
+  There is a class of error only visible there — below.
 - **Runtime dependencies use `==` as well.** `check_dependency_pins.py` sweeps every
   requirements file and fails on a range. These used to keep ranges "for edge
   devices", and that was the direct cause of the score below. Renovate proposes the
@@ -95,6 +102,21 @@ would otherwise stop the global checks (staged-path blocking for `.kiro/`,
 > **Pinning removes the ambiguity, not the risk.** A pin records that a version was
 > clean when it was written; advisories are published afterwards. Hence `make
 > deps-audit`.
+
+> **Whether a pinned combination installs is a separate question.** The first version of
+> these pins paired `opencv-python-headless==4.14.0.94` with `numpy==1.26.4`, justified
+> in a comment claiming OpenCV 4.x wheels need the NumPy 1.x ABI. **4.14 declares
+> `numpy>=2`, so that set does not resolve** and `pip install` fails on the device.
+>
+> **No gate saw it.** ruff and bandit do not read requirements. `check_dependency_pins.py`
+> only looked at the shape of a specifier. CI never installed these files, having its own
+> list. **Nothing stood between "pinned" and "installable."** That is `make deps-resolve`,
+> which asks `uv pip compile` whether the set has a solution.
+>
+> For the same reason `check_dependency_pins.py` now also fails when **one package is
+> pinned to different versions in two files**: an edge device installs both
+> `requirements.txt` and its role file, so a disagreement is decided silently by whichever
+> pip ran last.
 
 > **Open**: `.venv` is Python 3.14 while CI and the Lambda runtime are 3.12, so
 > `make test` does not exercise the interpreter that ships.
