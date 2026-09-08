@@ -36,6 +36,29 @@ zizmor .github/workflows/
 - サードパーティ Actions は SHA でピン留めする: `uses: owner/action@<sha> # vX.Y.Z`
 - `actions/checkout` は `persist-credentials: false` を設定する
 - 変更前に `zizmor .github/workflows/` を通す
+- `make action-pins`（形だけ、ネットワーク不要）と `make action-pins-verify`
+  （SHA の実在と、コメントのタグが同じ commit を指すかを GitHub に問う）を通す。
+  後者は CI の lint ジョブでも `github.token` を使って走る
+
+> **ピン留めは 2 通りに壊れる。形は正しく、指す先が無い場合と、指す先はあるが
+> コメントが別のバージョンを名乗る場合。** 実測で両方あった。
+>
+> - `github/codeql-action/upload-sarif` が `ce28f5bb`（コメントは `# v3.28.0`）で
+>   ピン留めされていたが、**その commit は当該リポジトリに存在しない**（実際の
+>   v3.28.0 は `48ab28a6`）。Scorecard ワークフローは追加された日から毎回、
+>   ステップが 1 つも走る前に action の解決で失敗していた。README のバッジは
+>   一度も実行されていないスキャンを指していた
+> - `gitleaks/gitleaks-action` の `ff98106e` は v2.3.9 で、コメントは `# v2.3.8`
+>   （v2.3.8 は `f586c143`）。**ピンは正しく、ラベルが誤っていた**ので何も落ちず、
+>   ファイルは走っていないバージョンを説明していた
+>
+> **どちらも既存の検査では見えなかった。** zizmor はワークフローの内容を見るので
+> 解決できない SHA は「形として正しい」で通す。Renovate は解決できるピンを更新する
+> ので、見つからない digest は管理対象にならない。赤い X も、リポジトリ設定に
+> 依存する Scorecard の検査項目による赤と区別できなかった。
+
+> **未解消**: `ossf/scorecard-action` のピンは v2.4.1 で、最新は v2.4.4。
+> 追随するかは Renovate の major/minor 方針に委ねている。
 
 ## 依存の追加
 

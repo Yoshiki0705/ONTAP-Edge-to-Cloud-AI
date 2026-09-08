@@ -81,7 +81,7 @@ test-verbose: venv-check ## Run every test directory with -v
 # Lint and security
 # ---------------------------------------------------------------------------
 
-lint: lint-py lint-cfn headings links hygiene ## Run all linters
+lint: lint-py lint-cfn headings links action-pins hygiene ## Run all linters
 
 lint-py: venv-check ## ruff over PY_DIRS
 	$(RUFF) check $(PY_DIRS)
@@ -120,6 +120,20 @@ links: venv-check ## Relative Markdown links and anchors must resolve
 # when adding a link to a sibling repository.
 links-external: venv-check ## Also probe http(s) URLs (needs a network)
 	$(PY) scripts/check_links.py --external
+
+# Shape only: a 40-character SHA and a version comment. That is all this half can
+# see, and it is not enough — the Scorecard workflow was pinned to a well-formed
+# SHA that is not a commit in that repository, and failed at action resolution on
+# every push to main from the day it was added.
+action-pins: venv-check ## Actions must be pinned to a SHA with a version comment
+	$(PY) scripts/check_action_pins.py
+
+# Asks GitHub whether each SHA exists and whether the tag in the comment resolves to
+# it. Networked, so it sits beside links-external rather than in `check`. A rate
+# limit is reported as undetermined and does not fail: uses a token from
+# GITHUB_TOKEN, GH_TOKEN or `gh auth token` when one is available.
+action-pins-verify: venv-check ## Resolve every pin against GitHub (needs a network)
+	$(PY) scripts/check_action_pins.py --verify
 
 security: bandit secrets ## Static analysis and secret scan
 
@@ -184,6 +198,6 @@ clean: ## Remove caches and build output
 	find . -name __pycache__ -type d -not -path './$(VENV)/*' -prune -exec rm -rf {} +
 
 .PHONY: help venv-check dev-install tool-versions test test-verbose lint lint-py \
-	lint-cfn headings links links-external hygiene security bandit secrets drift \
-	agent-config diagram-fonts diagram-flow check \
+	lint-cfn headings links links-external action-pins action-pins-verify hygiene \
+	security bandit secrets drift agent-config diagram-fonts diagram-flow check \
 	precommit-install clean

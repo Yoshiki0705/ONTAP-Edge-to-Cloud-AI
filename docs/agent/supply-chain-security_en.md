@@ -38,6 +38,30 @@ would otherwise stop the global checks (staged-path blocking for `.kiro/`,
 - Pin third-party Actions to a SHA: `uses: owner/action@<sha> # vX.Y.Z`
 - Set `persist-credentials: false` on `actions/checkout`
 - Run `zizmor .github/workflows/` before committing a workflow change
+- Run `make action-pins` (shape only, no network) and `make action-pins-verify`
+  (asks GitHub whether the SHA exists and whether the tag in the comment resolves
+  to it). The verifying half also runs in the CI lint job, using `github.token`
+
+> **A pin breaks in two ways: well-formed but pointing at nothing, and pointing at
+> something while its comment names a different version.** Both were present here.
+>
+> - `github/codeql-action/upload-sarif` was pinned to `ce28f5bb`, commented
+>   `# v3.28.0`, and **that commit does not exist in that repository** (the real
+>   v3.28.0 is `48ab28a6`). The Scorecard workflow failed at action resolution,
+>   before any step ran, on every push from the day it was added. The README badge
+>   pointed at a scan that had never happened
+> - `gitleaks/gitleaks-action` at `ff98106e` is v2.3.9 and the comment said
+>   `# v2.3.8` (which is `f586c143`). **The pin was right and the label wrong**, so
+>   nothing failed and the file described a version that was not running
+>
+> **Neither was visible to the checks already here.** zizmor lints workflow content,
+> so an unresolvable SHA is well-formed as far as it is concerned. Renovate updates
+> pins it can resolve, so a digest it cannot find is not a pin it manages. And the
+> red X was indistinguishable from the Scorecard checks that genuinely depend on
+> repository settings.
+
+> **Unresolved**: the `ossf/scorecard-action` pin is v2.4.1 and the current release
+> is v2.4.4. Whether to follow is left to Renovate's major/minor policy.
 
 ## Adding dependencies
 
