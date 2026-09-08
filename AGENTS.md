@@ -29,7 +29,9 @@ resolve to whatever is on PATH, which is not what CI installs.
 
 - Python 3.12 for edge scripts and Lambda functions (the Lambda runtime; note
   `.venv` may be newer — see `make tool-versions`)
-- TypeScript for CDK constructs
+- CloudFormation and SAM (YAML) for infrastructure. There is no CDK and no
+  TypeScript here; `make lint-cfn` runs cfn-lint over the templates listed in
+  `CFN_TEMPLATES`
 - Structured JSON logging
 - Type hints required for all Python functions
 

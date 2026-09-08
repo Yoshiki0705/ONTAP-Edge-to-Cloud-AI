@@ -143,6 +143,15 @@ S3 API で書いて ONTAP を正本データにする経路（`cloud/iot_ingesti
 - Linux デバイスから NFS で書きたい / VPC 内で完結 → **EFS**
 - 既に ONTAP/NAS にデータがある / NFS+SMB 両方必要 / データコピーを避けたい → **ONTAP**
 
+**上の 3 行は IoT / エッジ文脈での差分です。** ストレージの選択そのものと、FSx for ONTAP を
+選んだ後の設計・移行・運用は
+[FSx for ONTAP Adoption Playbook](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook)
+が正典で、こちらでは複製しません。判断の材料はそちらの
+[どの AWS ファイルストレージかを決める（決定木）](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/ja/reference/decision-trees/file-storage-selection.md)、
+[ファイルストレージの選択肢の比較](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/ja/reference/comparison/file-storage-options.md)、
+[上限値・クォータ](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/tree/main/docs/ja/reference/limits)
+にあります。
+
 ### エッジデバイス（選択肢）
 
 | デバイス | 接続 | 用途 |
@@ -277,10 +286,17 @@ SA / SE として現場を訪問する中で、「IoT デバイスやセンサ�
 
 ## 関連プロジェクト
 
+**このリポジトリは IoT / エッジという 1 つの縦方向を担当します。** 同じ主題を 2 か所に置くと
+片方だけが更新されるため、下記に委ねている範囲はこちらでは複製せず、リンクで返します。
+
+- [FSx-for-ONTAP-Adoption-Playbook](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook) — **FSx for ONTAP の仕様・上限値・決定木・エビデンス階層の正典**。ライフサイクル（評価 → 設計 → 移行 → 構築 → 運用 → 最適化）とテーマの 2 軸で引けます
+  - このリポジトリが従っているもの: [知見の分類ポリシー](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/ja/evidence-policy.md) ([English](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/en/evidence-policy.md)) — `documented` / `verified` / `hypothesis` / `open` の定義は同ドキュメントが正典で、[検証状態](docs/ja/verification-status.md)はそれを適用した結果だけを持ちます
 - [fsxn-lakehouse-integrations](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations) — FSx for ONTAP S3 AP × Lakehouse 統合（**Kafka + ClickHouse + Databricks 側の実装はこちら**）
   - 連携の実体: [integrations/manufacturing-data-platform](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/tree/main/integrations/manufacturing-data-platform) — 製造データプラットフォーム連携
   - 同期ドキュメント: [Edge ↔ Lakehouse 同期](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/ja/14_edge_lakehouse_sync.md) ([English](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/en/14_edge_lakehouse_sync.md)) — スキーマ・トピック・責任分担の同期記録
-- [FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns) — FSx for ONTAP S3 AP サーバーレスパターン集（17 ユースケース）
+- [FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns) — FSx for ONTAP S3 AP のサーバーレスパターン集（業種別、イベント駆動、FlexCache など）
+- [FSx-for-ONTAP-Observability-integrations](https://github.com/Yoshiki0705/FSx-for-ONTAP-Observability-integrations) — 可観測性統合。**ONTAP REST API の実機知見（HTTP 202 とジョブのポーリング、エラーコード、EMS ペイロードのキー形式）はこちら**。[`edge/raspberry-pi/sensors/ontap_telemetry.py`](edge/raspberry-pi/sensors/ontap_telemetry.py) を触るときは同じ調査をやり直さず参照します
+- [S3-Burst-on-ONTAP-Files](https://github.com/Yoshiki0705/S3-Burst-on-ONTAP-Files) — S3 API で収集し FlexCache の NFS/SMB で利用する構成。**S3 Access Point 操作の実測値を持つ**リポジトリです。ただし測定条件が違うため引き写せません（条件は[検証状態](docs/ja/verification-status.md#姉妹リポジトリの数値を引くときの条件)）
 
 ## ライセンス
 

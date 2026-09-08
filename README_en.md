@@ -148,6 +148,14 @@ point.
 - Writing over NFS from Linux devices, staying inside a VPC → **EFS**
 - Data already on ONTAP/NAS, both NFS and SMB needed, avoiding a copy → **ONTAP**
 
+**Those three lines are the IoT and edge delta.** The storage choice itself, and the design,
+migration and operation that follow once FSx for ONTAP is chosen, are owned by the
+[FSx for ONTAP Adoption Playbook](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook)
+and are not duplicated here. The material for that decision is
+[which AWS file storage to pick (decision tree)](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/ja/reference/decision-trees/file-storage-selection.md) (日本語),
+[file storage options compared](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/ja/reference/comparison/file-storage-options.md) (日本語)
+and [limits and quotas](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/tree/main/docs/ja/reference/limits) (日本語).
+
 ### Edge devices (options)
 
 | Device | Connection | Use |
@@ -289,10 +297,17 @@ happen often enough to gather test data.
 
 ## Related projects
 
+**This repository covers one vertical: IoT and edge.** Holding the same subject in two places means
+one of them silently goes stale, so what is delegated below is linked rather than duplicated here.
+
+- [FSx-for-ONTAP-Adoption-Playbook](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook) — **the source of truth for FSx for ONTAP specifications, limits, decision trees and the evidence tiers**. Navigable by lifecycle (assess → design → migrate → build → operate → optimise) and by theme
+  - What this repository follows: [evidence policy](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/en/evidence-policy.md) ([日本語](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/ja/evidence-policy.md)) — that document defines `documented` / `verified` / `hypothesis` / `open`; [verification status](docs/en/verification-status.md) only holds the result of applying it
 - [fsxn-lakehouse-integrations](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations) — FSx for ONTAP S3 AP × lakehouse integration (**the Kafka, ClickHouse and Databricks side lives here**)
   - The integration itself: [integrations/manufacturing-data-platform](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/tree/main/integrations/manufacturing-data-platform)
   - Sync record: [Edge ↔ Lakehouse sync](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/en/14_edge_lakehouse_sync.md) ([日本語](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/ja/14_edge_lakehouse_sync.md)) — schema, topics and division of responsibility
-- [FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns) — serverless patterns for FSx for ONTAP S3 AP (17 use cases)
+- [FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns) — serverless patterns for FSx for ONTAP S3 AP (industry, event-driven, FlexCache and others)
+- [FSx-for-ONTAP-Observability-integrations](https://github.com/Yoshiki0705/FSx-for-ONTAP-Observability-integrations) — observability integration. **The ONTAP REST API findings from a real filesystem live there** (HTTP 202 and job polling, error codes, the key shape of an EMS payload). Consult it rather than repeating that investigation when touching [`edge/raspberry-pi/sensors/ontap_telemetry.py`](edge/raspberry-pi/sensors/ontap_telemetry.py)
+- [S3-Burst-on-ONTAP-Files](https://github.com/Yoshiki0705/S3-Burst-on-ONTAP-Files) — collect over the S3 API, consume over FlexCache NFS/SMB. **Holds measured S3 Access Point operation latency**, which cannot be transcribed here because the conditions differ (they are stated in [verification status](docs/en/verification-status.md#conditions-for-citing-a-sibling-repositorys-numbers))
 
 ## License
 

@@ -143,7 +143,7 @@ curl -X POST http://funnel.soracom.io \
 
 ```bash
 # プロジェクトクローン
-git clone https://github.com/Yoshiki0705/edge-to-cloud-ai.git /opt/edge-camera
+git clone https://github.com/Yoshiki0705/ontap-edge-to-cloud-ai.git /opt/edge-camera
 cd /opt/edge-camera/edge/raspberry-pi/camera
 
 # Python 仮想環境

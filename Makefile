@@ -81,7 +81,7 @@ test-verbose: venv-check ## Run every test directory with -v
 # Lint and security
 # ---------------------------------------------------------------------------
 
-lint: lint-py lint-cfn headings hygiene ## Run all linters
+lint: lint-py lint-cfn headings links hygiene ## Run all linters
 
 lint-py: venv-check ## ruff over PY_DIRS
 	$(RUFF) check $(PY_DIRS)
@@ -104,6 +104,22 @@ headings: ## Japanese section headings must be noun phrases
 # is what makes it reachable locally.
 hygiene: venv-check ## .pre-commit-config.yaml hooks over the whole tree
 	$(PRECOMMIT) run --all-files
+
+# Relative links and anchors only: no network, so it can sit in the commit gate.
+# The anchor half is the reason it exists — GitHub answers an unknown fragment
+# with the top of the page, so a renamed heading breaks every link into it while
+# still looking like a working link. Blocked defects are asserted in
+# scripts/tests/test_link_gate.py; the first real run over this tree resolved 990
+# links and reported nothing, which on its own is also what a no-op prints.
+links: venv-check ## Relative Markdown links and anchors must resolve
+	$(PY) scripts/check_links.py
+
+# Not in `lint`, and not in `check`. This one leaves the repository: a red run can
+# mean a host is down rather than a link being wrong, and a networked probe inside
+# the commit gate is how a gate stops being read. Run it before publishing, and
+# when adding a link to a sibling repository.
+links-external: venv-check ## Also probe http(s) URLs (needs a network)
+	$(PY) scripts/check_links.py --external
 
 security: bandit secrets ## Static analysis and secret scan
 
@@ -168,6 +184,6 @@ clean: ## Remove caches and build output
 	find . -name __pycache__ -type d -not -path './$(VENV)/*' -prune -exec rm -rf {} +
 
 .PHONY: help venv-check dev-install tool-versions test test-verbose lint lint-py \
-	lint-cfn headings hygiene security bandit secrets drift agent-config diagram-fonts \
-	diagram-flow check \
+	lint-cfn headings links links-external hygiene security bandit secrets drift \
+	agent-config diagram-fonts diagram-flow check \
 	precommit-install clean

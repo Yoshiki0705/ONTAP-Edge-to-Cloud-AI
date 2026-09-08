@@ -73,5 +73,5 @@ flowchart LR
 
 ## 関連
 
-- [FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns / event-driven-fpolicy](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns/tree/main/event-driven-fpolicy) — FPolicy → Lambda の基盤パターン
-- [FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns / manufacturing-analytics](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns/tree/main/manufacturing-analytics) — 製造業分析パターン
+- [FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns / event-driven-fpolicy](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns/tree/main/solutions/event-driven/fpolicy) — FPolicy → Lambda の基盤パターン
+- [FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns / manufacturing-analytics](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns/tree/main/solutions/industry/manufacturing-analytics) — 製造業分析パターン

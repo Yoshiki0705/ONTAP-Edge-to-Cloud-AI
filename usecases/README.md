@@ -31,13 +31,13 @@ IoT データのサイロ化を解消し、ONTAP に集約したデータを AWS
 
 ## 関連プロジェクト
 
-FSx for ONTAP S3 Access Points を使ったサーバーレスパターン集（17ユースケース）:
+FSx for ONTAP S3 Access Points を使ったサーバーレスパターン集:
 
 - [FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns)
-  - [`event-driven-fpolicy`](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns/tree/main/event-driven-fpolicy) — FPolicy イベント駆動パターン（本プロジェクトの Pattern A の基盤）
-  - [`manufacturing-analytics`](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns/tree/main/manufacturing-analytics) — 製造業分析パターン
-  - [`logistics-ocr`](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns/tree/main/logistics-ocr) — OCR/入出庫パターン
-  - [`genai-rag-enterprise-files`](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns/tree/main/genai-rag-enterprise-files) — RAG パターン
+  - [`solutions/event-driven/fpolicy`](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns/tree/main/solutions/event-driven/fpolicy) — FPolicy イベント駆動パターン（本プロジェクトの Pattern A の基盤）
+  - [`solutions/industry/manufacturing-analytics`](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns/tree/main/solutions/industry/manufacturing-analytics) — 製造業分析パターン
+  - [`solutions/industry/logistics-ocr`](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns/tree/main/solutions/industry/logistics-ocr) — OCR/入出庫パターン
+  - [`solutions/genai/`](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns/tree/main/solutions/genai) — 生成 AI 系のパターン。以前ここから `genai-rag-enterprise-files` を指していましたが、その名前のディレクトリは現在ありません。どのパターンが後継かを確認できていないため、カテゴリを指しています
 
 ## ディレクトリ構造
 
