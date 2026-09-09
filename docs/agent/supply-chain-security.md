@@ -61,6 +61,35 @@ zizmor .github/workflows/
 > **未解消**: `ossf/scorecard-action` のピンは v2.4.1 で、最新は v2.4.4。
 > 追随するかは Renovate の major/minor 方針に委ねている。
 
+## Scorecard の到達点と、追わない項目
+
+**スコアを上げること自体は目的ではない。** 指標のために作業すると、実際の防御は増えずに
+数字だけが動く。到達済みと、追わないと決めた項目、その理由を残す。再検討の材料であって、
+毎回ゼロから判断し直さないためのもの。
+
+| 項目 | 状態 | 判断 |
+|---|---|---|
+| Vulnerabilities / Security-Policy / Token-Permissions / Pinned-Dependencies / Dangerous-Workflow / Dependency-Update-Tool / License / CI-Tests / Maintained / Binary-Artifacts | 10 | 実体のある対応を入れた結果 |
+| SAST | 8 | CodeQL を全 PR に入れた。**直近履歴に対する比率**なので、コミットが積まれるにつれ上がる |
+| Branch-Protection | 設定済み（下記） | 承認必須にはしていない。単独メンテナが自分の PR を承認できないため |
+| Code-Review | 0 | 承認済み changeset が 0。**レビュアーが要る。コードでは動かない** |
+| CII-Best-Practices | 0 | bestpractices.dev への登録が必要（リポジトリ外のアカウント操作） |
+| Fuzzing | 0 | Scorecard が数えるのは OSS-Fuzz / ClusterFuzzLite / Go ネイティブ / Haskell・JS-TS・Erlang・C#-F# の property-based testing。**Python の Hypothesis は対象外**。数字のために fuzzing の器を作らない |
+| Contributors | 3 | 組織所属の貢献者数を見る項目。単独リポジトリでは動かない |
+| Packaging / Signed-Releases | `-1` | パッケージを公開していないので評価対象外 |
+
+### main のブランチ保護
+
+| 設定 | 値 | 理由 |
+|---|---|---|
+| force push / ブランチ削除 | 禁止 | 公開履歴の書き換えを防ぐ。Scorecard の Tier 1 要件 |
+| PR 必須 | あり（承認は 0 件） | **承認を必須にすると単独メンテナがマージできなくなる。** PR 経由は既に運用しているので流れは変わらない |
+| 必須ステータスチェック | `test` / `lint` / `drift` / `pre-commit` / `gitleaks` / `Sensitive Data Scan` / `Analyze Python` | **全 PR で必ず走るものだけ。** `zizmor` と `audit` は `paths` で絞られており、必須にすると該当変更のない PR が永久に待つ |
+| 管理者にも適用 | あり | 適用しないと Scorecard の `EnforceAdmins` が false になり、実質の保護でもなくなる |
+| 会話の解決必須 | あり | — |
+
+解除は `gh api -X DELETE repos/<owner>/<repo>/branches/main/protection`。
+
 ## 依存の追加
 
 - **ゲートの判定を左右するツール**（ruff / bandit / cfn-lint / pytest）は

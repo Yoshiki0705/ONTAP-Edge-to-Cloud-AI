@@ -64,6 +64,35 @@ would otherwise stop the global checks (staged-path blocking for `.kiro/`,
 > **Unresolved**: the `ossf/scorecard-action` pin is v2.4.1 and the current release
 > is v2.4.4. Whether to follow is left to Renovate's major/minor policy.
 
+## Where Scorecard stands, and what is not being chased
+
+**The score is not the goal.** Work aimed at a metric moves the number without adding a
+defence. What follows records what was earned, what is deliberately left, and why — as
+material for revisiting the decision rather than re-deciding it from scratch each time.
+
+| Check | State | Decision |
+|---|---|---|
+| Vulnerabilities, Security-Policy, Token-Permissions, Pinned-Dependencies, Dangerous-Workflow, Dependency-Update-Tool, License, CI-Tests, Maintained, Binary-Artifacts | 10 | the result of changes with substance behind them |
+| SAST | 8 | CodeQL runs on every PR. **It is a ratio over recent history**, so it climbs as commits land |
+| Branch-Protection | configured (below) | approvals are not required: a single maintainer cannot approve their own pull request |
+| Code-Review | 0 | zero approved changesets. **Needs a reviewer; code cannot move it** |
+| CII-Best-Practices | 0 | requires registering on bestpractices.dev, an account action outside this repository |
+| Fuzzing | 0 | Scorecard counts OSS-Fuzz, ClusterFuzzLite, Go native fuzzing, and property-based testing for Haskell, JS/TS, Erlang, C#/F#. **Python's Hypothesis is not in that list.** No fuzzing harness will be built for the number |
+| Contributors | 3 | counts contributors with organisational affiliation; a single-maintainer repository cannot move it |
+| Packaging, Signed-Releases | `-1` | nothing is published as a package, so there is nothing to evaluate |
+
+### Branch protection on main
+
+| Setting | Value | Why |
+|---|---|---|
+| force push, branch deletion | denied | prevents rewriting public history; Scorecard's Tier 1 requirement |
+| pull request required | yes, with 0 approvals | **requiring an approval would leave the sole maintainer unable to merge.** Everything already goes through a PR, so the flow is unchanged |
+| required status checks | `test`, `lint`, `drift`, `pre-commit`, `gitleaks`, `Sensitive Data Scan`, `Analyze Python` | **only the ones that run on every PR.** `zizmor` and `audit` are filtered by `paths`; requiring them would leave a PR that touches neither waiting forever |
+| applies to administrators | yes | without it Scorecard reads `EnforceAdmins` as false, and the protection is not really one |
+| conversation resolution required | yes | — |
+
+To remove: `gh api -X DELETE repos/<owner>/<repo>/branches/main/protection`.
+
 ## Adding dependencies
 
 - **Tools that decide whether a gate passes** (ruff, bandit, cfn-lint, pytest)
