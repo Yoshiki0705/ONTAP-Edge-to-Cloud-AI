@@ -71,7 +71,7 @@ zizmor .github/workflows/
 |---|---|---|
 | Vulnerabilities / Security-Policy / Token-Permissions / Pinned-Dependencies / Dangerous-Workflow / Dependency-Update-Tool / License / CI-Tests / Maintained / Binary-Artifacts | 10 | 実体のある対応を入れた結果 |
 | SAST | 8 | CodeQL を全 PR に入れた。**直近履歴に対する比率**なので、コミットが積まれるにつれ上がる |
-| Branch-Protection | 設定済み（下記） | 承認必須にはしていない。単独メンテナが自分の PR を承認できないため |
+| Branch-Protection | 保護は有効。**スコアは `-1` のまま** | 既定の `GITHUB_TOKEN` には保護設定を読む権限（Administration: read）が無く、**Actions の `permissions:` にその項目は存在しない**。スコアに反映させるには PAT を secret に置いて `repo_token` に渡す必要があり、それはリポジトリ外の手作業。**保護は効いていて、指標が見えていないだけ** |
 | Code-Review | 0 | 承認済み changeset が 0。**レビュアーが要る。コードでは動かない** |
 | CII-Best-Practices | 0 | bestpractices.dev への登録が必要（リポジトリ外のアカウント操作） |
 | Fuzzing | 0 | Scorecard が数えるのは OSS-Fuzz / ClusterFuzzLite / Go ネイティブ / Haskell・JS-TS・Erlang・C#-F# の property-based testing。**Python の Hypothesis は対象外**。数字のために fuzzing の器を作らない |
@@ -89,6 +89,9 @@ zizmor .github/workflows/
 | 会話の解決必須 | あり | — |
 
 解除は `gh api -X DELETE repos/<owner>/<repo>/branches/main/protection`。
+
+**この設定で単独マージが通ることは実測済み**（PR #38 が承認 0 件でマージできた）。
+`zizmor` が走らない PR でも `mergeStateStatus` は `CLEAN` になる — 必須にしなかった理由。
 
 ## 依存の追加
 
