@@ -38,8 +38,8 @@ resolve to whatever is on PATH, which is not what CI installs.
 ## Always applies
 
 **Naming.** First mention **Amazon FSx for NetApp ONTAP**, then **FSx for
-ONTAP**. Never `FSxN`, bare `FSx`, or `FSx ONTAP`. Access points are **FSx for
-ONTAP S3 AP**. Do not propose NetApp Workload Factory, NetApp Console or BlueXP;
+ONTAP**. Never `FSxN`, bare `FSx`, or `FSx ONTAP`. Access points are **S3 Access Points**, written in full; `S3 AP` is not a
+short form AWS sanctions. Existing uses are grandfathered. Do not propose NetApp Workload Factory, NetApp Console or BlueXP;
 use the native equivalent (CloudWatch, ONTAP REST API, FabricPool, AWS DataSync,
 Snapshot/FlexClone/SnapMirror). Verbatim external citation titles are the only
 exception, marked `allow:naming` on that line.
