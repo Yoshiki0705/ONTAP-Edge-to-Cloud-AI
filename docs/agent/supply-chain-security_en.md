@@ -74,7 +74,7 @@ material for revisiting the decision rather than re-deciding it from scratch eac
 |---|---|---|
 | Vulnerabilities, Security-Policy, Token-Permissions, Pinned-Dependencies, Dangerous-Workflow, Dependency-Update-Tool, License, CI-Tests, Maintained, Binary-Artifacts | 10 | the result of changes with substance behind them |
 | SAST | 8 | CodeQL runs on every PR. **It is a ratio over recent history**, so it climbs as commits land |
-| Branch-Protection | configured (below) | approvals are not required: a single maintainer cannot approve their own pull request |
+| Branch-Protection | protection is on. **The score stays `-1`** | the default `GITHUB_TOKEN` cannot read protection settings (Administration: read), and **that scope does not exist in Actions `permissions:`**. Scoring it needs a PAT in a secret passed as `repo_token`, which is manual work outside the repository. **The protection works; the metric cannot see it** |
 | Code-Review | 0 | zero approved changesets. **Needs a reviewer; code cannot move it** |
 | CII-Best-Practices | 0 | requires registering on bestpractices.dev, an account action outside this repository |
 | Fuzzing | 0 | Scorecard counts OSS-Fuzz, ClusterFuzzLite, Go native fuzzing, and property-based testing for Haskell, JS/TS, Erlang, C#/F#. **Python's Hypothesis is not in that list.** No fuzzing harness will be built for the number |
@@ -92,6 +92,10 @@ material for revisiting the decision rather than re-deciding it from scratch eac
 | conversation resolution required | yes | — |
 
 To remove: `gh api -X DELETE repos/<owner>/<repo>/branches/main/protection`.
+
+**A solo merge under these settings has been observed to work** (PR #38 merged with zero
+approvals), and a PR where `zizmor` does not run still reaches `mergeStateStatus: CLEAN` —
+which is why it is not required.
 
 ## Adding dependencies
 
