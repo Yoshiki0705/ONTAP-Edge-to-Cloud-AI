@@ -1,0 +1,60 @@
+{
+  "schema": "knowledge-quality/repository-overrides/v1",
+  "overrides": [
+    {
+      "category": "scan-root",
+      "value": "docs",
+      "reason": "Bilingual documentation tree (docs/ja primary, docs/en translation); the primary surface for the naming, neutrality, and public-output audit in this repository."
+    },
+    {
+      "category": "scan-root",
+      "value": "cloud",
+      "reason": "Cloud-side (AWS) infrastructure and application code with descriptive prose and comments carrying service names; in scope for the naming rule."
+    },
+    {
+      "category": "scan-root",
+      "value": "edge",
+      "reason": "Edge-side code and its documentation; in scope for naming and neutrality."
+    },
+    {
+      "category": "scan-root",
+      "value": "usecases",
+      "reason": "Per-use-case reference material written as prose; the main body of the reference architecture narrative lives here."
+    },
+    {
+      "category": "scan-root",
+      "value": "infrastructure",
+      "reason": "Baseline infrastructure templates whose descriptions and comments carry service names; in scope for the naming rule."
+    },
+    {
+      "category": "scan-root",
+      "value": "local-demo",
+      "reason": "Local demonstration material with explanatory prose; in scope for naming and public-output safety."
+    },
+    {
+      "category": "scan-root",
+      "value": "scripts",
+      "reason": "Helper scripts; comments and messages are subject to the naming and neutrality rules."
+    },
+    {
+      "category": "scan-root",
+      "value": "shared",
+      "reason": "Shared code referenced by both edge and cloud sides; in scope for naming and neutrality."
+    },
+    {
+      "category": "exclusion",
+      "value": ".private",
+      "reason": "Gitignored. Holds review provenance and any support-case references that must never reach public output; excluded from the public-facing audit surface by design."
+    },
+    {
+      "category": "exclusion",
+      "value": "tests",
+      "reason": "Test code and fixtures, not human-facing narrative prose; outside the naming/neutrality audit surface."
+    },
+    {
+      "category": "localization-tier",
+      "value": "bilingual-ja-primary",
+      "reason": "Japanese under docs/ja is authoritative; docs/en is the translation and must keep matching section structure. Same tier model as the Hub, declared here as this repository's own configuration rather than copied rule text."
+    }
+  ]
+}
