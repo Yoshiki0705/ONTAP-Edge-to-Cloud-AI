@@ -139,3 +139,8 @@ machine learning; the model turns "what happened and what to do" into something 
 - [What is Timestream for InfluxDB?](https://docs.aws.amazon.com/timestream/latest/developerguide/timestream-for-influxdb.html)
 - Related: [Pattern 03](03-industrial-iot-analytics.md) (store and query with SQL) /
   [Pattern 08](08-unified-namespace.md) (equipment namespace and model)
+- Related project: [fsxn-observability-integrations](https://github.com/Yoshiki0705/fsxn-observability-integrations)'s
+  [Pattern 3: Managed IoT → Timestream](https://github.com/Yoshiki0705/fsxn-observability-integrations/blob/main/docs/en/observability-storage-patterns/pattern-3-managed-iot-timestream.md) —
+  covers the same IoT-Core-based pipeline shape from the angle of combining it with FSx for
+  ONTAP as an archive/clone/protection layer. This project's `cloud/iot_ingestion/` is cited
+  there as a working example of the "Pattern A archive applies conditionally" case.

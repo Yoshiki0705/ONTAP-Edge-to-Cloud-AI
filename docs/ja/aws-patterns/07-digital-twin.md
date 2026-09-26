@@ -135,3 +135,8 @@ Timestream for InfluxDB を推奨としています
 - [What is Timestream for InfluxDB?](https://docs.aws.amazon.com/timestream/latest/developerguide/timestream-for-influxdb.html)
 - 関連: [Pattern 03](03-industrial-iot-analytics.md)（蓄積して SQL で分析） /
   [Pattern 08](08-unified-namespace.md)（設備の名前空間とモデル）
+- 関連プロジェクト: [fsxn-observability-integrations](https://github.com/Yoshiki0705/fsxn-observability-integrations) の
+  [パターン3: マネージド IoT → Timestream](https://github.com/Yoshiki0705/fsxn-observability-integrations/blob/main/docs/ja/observability-storage-patterns/pattern-3-managed-iot-timestream.md) —
+  同じ IoT Core ベースのパイプライン形状を、FSx for ONTAP をアーカイブ/クローン/保護層として
+  組み合わせる観点から扱っている。本プロジェクトの `cloud/iot_ingestion/` は、そのドキュメントが
+  「パターン A(アーカイブ)が条件付きで当てはまる」とする構成の実装例として引用されている
