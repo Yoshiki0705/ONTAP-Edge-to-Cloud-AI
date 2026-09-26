@@ -82,4 +82,5 @@ headings` enforces this; the rule, the exclusions and the
 | Writing or revising a reference doc or guide | [docs/agent/reference-doc-quality.md](docs/agent/reference-doc-quality.md) |
 | Changing an architecture diagram; the `.drawio` files are generated, not edited | [docs/diagrams/README.md](docs/diagrams/README.md) |
 | Anything touching network boundaries, device identity or plant equipment | [docs/ja/security-design.md](docs/ja/security-design.md) |
+| Working with AgentCore Gateway/Lambda targets or Quick Desktop MCP | [docs/agent/agentcore-pitfalls.md](docs/agent/agentcore-pitfalls.md) |
 | Running or extending the test suites | [TESTING.md](TESTING.md) |
