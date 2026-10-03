@@ -13,12 +13,14 @@
 
 **S3 標準バケットを介さず、FSx for ONTAP S3 Access Points を直接のデータインジェスト先とする**ことで、IoT/エッジワークロード特有の課題（小ファイル大量書き込みのオーバーヘッド、クロスリージョン転送コスト、ストレージ二重持ち）を解決する。さらに **FlexCache write-back (ONTAP 9.15.1+)** をエッジローカルの書き込みバッファとして活用し、オフライン耐性と低遅延ローカル書き込みを両立させる。
 
-**主要な結論:**
+主要な結論:
 
-1. **FSx for ONTAP S3 AP が唯一のデータ集約点** — S3 標準バケットを経由しない。PutObject で直接 FSx for ONTAP ボリュームに書き込み、同一データに NFS/SMB/S3 でマルチプロトコルアクセス
-2. **FlexCache write-back がエッジ書き込みバッファ** — エッジ側 ONTAP (ONTAP Select / FAS / AFF) の FlexCache Cache Volume に write-back モードで書き込み、非同期で Origin (FSx for ONTAP) にフラッシュ。オフライン耐性 + ローカル速度の書き込み
-3. **FlexCache read cache がデータバースト配信** — Origin に集約されたデータを他拠点の GPU/HPC ワークロードに低遅延で読み取り配信
-4. **Greengrass カスタム S3 クライアントコンポーネント** — Stream Manager (S3 バケット専用) ではなく、AWS SDK 直接利用で S3 AP ARN へ PutObject する専用コンポーネント
+| # | 要素 | 内容 |
+|---|------|------|
+| 1 | FSx for ONTAP S3 Access Points が唯一のデータ集約点 | S3 標準バケットを経由しない。PutObject で直接 FSx for ONTAP ボリュームに書き込み、同一データに NFS/SMB/S3 でマルチプロトコルアクセス |
+| 2 | FlexCache write-back がエッジ書き込みバッファ | エッジ側 ONTAP (ONTAP Select / FAS / AFF) の FlexCache Cache Volume に write-back モードで書き込み、非同期で Origin (FSx for ONTAP) にフラッシュ。オフライン耐性とローカル速度の書き込みを両立 |
+| 3 | FlexCache read cache がデータバースト配信 | Origin に集約されたデータを他拠点の GPU/HPC ワークロードに低遅延で読み取り配信 |
+| 4 | Greengrass カスタム S3 クライアントコンポーネント | Stream Manager (S3 バケット専用) ではなく、AWS SDK 直接利用で S3 Access Points ARN へ PutObject する専用コンポーネント |
 
 ---
 

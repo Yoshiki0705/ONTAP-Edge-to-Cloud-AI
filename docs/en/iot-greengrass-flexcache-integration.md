@@ -11,14 +11,16 @@
 
 ## Executive Summary
 
-**Using FSx for ONTAP S3 Access Points as the direct data ingestion endpoint — without routing through S3 standard buckets** — eliminates the overhead inherent to IoT/edge workloads (small file per-object costs, cross-region transfer costs, double storage). Additionally, **FlexCache write-back (ONTAP 9.15.1+)** serves as the edge local write buffer, achieving both offline resilience and low-latency local writes.
+Using FSx for ONTAP S3 Access Points as the direct data ingestion endpoint (without routing through S3 standard buckets) eliminates the overhead inherent to IoT/edge workloads (small file per-object costs, cross-region transfer costs, double storage). Additionally, **FlexCache write-back (ONTAP 9.15.1+)** serves as the edge local write buffer, achieving both offline resilience and low-latency local writes.
 
-**Key conclusions:**
+Key conclusions:
 
-1. **FSx for ONTAP S3 AP is the sole data aggregation point** — no S3 standard bucket intermediary. PutObject writes directly to FSx for ONTAP volumes; the same data is accessible via NFS/SMB/S3 multiprotocol
-2. **FlexCache write-back is the edge write buffer** — writes to edge ONTAP (ONTAP Select / FAS / AFF) FlexCache Cache Volume in write-back mode, asynchronously flushed to Origin (FSx for ONTAP). Offline-resilient + local-speed writes
-3. **FlexCache read cache provides data burst delivery** — delivers Origin-aggregated data to GPU/HPC workloads at multiple sites with low latency
-4. **Greengrass custom S3 client component** — uses the AWS SDK directly to PutObject to an S3 AP ARN, instead of Stream Manager, which requires an S3 bucket name (unverified, [compatibility and constraints](./s3ap-compatibility-matrix.md) §4)
+| # | Element | Detail |
+|---|---------|--------|
+| 1 | FSx for ONTAP S3 Access Points is the sole data aggregation point | No S3 standard bucket intermediary. PutObject writes directly to FSx for ONTAP volumes; the same data is accessible via NFS/SMB/S3 multiprotocol |
+| 2 | FlexCache write-back is the edge write buffer | Writes to edge ONTAP (ONTAP Select / FAS / AFF) FlexCache Cache Volume in write-back mode, asynchronously flushed to Origin (FSx for ONTAP). Offline-resilient and local-speed writes |
+| 3 | FlexCache read cache provides data burst delivery | Delivers Origin-aggregated data to GPU/HPC workloads at multiple sites with low latency |
+| 4 | Greengrass custom S3 client component | Uses the AWS SDK directly to PutObject to an S3 Access Points ARN, instead of Stream Manager, which requires an S3 bucket name (unverified, [compatibility and constraints](./s3ap-compatibility-matrix.md) §4) |
 
 ---
 
