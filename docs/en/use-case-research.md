@@ -360,7 +360,7 @@ For platform-specific compatibility (Athena, Glue, EMR, Databricks, Snowflake, B
 | Bedrock (Claude Vision) | $5-20/month | ~2,880 calls/day × 30 days, input token billing |
 | Lambda (FPolicy trigger) | $0-2/month | FPolicy event processing |
 | Athena | $1-5/month | Several GB/month scanned |
-| Total | — | **Not summed.** Dollar rows and a yen row are mixed, and they cannot be added without an exchange rate and the date it was taken |
+| Total | N/A | **Not summed.** Dollar rows and a yen row are mixed, and they cannot be added without an exchange rate and the date it was taken |
 
 > **Note**: the above is a PoC-scale estimate with no pricing date and no source. The "~¥1,500-4,000/month" total that used to be here added dollar rows to a yen row with no exchange rate, and is withdrawn. In wired LAN environments cellular costs are not incurred, so SORACOM fees do not apply. The FSx for ONTAP figure — the one whose magnitude matters — and dated unit prices are in the [cost model](cost-model.md). Use the [AWS Pricing Calculator](https://calculator.aws/) for an accurate estimate.
 
@@ -621,4 +621,4 @@ Phase 3 (2 weeks): AI prediction
 | 5 | NFS mount + ONTAP write test | 30 min | Step 4 + ONTAP NFS configured |
 | 6 | Camera installation + framing | 1 hour | Pi + camera + printer |
 | 7 | 24-hour continuous operation test | 24 hours | Step 6 complete |
-| 8 | Go/No-Go decision → Phase 2 | — | Step 7 results |
+| 8 | Go/No-Go decision → Phase 2 | N/A | Step 7 results |

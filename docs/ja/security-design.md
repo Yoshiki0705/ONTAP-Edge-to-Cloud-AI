@@ -354,8 +354,8 @@ security login role create -vserver svm-iot \
 | シークレット | 保管場所 | ローテーション |
 |------------|---------|--------------|
 | ONTAP REST API パスワード | Pi: 環境変数 (systemd EnvironmentFile) | 90日ごと |
-| SORACOM API Key/Token | 使用しない (SIM認証のみ) | — |
-| AWS 認証情報 | 使用しない (FPolicy→Lambda は ONTAP 側で処理、セルラー時は SORACOM AssumeRole) | — |
+| SORACOM API Key/Token | 使用しない (SIM認証のみ) | 該当なし |
+| AWS 認証情報 | 使用しない (FPolicy→Lambda は ONTAP 側で処理、セルラー時は SORACOM AssumeRole) | 該当なし |
 | FPolicy SSL 証明書 | Pi: /etc/fpolicy/certs/ (600 permission) | 1年ごと |
 | SSH 鍵 (Pi 管理用) | 管理者のローカルマシン | 1年ごと |
 

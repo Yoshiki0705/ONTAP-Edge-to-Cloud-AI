@@ -179,7 +179,7 @@ ARN をそのまま受けるのでハンドラ側の変更は不要と見込ん�
 | IoT Core テレメトリを S3 AP に直接保存 | Lambda ルールアクション経由 | Lambda の呼び出しコストとレイテンシが加わる |
 | Firehose の Parquet 変換を S3 AP に配信 | Lambda で集約して PutObject、または MSK Express brokers の streaming tables で Iceberg テーブルに materialize | Firehose のマネージド変換とバッファリングは使えない |
 | SiteWise の時系列データを S3 AP に保存 | S3 バケット経由 + DataSync | ストレージの二重持ちと遅延 |
-| 外部パートナーへのファイル受け渡し | AWS Transfer Family（S3 AP 経由、**公式**） | — |
+| 外部パートナーへのファイル受け渡し | AWS Transfer Family（S3 AP 経由、**公式**） | 該当なし |
 
 ---
 

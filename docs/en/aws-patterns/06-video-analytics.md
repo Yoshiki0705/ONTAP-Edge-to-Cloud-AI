@@ -13,10 +13,10 @@ it, this one finds the relevant moment in accumulated footage.
 | Stage of the path | In this repository | Location |
 |---|---|---|
 | Camera capture → local storage | Implemented (still images) | [`edge/raspberry-pi/camera/`](../../../edge/raspberry-pi/camera/) |
-| Storing and segmenting video | None | — |
-| Metadata extraction by image and video recognition | None | — |
-| Indexing into a search engine | None | — |
-| Search interface | None | — |
+| Storing and segmenting video | None | N/A |
+| Metadata extraction by image and video recognition | None | N/A |
+| Indexing into a search engine | None | N/A |
+| Search interface | None | N/A |
 | Video delivery | None | See "delivery" below |
 
 **There is no implementation here.** Capture and storage of still images is what exists.

@@ -82,14 +82,14 @@ that claims a measurement is `verified`.
 | Synthetic images identified as not photographic | `verified` | Same. A separate round against images generated with OpenCV |
 | Haiku mean 1,417 ms / Sonnet mean 7,186 ms | `verified` | n=4, sequential, timed on the client. Not from an AWS Lambda function inside a VPC |
 | The PoC FSx for ONTAP configuration at $500.61/month | `documented` | Retrieved 2026-08-19 from the AWS Price List Query API, ap-northeast-1, unit price effectiveDate 2026-07-01. 1024 GiB × $0.300/GB-month + 128 MBps × $1.511/MBps-month. Storage and throughput only; backups and the rest are not included (see the [cost model](cost-model.md)) |
-| $0.005–0.011 per image | — | **Withdrawn.** Hand-calculated from list prices, and that run recorded no token counts. Sitting in a table of measured results, it read as measured |
-| $259/month falling to $40/month with two stages | — | **Withdrawn.** Under the same assumptions the formula in `tests/sample_images/README.md` gives $78/month, so the repository held three answers for one assumption. No rate's source can be reproduced |
-| Token counts per image | — | Not recorded yet. `handler.py` now captures `usage` and emits `InputTokens` / `OutputTokens`, but the stack has never been deployed so there is no measurement |
+| $0.005–0.011 per image | N/A | **Withdrawn.** Hand-calculated from list prices, and that run recorded no token counts. Sitting in a table of measured results, it read as measured |
+| $259/month falling to $40/month with two stages | N/A | **Withdrawn.** Under the same assumptions the formula in `tests/sample_images/README.md` gives $78/month, so the repository held three answers for one assumption. No rate's source can be reproduced |
+| Token counts per image | N/A | Not recorded yet. `handler.py` now captures `usage` and emits `InputTokens` / `OutputTokens`, but the stack has never been deployed so there is no measurement |
 | Anomalies detected within 60 seconds | `hypothesis` | A design target. Not measured |
 | S3 access points require ONTAP 9.17.1 or later | `documented` | AWS documentation. [S3 AP compatibility and constraints](s3ap-compatibility-matrix.md) |
 | S3 access points do not support event notifications | `documented` | Same. Covered instead by FPolicy, an explicit call, or polling |
 | FlexCache write-back needs 9.15.1 or later, and is not recommended for production | `documented` | NetApp guidance and FAQ. [Greengrass and FlexCache integration](iot-greengrass-flexcache-integration.md) |
-| Accuracy in a real installation | — | Not claimed. The effect of lighting, camera angle and filament colour is unconfirmed |
+| Accuracy in a real installation | N/A | Not claimed. The effect of lighting, camera angle and filament colour is unconfirmed |
 
 ## What has to accompany a published number
 

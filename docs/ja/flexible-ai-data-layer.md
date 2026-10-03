@@ -45,7 +45,7 @@ Iceberg / Delta のテーブルを直接置いて更新することはできま�
 
 | 項目 | 可用性 | 出典 |
 |---|---|---|
-| Iceberg テーブルをオブジェクトストレージに置き、複数エンジンから読む | Supported today | — |
+| Iceberg テーブルをオブジェクトストレージに置き、複数エンジンから読む | Supported today | 該当なし |
 | S3 Tables（Iceberg 対応を内蔵したテーブル用バケット） | Supported today | [出典](https://docs.aws.amazon.com/sagemaker-lakehouse-architecture/latest/userguide/lakehouse-s3-tables-integration.html) |
 | Iceberg V3 の deletion vectors / row lineage（Glue Data Catalog 側） | Supported today | [出典](https://aws.amazon.com/sagemaker/lakehouse/features/) |
 | Iceberg V3 の Variant 型（S3 Tables） | Supported today | [出典](https://aws.amazon.com/about-aws/whats-new/2026/07/amazon-s3-tables-variant-iceberg-v3/) |

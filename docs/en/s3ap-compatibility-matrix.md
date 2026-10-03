@@ -187,7 +187,7 @@ confirmed against real infrastructure (see the
 | IoT Core telemetry stored directly on an S3 AP | Via a Lambda rule action | Adds Lambda invocation cost and latency |
 | Firehose Parquet conversion delivered to an S3 AP | Aggregate in Lambda and PutObject, or materialize into an Iceberg table with MSK Express brokers streaming tables | Firehose's managed conversion and buffering are unavailable |
 | SiteWise time series stored on an S3 AP | Via an S3 bucket plus DataSync | Two copies of the data, and added delay |
-| Handing files to external partners | AWS Transfer Family over an S3 AP (**documented**) | — |
+| Handing files to external partners | AWS Transfer Family over an S3 AP (**documented**) | N/A |
 
 ---
 

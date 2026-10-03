@@ -11,10 +11,10 @@ The subject is existing assets: drawings, work instructions, inspection reports.
 
 | Stage of the path | In this repository | Location |
 |---|---|---|
-| Consolidating documents into file storage | None | — |
+| Consolidating documents into file storage | None | N/A |
 | Creating the S3 access point | Partial (the FSx template exists) | [`cloud/fsxn/`](../../../cloud/fsxn/) |
 | Creating and syncing the knowledge base | None | See the official walkthrough below |
-| Retrieval and model invocation | None | — |
+| Retrieval and model invocation | None | N/A |
 | Multi-step retrieval by an agent | None | [Agentic AI on AWS](../agentic-ai-on-aws.md) |
 
 **There is no implementation here.** But **AWS publishes an official walkthrough** (below), which is

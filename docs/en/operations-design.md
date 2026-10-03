@@ -416,7 +416,7 @@ Recovery confirmation: Next day's export succeeds, Parquet arrives in Databricks
 
 | Level | Response Time Target | Notification | Authority |
 |-------|---------------------|-------------|-----------|
-| L1 | Immediate (auto) | — | Auto scripts |
+| L1 | Immediate (auto) | N/A | Auto scripts |
 | L2 | Within 15 min | Slack | Service restart, device reboot |
 | L3 | Within 1 hour | Phone/PagerDuty | Code fix, config change |
 | L4 | Immediate (critical) | Phone | Service stop, customer notification |

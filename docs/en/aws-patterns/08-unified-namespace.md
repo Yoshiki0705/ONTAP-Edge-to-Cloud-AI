@@ -20,8 +20,8 @@ namespace, which is the gap it fills.
 | Publishing to Kafka | Implemented | Same |
 | MQTT ingestion | Implemented | [`cloud/iot_ingestion/`](../../../cloud/iot_ingestion/) |
 | Designing the hierarchical namespace | None | Below |
-| Connecting OT protocols such as OPC UA | None | — |
-| Asset model | None | — |
+| Connecting OT protocols such as OPC UA | None | N/A |
+| Asset model | None | N/A |
 | Representing device lifecycle state | None | Below |
 
 ## Separating the concept from the implementation
