@@ -577,8 +577,8 @@ aws cloudformation wait stack-delete-complete --stack-name edge-to-cloud-fsxn-po
 
 ## 関連ドキュメント
 
-- [cfn-params/README.md](../../cfn-params/README.md) — パラメータファイルの使い方
-- [cloud/fsxn/README.md](../../cloud/fsxn/README.md) — FSx for ONTAP 構成の詳細
-- [docs/ja/security-design.md](./security-design.md) — セキュリティ設計
-- [docs/ja/operations-design.md](./operations-design.md) — 運用設計
-- [CONTRIBUTING.md](../../CONTRIBUTING.md) — コントリビューションガイド
+- [cfn-params/README.md](../../cfn-params/README.md)：パラメータファイルの使い方
+- [cloud/fsxn/README.md](../../cloud/fsxn/README.md)：FSx for ONTAP 構成の詳細
+- [docs/ja/security-design.md](./security-design.md)：セキュリティ設計
+- [docs/ja/operations-design.md](./operations-design.md)：運用設計
+- [CONTRIBUTING.md](../../CONTRIBUTING.md)：コントリビューションガイド

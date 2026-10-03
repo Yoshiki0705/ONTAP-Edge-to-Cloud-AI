@@ -693,7 +693,7 @@ GuardDuty、Inspector、Config などの結果が分散していると、対応�
 
 ## 関連ドキュメント
 
-- [品質ゲート](../agent/quality-gates.md) — この設計を検証するゲート
+- [品質ゲート](../agent/quality-gates.md)：この設計を検証するゲート
 - [運用設計](operations-design.md)
 - [データスキーマ設計](data-schema-design.md)
 - [IoT Greengrass / FlexCache 統合](iot-greengrass-flexcache-integration.md)

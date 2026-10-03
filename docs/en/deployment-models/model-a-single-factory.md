@@ -113,7 +113,7 @@ avoids paying for idle resources.
 
 ## References
 
-- [Deployment guide](../deployment-guide.md) — the actual build steps
-- [Pattern catalog](../aws-patterns/README.md) — choosing the AI path
+- [Deployment guide](../deployment-guide.md): the actual build steps
+- [Pattern catalog](../aws-patterns/README.md): choosing the AI path
 - [Security design](../security-design.md)
-- [Model B: multiple factories](model-b-multi-factory.md) — what changes as sites are added
+- [Model B: multiple factories](model-b-multi-factory.md): what changes as sites are added

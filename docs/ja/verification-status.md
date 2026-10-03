@@ -162,7 +162,7 @@ FSx for ONTAP を含む経路は実行していません。SAM テンプレー�
 
 ## 関連ドキュメント
 
-- [S3 AP 互換性と制約](s3ap-compatibility-matrix.md) — 制約ごとの根拠区分
-- [FAQ](faq.md) — 未検証の項目に触れている箇所
-- [デプロイガイド](deployment-guide.md) — 実行手順（実行結果ではない）
-- [`tests/sample_images/README.md`](../../tests/sample_images/README.md) — Bedrock の測定の生記録
+- [S3 AP 互換性と制約](s3ap-compatibility-matrix.md)：制約ごとの根拠区分
+- [FAQ](faq.md)：未検証の項目に触れている箇所
+- [デプロイガイド](deployment-guide.md)：実行手順（実行結果ではない）
+- [`tests/sample_images/README.md`](../../tests/sample_images/README.md)：Bedrock の測定の生記録

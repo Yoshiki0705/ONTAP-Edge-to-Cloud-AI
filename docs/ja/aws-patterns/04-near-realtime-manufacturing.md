@@ -123,8 +123,8 @@ Kafka トピックを列指向データベースに入れる代わりに、Icebe
 
 ## 参考
 
-- [databricks-integration](../databricks-integration.md) — 接続パスと Unity Catalog 設計
-- [kafka-integration](../kafka-integration.md) — トポロジーとトピック設計
+- [databricks-integration](../databricks-integration.md)：接続パスと Unity Catalog 設計
+- [kafka-integration](../kafka-integration.md)：トポロジーとトピック設計
 - [Streaming tables with Amazon MSK](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-tables-streaming-msk.html)
 - 関連: [Pattern 03](03-industrial-iot-analytics.md)（バッチ寄りの分析） /
   [Flexible AI Data Layer](../flexible-ai-data-layer.md)（テーブル形式とカタログの相互運用）

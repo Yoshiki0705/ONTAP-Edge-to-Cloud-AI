@@ -172,7 +172,7 @@ reader than leaving a stale `verified` in place. Evidence is required only when 
 
 ## Related documents
 
-- [S3 AP compatibility and constraints](s3ap-compatibility-matrix.md) — the evidence tier per constraint
-- [FAQ](faq.md) — the places that touch on unverified items
-- [Deployment guide](deployment-guide.md) — how to run it, not the result of a run
-- [`tests/sample_images/README.md`](../../tests/sample_images/README.md) — the raw record of the Bedrock measurement
+- [S3 AP compatibility and constraints](s3ap-compatibility-matrix.md): the evidence tier per constraint
+- [FAQ](faq.md): the places that touch on unverified items
+- [Deployment guide](deployment-guide.md): how to run it, not the result of a run
+- [`tests/sample_images/README.md`](../../tests/sample_images/README.md): the raw record of the Bedrock measurement

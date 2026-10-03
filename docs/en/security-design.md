@@ -691,7 +691,7 @@ The list is in [Agentic AI on AWS](agentic-ai-on-aws.md) §6.
 
 ## Related Documents
 
-- [Quality gates](../agent/quality-gates_en.md) — the gates that verify this design
+- [Quality gates](../agent/quality-gates_en.md): the gates that verify this design
 - [Operations design](operations-design.md)
 - [Data schema design](data-schema-design.md)
 - [IoT Greengrass / FlexCache integration](iot-greengrass-flexcache-integration.md)

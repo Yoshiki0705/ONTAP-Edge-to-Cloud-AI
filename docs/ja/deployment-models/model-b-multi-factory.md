@@ -140,7 +140,7 @@ graph LR
 
 ## 参考
 
-- [Model A: 単一工場](model-a-single-factory.md) — 共通部分
-- [FlexCache / SnapMirror の比較](../iot-greengrass-flexcache-integration.md) — 同期手段の選択
-- [Pattern 08: 統合名前空間](../aws-patterns/08-unified-namespace.md) — 拠点を含む名前空間の設計
+- [Model A: 単一工場](model-a-single-factory.md)：共通部分
+- [FlexCache / SnapMirror の比較](../iot-greengrass-flexcache-integration.md)：同期手段の選択
+- [Pattern 08: 統合名前空間](../aws-patterns/08-unified-namespace.md)：拠点を含む名前空間の設計
 - [セキュリティ設計](../security-design.md)

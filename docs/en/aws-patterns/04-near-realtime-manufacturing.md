@@ -126,8 +126,8 @@ Having both is viable: the columnar database for dashboards, Iceberg for cross-c
 
 ## References
 
-- [databricks-integration](../databricks-integration.md) — connection paths and Unity Catalog design
-- [kafka-integration](../kafka-integration.md) — topology and topic design
+- [databricks-integration](../databricks-integration.md): connection paths and Unity Catalog design
+- [kafka-integration](../kafka-integration.md): topology and topic design
 - [Streaming tables with Amazon MSK](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-tables-streaming-msk.html)
 - Related: [Pattern 03](03-industrial-iot-analytics.md) (batch-leaning analysis) /
   [Flexible AI Data Layer](../flexible-ai-data-layer.md) (table formats and catalog interoperability)

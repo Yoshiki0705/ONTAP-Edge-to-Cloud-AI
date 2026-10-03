@@ -201,8 +201,8 @@ list prices (see the [verification status](verification-status.md)).
 
 ## Related documents
 
-- [Verification status](verification-status.md) — which figures rest on what
-- [Deployment guide](deployment-guide.md) — the build procedure; §8 refers here
-- [Operations design](operations-design.md) — metrics and alarms, including `CostPerImage`
-- [S3 AP compatibility and limits](s3ap-compatibility-matrix.md) — where a path choice affects cost
-- [AWS pattern catalog](aws-patterns/README.md) — what drives cost per pattern
+- [Verification status](verification-status.md): which figures rest on what
+- [Deployment guide](deployment-guide.md): the build procedure; §8 refers here
+- [Operations design](operations-design.md): metrics and alarms, including `CostPerImage`
+- [S3 AP compatibility and limits](s3ap-compatibility-matrix.md): where a path choice affects cost
+- [AWS pattern catalog](aws-patterns/README.md): what drives cost per pattern

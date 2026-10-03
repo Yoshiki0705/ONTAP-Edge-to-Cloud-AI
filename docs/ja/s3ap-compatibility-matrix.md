@@ -198,8 +198,8 @@ ARN をそのまま受けるのでハンドラ側の変更は不要と見込ん�
 
 ## 関連ドキュメント
 
-- [IoT Greengrass + FlexCache 連携シナリオ](./iot-greengrass-flexcache-integration.md) — 書き込み経路と FlexCache
-- [Databricks 連携設計](./databricks-integration.md) — Unity Catalog との接続パス
-- [デプロイガイド](./deployment-guide.md) — 実際の構築手順
-- [AWS パターンカタログ](./aws-patterns/README.md) — この制約が各構成にどう効くか
+- [IoT Greengrass + FlexCache 連携シナリオ](./iot-greengrass-flexcache-integration.md)：書き込み経路と FlexCache
+- [Databricks 連携設計](./databricks-integration.md)：Unity Catalog との接続パス
+- [デプロイガイド](./deployment-guide.md)：実際の構築手順
+- [AWS パターンカタログ](./aws-patterns/README.md)：この制約が各構成にどう効くか
 - [FAQ](./faq.md)

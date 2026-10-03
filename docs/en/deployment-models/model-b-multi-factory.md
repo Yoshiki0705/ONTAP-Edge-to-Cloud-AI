@@ -140,7 +140,7 @@ In order of expense.
 
 ## References
 
-- [Model A: single factory](model-a-single-factory.md) — the shared part
-- [FlexCache versus SnapMirror](../iot-greengrass-flexcache-integration.md) — choosing the sync mechanism
-- [Pattern 08: unified namespace](../aws-patterns/08-unified-namespace.md) — namespaces that include the site
+- [Model A: single factory](model-a-single-factory.md): the shared part
+- [FlexCache versus SnapMirror](../iot-greengrass-flexcache-integration.md): choosing the sync mechanism
+- [Pattern 08: unified namespace](../aws-patterns/08-unified-namespace.md): namespaces that include the site
 - [Security design](../security-design.md)

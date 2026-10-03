@@ -194,8 +194,8 @@ A: ありません。スタックをデプロイした記録がないので、�
 
 ## 関連ドキュメント
 
-- [検証状態](verification-status.md) — どの数値をどの根拠で引けるか
-- [デプロイガイド](deployment-guide.md) — 構築手順。§8 はこの doc を参照する
-- [運用設計](operations-design.md) — `CostPerImage` を含むメトリクスとアラーム
-- [S3 AP 互換性と制約](s3ap-compatibility-matrix.md) — 経路の選択がコストに影響する箇所
-- [AWS パターンカタログ](aws-patterns/README.md) — パターンごとの「費用を駆動する要素」
+- [検証状態](verification-status.md)：どの数値をどの根拠で引けるか
+- [デプロイガイド](deployment-guide.md)：構築手順。§8 はこの doc を参照する
+- [運用設計](operations-design.md)：`CostPerImage` を含むメトリクスとアラーム
+- [S3 AP 互換性と制約](s3ap-compatibility-matrix.md)：経路の選択がコストに影響する箇所
+- [AWS パターンカタログ](aws-patterns/README.md)：パターンごとの「費用を駆動する要素」
