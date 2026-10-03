@@ -185,9 +185,9 @@ simple_capture.py  ─event─> factory.events.raw ─> Kafka Connector (TBD)
 
 #### 本プロジェクトへの影響
 
-- **エッジ側に変更なし**: ローカル ONTAP + Kafka トピック構成はそのまま維持
-- **クラウド側の代替パス**: 既存パス A (Structured Streaming → Delta) を置き換えるのではなく、並列オプションとして追加
-- **Operational AI シナリオ**: リアルタイム品質判定 API や Lakebase Search による画像メタデータ検索など、Delta 単独では難しいユースケースに対応可能
+- エッジ側に変更なし: ローカル ONTAP + Kafka トピック構成はそのまま維持
+- クラウド側の代替パス: 既存パス A (Structured Streaming → Delta) を置き換えるのではなく、並列オプションとして追加
+- Operational AI シナリオ: リアルタイム品質判定 API や Lakebase Search による画像メタデータ検索など、Delta 単独では難しいユースケースに対応可能
 
 #### 検証必要事項
 

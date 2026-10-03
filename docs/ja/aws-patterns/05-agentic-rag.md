@@ -106,7 +106,7 @@ graph LR
 
 ## 前提と制約
 
-- **AWS が公式手順を公開しています**:
+- AWS が公式手順を公開しています:
   [Build a RAG application using Amazon Bedrock Knowledge Bases](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/tutorial-build-rag-with-bedrock.html)。
   データソースには S3 Access Point の alias を指定します
 - **記述の食い違いがあります。** Bedrock 側のデータソースのドキュメントには

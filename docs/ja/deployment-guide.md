@@ -397,11 +397,11 @@ aws cloudformation wait stack-create-complete \
 
 ### 既存 VPC に統合する場合の注意点
 
-1. **CIDR 重複**: `preflight-check.sh` で自動検出。既存 VPC と `10.0.0.0/16` が被る場合はパラメータで変更
-2. **セキュリティグループ**: FSx for ONTAP は NFS (2049)、SMB (445)、HTTPS (443) を内部通信に使用
-3. **DNS 解決**: VPC 内 DNS が有効であること（`EnableDnsSupport: true`）
-4. **ルートテーブル**: S3 Gateway エンドポイントは対象サブネットのルートテーブルに明示的に紐付ける必要がある
-5. **SnapMirror ポート**: テンプレートは 11104-11105/tcp を `0.0.0.0/0` に開放している（SnapMirror クロスリージョン用）。オンプレミスからの SnapMirror のみ使う場合は、送信元 IP を限定すること
+1. CIDR 重複: `preflight-check.sh` で自動検出。既存 VPC と `10.0.0.0/16` が被る場合はパラメータで変更
+2. セキュリティグループ: FSx for ONTAP は NFS (2049)、SMB (445)、HTTPS (443) を内部通信に使用
+3. DNS 解決: VPC 内 DNS が有効であること（`EnableDnsSupport: true`）
+4. ルートテーブル: S3 Gateway エンドポイントは対象サブネットのルートテーブルに明示的に紐付ける必要がある
+5. SnapMirror ポート: テンプレートは 11104-11105/tcp を `0.0.0.0/0` に開放している（SnapMirror クロスリージョン用）。オンプレミスからの SnapMirror のみ使う場合は、送信元 IP を限定すること
 
 ---
 
@@ -485,9 +485,9 @@ aws cloudformation describe-stack-events \
 
 ### 9.4 バックアップとリカバリ
 
-- **S3**: バージョニング有効。ライフサイクルルールで 90 日後に IA、365 日後に Glacier
-- **FSx for ONTAP**: 自動バックアップを有効化（Snapshot ポリシー設定は ONTAP 側）
-- **Kinesis**: 24 時間のデータ保持（リプレイ可能）
+- S3: バージョニング有効。ライフサイクルルールで 90 日後に IA、365 日後に Glacier
+- FSx for ONTAP: 自動バックアップを有効化（Snapshot ポリシー設定は ONTAP 側）
+- Kinesis: 24 時間のデータ保持（リプレイ可能）
 
 ### 9.5 スケーリング
 

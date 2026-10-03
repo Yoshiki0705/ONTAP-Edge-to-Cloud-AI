@@ -154,15 +154,15 @@ graph TD
 
 ## 段階的なコスト管理の手順
 
-1. **デプロイ前**: この doc の式に自分の単価を入れて桁を出す。FSx for ONTAP を使うなら
+1. デプロイ前: この doc の式に自分の単価を入れて桁を出す。FSx for ONTAP を使うなら
    削除予定日を決める
-2. **デプロイ直後**: [AWS Budgets](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html)
+2. デプロイ直後: [AWS Budgets](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html)
    でアラートを設定する。PoC では見積りの 1.5 倍あたりが実用的な閾値
-3. **1 日運用したら**: `InputTokens` / `OutputTokens` の実測から 1 画像あたりのトークン数を
+3. 1 日運用したら: `InputTokens` / `OutputTokens` の実測から 1 画像あたりのトークン数を
    確定し、式に戻す
-4. **単価を確定したら**: 上の 4 つの環境変数を設定して `CostPerImage` を出す。
+4. 単価を確定したら: 上の 4 つの環境変数を設定して `CostPerImage` を出す。
    [運用設計](operations-design.md)のアラーム閾値はこのメトリクスを前提にしている
-5. **PoC 終了時**: [`scripts/teardown.sh`](../../scripts/teardown.sh) で削除する。
+5. PoC 終了時: [`scripts/teardown.sh`](../../scripts/teardown.sh) で削除する。
    データレイクのバケットは `DeletionPolicy: Retain` で残るので別途削除する
 
 ## FAQ

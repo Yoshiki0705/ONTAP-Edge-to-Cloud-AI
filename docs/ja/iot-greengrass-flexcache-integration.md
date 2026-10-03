@@ -469,10 +469,10 @@ graph TD
 
 設計ルール:
 
-1. **デバイス別ディレクトリ分離**: FlexCache write-back の XLD (排他ロック委任) はファイル単位で 1 Cache に付与される。デバイスごとにディレクトリを分けることで XLD 競合を回避
-2. **Hive パーティション形式**: S3 AP 経由の Athena クエリでパーティションプルーニングが自動適用
-3. **FlexGroup constituent 分散**: 多数のサブディレクトリにより FlexGroup 内の各 constituent に均等分散 → FlexCache 効率向上
-4. **`/models/` は読み取り専用配信**: FlexCache read cache の最適ユースケース。write-around モードで配信
+1. デバイス別ディレクトリ分離: FlexCache write-back の XLD (排他ロック委任) はファイル単位で 1 Cache に付与される。デバイスごとにディレクトリを分けることで XLD 競合を回避
+2. Hive パーティション形式: S3 AP 経由の Athena クエリでパーティションプルーニングが自動適用
+3. FlexGroup constituent 分散: 多数のサブディレクトリにより FlexGroup 内の各 constituent に均等分散 → FlexCache 効率向上
+4. `/models/` は読み取り専用配信: FlexCache read cache の最適ユースケース。write-around モードで配信
 
 ---
 
@@ -534,9 +534,9 @@ streaming tables で Iceberg テーブルとして materialize する経路も�
 ### Q7: エッジに ONTAP がない場合はどうすればよいですか?
 
 **A**:
-- **接続が安定**: Greengrass カスタム S3 クライアントコンポーネントで S3 AP に直接 PutObject (Tier 1)
-- **オフライン耐性が必要**: ONTAP Select の導入を検討（汎用 x86 サーバー上、最小 1TB）。FlexCache write-back でエッジバッファ + クラウド集約を実現
-- **小規模 PoC**: Greengrass のローカルディスクバッファ + リトライで簡易的なオフライン耐性を確保
+- 接続が安定: Greengrass カスタム S3 クライアントコンポーネントで S3 AP に直接 PutObject (Tier 1)
+- オフライン耐性が必要: ONTAP Select の導入を検討（汎用 x86 サーバー上、最小 1TB）。FlexCache write-back でエッジバッファ + クラウド集約を実現
+- 小規模 PoC: Greengrass のローカルディスクバッファ + リトライで簡易的なオフライン耐性を確保
 
 ---
 
@@ -616,12 +616,12 @@ streaming tables で Iceberg テーブルとして materialize する経路も�
 
 ## 13. 今後の検討事項
 
-1. **Greengrass S3 AP クライアントコンポーネントの実装**: boto3 PutObject + ローカルバッファ + リトライのテンプレート化
-2. **FlexCache write-back パフォーマンス検証**: IoT ワークロード (小ファイル大量 / 画像ファイル) での書き込みレイテンシ + Origin フラッシュ遅延計測
-3. **ONTAP Select on Raspberry Pi 5 / Jetson の可能性調査**: ARM 対応状況の確認（現時点では x86 のみ → 小型 x86 Edge サーバーが必要）
-4. **Lambda バッチ集約の最適ウィンドウ検証**: IoT Core → Lambda の呼び出し頻度 vs S3 AP PutObject のオブジェクトサイズトレードオフ
-5. **IoT Core Basic Ingest と S3 AP の組み合わせ**: ルールエンジンのメッセージブローカー回避でコスト削減
-6. **FlexCache write-back + FabricPool の組み合わせ**: エッジ→クラウド→階層化の End-to-End データライフサイクル管理
+1. Greengrass S3 AP クライアントコンポーネントの実装: boto3 PutObject + ローカルバッファ + リトライのテンプレート化
+2. FlexCache write-back パフォーマンス検証: IoT ワークロード (小ファイル大量 / 画像ファイル) での書き込みレイテンシ + Origin フラッシュ遅延計測
+3. ONTAP Select on Raspberry Pi 5 / Jetson の可能性調査: ARM 対応状況の確認（現時点では x86 のみ → 小型 x86 Edge サーバーが必要）
+4. Lambda バッチ集約の最適ウィンドウ検証: IoT Core → Lambda の呼び出し頻度 vs S3 AP PutObject のオブジェクトサイズトレードオフ
+5. IoT Core Basic Ingest と S3 AP の組み合わせ: ルールエンジンのメッセージブローカー回避でコスト削減
+6. FlexCache write-back + FabricPool の組み合わせ: エッジ→クラウド→階層化の End-to-End データライフサイクル管理
 
 ---
 

@@ -12,10 +12,10 @@
 
 調査で確認したこと:
 
-1. **ONTAP の多層的活用**: FPolicy によるイベント駆動連携、SnapMirror によるエッジ→クラウド同期、FlexCache による低遅延キャッシュ、ARP/AI によるセキュリティ、S3 Access Points による AWS サービス直接連携の5つの軸で活用可能
-2. **FPolicy イベント駆動パイプライン**: エッジデバイスが NFS/SMB で ONTAP に書き込むだけで、FPolicy が Lambda をトリガーし Bedrock 分析を自動実行。デバイス側にクラウド連携コードが不要
-3. **FSx for ONTAP S3 AP の活用パターン**: エッジで収集したデータの集約先として FSx for ONTAP を使い、S3 AP 経由で Athena / Glue / Bedrock Knowledge Bases に直接接続することで、データコピーなしに横断分析が可能（SageMaker は AWS の対応サービス一覧に無く未検証。[S3 AP 互換性と制約](s3ap-compatibility-matrix.md)）
-4. **PoC 構成例**: Raspberry Pi 5 + カメラ + 3Dプリンター + ONTAP の組み合わせで、データ集約 → AI 分析の一連のフローを小規模に検証可能
+1. ONTAP の多層的活用: FPolicy によるイベント駆動連携、SnapMirror によるエッジ→クラウド同期、FlexCache による低遅延キャッシュ、ARP/AI によるセキュリティ、S3 Access Points による AWS サービス直接連携の5つの軸で活用可能
+2. FPolicy イベント駆動パイプライン: エッジデバイスが NFS/SMB で ONTAP に書き込むだけで、FPolicy が Lambda をトリガーし Bedrock 分析を自動実行。デバイス側にクラウド連携コードが不要
+3. FSx for ONTAP S3 AP の活用パターン: エッジで収集したデータの集約先として FSx for ONTAP を使い、S3 AP 経由で Athena / Glue / Bedrock Knowledge Bases に直接接続することで、データコピーなしに横断分析が可能（SageMaker は AWS の対応サービス一覧に無く未検証。[S3 AP 互換性と制約](s3ap-compatibility-matrix.md)）
+4. PoC 構成例: Raspberry Pi 5 + カメラ + 3Dプリンター + ONTAP の組み合わせで、データ集約 → AI 分析の一連のフローを小規模に検証可能
 
 ---
 
