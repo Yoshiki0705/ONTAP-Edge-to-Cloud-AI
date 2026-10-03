@@ -3,7 +3,7 @@
 > 作成日: 2026-06-15
 > ステータス: 設計完了（Lakehouse プロジェクトと同期）
 > 関連: [fsxn-lakehouse-integrations/poc-templates/04-databricks-integration](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/tree/main/poc-templates/04-databricks-integration)
-> Edge ↔ Lakehouse 同期記録: [14_edge_lakehouse_sync.md](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/ja/14_edge_lakehouse_sync.md) — スキーマ・トピック・責任分担の同期状況
+> Edge ↔ Lakehouse 同期記録: [14_edge_lakehouse_sync.md](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/ja/14_edge_lakehouse_sync.md)（スキーマ・トピック・責任分担の同期状況）
 
 ---
 
@@ -141,9 +141,9 @@ aws cloudformation deploy \
   --capabilities CAPABILITY_IAM
 ```
 
-### 2.5 パス D: Kafka → Lakebase — LTAP (将来候補)
+### 2.5 パス D: Kafka → Lakebase（LTAP, 将来候補）
 
-> **ステータス**: 設計検討中 — Lakebase は GA だが Kafka → Lakebase コネクタの具体的ドキュメント公開待ち
+> **ステータス**: 設計検討中。Lakebase は GA だが Kafka → Lakebase コネクタの具体的ドキュメント公開待ち
 > **前提**: DAIS 2026 (2026-06-16) で発表された LTAP (Lake Transactional/Analytical Processing)
 > **参考**: [LTAP プレスリリース](https://www.databricks.com/company/newsroom/press-releases/databricks-launches-ltap-first-lake-transactionalanalytical) / [Lakebase Search](https://www.databricks.com/blog/announcing-lakebase-search-agent-native-retrieval-built-lakebase-postgres)
 
@@ -204,7 +204,7 @@ simple_capture.py  ─event─> factory.events.raw ─> Kafka Connector (TBD)
 
 #### 採用判断基準
 
-以下の条件が満たされた段階で PoC 検証を開始する:
+PoC 検証を開始する条件は次の 3 つです。
 
 1. Kafka → Lakebase コネクタのドキュメントが公開され、設定方法が明確になる
 2. Lakehouse//RT が GA になる（Preview 段階では本番採用不可）
@@ -212,8 +212,8 @@ simple_capture.py  ─event─> factory.events.raw ─> Kafka Connector (TBD)
 
 #### 制約事項
 
-- Lakehouse//RT は **Preview** — 本番採用は GA 待ち
-- LTAP に**オンプレミスオプションはない** — クラウド側のみ影響
+- Lakehouse//RT は **Preview** で、本番採用は GA 待ち
+- LTAP に**オンプレミスオプションはない**ため、影響はクラウド側のみ
 - エッジ側の設計（ローカル ONTAP + Kafka）は変更しない
 - 既存パス A/B/C は LTAP 採用後も**併存**する（置き換えではない）
 
@@ -308,11 +308,11 @@ Real-Time Mode は GA に到達しており、既存パス A (Kafka → Structur
 
 #### 制約事項
 
-- Zerobus Ingest は **Databricks 専用** — Kafka のような汎用マルチコンシューマ配信は不可
-- Real-Time Mode は **GA** (DBR 16.2+) — 本番採用可能
-- Lakeflow は **Databricks マネージド** — オンプレミス非対応
+- Zerobus Ingest は **Databricks 専用**で、Kafka のような汎用マルチコンシューマ配信はできない
+- Real-Time Mode は **GA** (DBR 16.2+) で、本番採用できる
+- Lakeflow は **Databricks マネージド**で、オンプレミスには非対応
 - エッジ側の Kafka Producer 設計には変更を加えない（クラウド側受信のみの影響）
-- 「Lakeflow/Zerobus が Kafka を上回る」等のベンダー対決表現は不適切 — 用途に応じて選択
+- 「Lakeflow/Zerobus が Kafka を上回る」等のベンダー対決表現は使わず、用途に応じて選択する
 
 ---
 
@@ -508,4 +508,4 @@ Edge capture (Pi)
 | ClickHouse → S3 Export の自動化 (cron or ClickHouse scheduled) | 設計済み | ClickHouse デプロイ後 |
 | DataSync Agent (ONTAP NFS → S3) | Lakehouse プロジェクトで検証済み | FSx for ONTAP 環境 |
 | LTAP (Kafka → Lakebase) コネクタ検証 | ドキュメント公開待ち | Lakebase GA / コネクタ仕様公開 |
-| Lakehouse//RT GA 評価 | Preview — GA 待ち | Databricks ロードマップ |
+| Lakehouse//RT GA 評価 | Preview（GA 待ち） | Databricks ロードマップ |
