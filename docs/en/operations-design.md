@@ -76,7 +76,7 @@ Include `message_id` in all logs and metrics for cross-service tracing:
 [SNS: alert] message_id=abc-123
 ```
 
-**CloudWatch Logs Insights query example:**
+CloudWatch Logs Insights query example:
 ```
 fields @timestamp, @message
 | filter message_id = "abc-123"
@@ -438,7 +438,7 @@ Currently operating with Parquet + Hive-style partitions. Consider Apache Iceber
 | Data volume exceeds 1TB | Metadata management efficiency |
 | Multiple query engines access data | Athena + Redshift + EMR |
 
-**Why Iceberg is NOT needed now:**
+Why Iceberg is NOT needed now:
 - Append-only workload (image metadata, sensor data)
 - Single write source (Amazon Data Firehose / Glue ETL)
 - Small data volume (PoC: several GB/month)

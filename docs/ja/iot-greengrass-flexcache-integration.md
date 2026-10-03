@@ -132,13 +132,13 @@
 └───────────────────────────────┘
 ```
 
-**Stream Manager を使わない理由:**
+Stream Manager を使わない理由:
 - Greengrass Stream Manager は S3 バケット名を要求する（access point ARN を受け付ける記述が
   見つからない）。**このプロジェクトでは未検証**（[互換性と制約](./s3ap-compatibility-matrix.md) §4）
 - カスタムコンポーネントで boto3 (Python) / AWS SDK を使い、S3 AP ARN を直接ターゲットに PutObject を実行
 - ローカルディスクバッファ + エクスポネンシャルバックオフでオフライン耐性を自前実装
 
-**IoT Core MQTT → Lambda → S3 AP 経路:**
+IoT Core MQTT → Lambda → S3 AP 経路:
 - テレメトリ（小容量・高頻度）は IoT Core MQTT で送信
 - IoT Core ルールエンジン → Lambda 関数 → Lambda 内で PutObject to S3 AP
 - Amazon Data Firehose は S3 バケット ARN を要求する。**未検証**（[互換性と制約](./s3ap-compatibility-matrix.md) §4）のため、
@@ -182,7 +182,7 @@
 └────────────────────────────────────────┘
 ```
 
-**FlexCache Write-Back の IoT における価値:**
+FlexCache Write-Back の IoT における価値:
 
 | 特性 | 効果 |
 |------|------|
@@ -193,7 +193,7 @@
 | インライン重複排除/圧縮 | 小ファイル大量書き込みのストレージ効率を最大化 |
 | XLD (排他ロック委任) | ファイル単位の書き込み一貫性を保証 |
 
-**要件:**
+要件:
 - Origin (FSx for ONTAP) と Cache (エッジ ONTAP) の両方が ONTAP 9.15.1 以上
   （[FlexCache write-back の相互運用性](https://docs.netapp.com/us-en/ontap/flexcache-writeback/flexcache-write-back-interoperability.html)）
 - ただし NetApp は **9.15.1 では write-back に必要な修正が揃っておらず本番ワークロードには推奨しない**としており、
@@ -227,7 +227,7 @@
 └──────────────────────────────┘
 ```
 
-**FlexCache write-back vs SnapMirror の使い分け:**
+FlexCache write-back vs SnapMirror の使い分け:
 
 | 比較軸 | FlexCache Write-Back | SnapMirror |
 |--------|---------------------|------------|
@@ -268,7 +268,7 @@ Origin (FSx for ONTAP) に集約されたデータを、複数拠点のワーク
 > EMR Serverless / CloudFront / Transfer Family で、SageMaker はこの一覧にありません
 > （[S3 AP 互換性と制約](./s3ap-compatibility-matrix.md)）。
 
-**Read Cache の IoT ユースケース:**
+Read Cache の IoT ユースケース:
 
 | 配信先 | データ種別 | FlexCache 効果 |
 |--------|-----------|---------------|
@@ -467,7 +467,7 @@ graph TD
       └── device-registry.json
 ```
 
-**設計ルール:**
+設計ルール:
 
 1. **デバイス別ディレクトリ分離**: FlexCache write-back の XLD (排他ロック委任) はファイル単位で 1 Cache に付与される。デバイスごとにディレクトリを分けることで XLD 競合を回避
 2. **Hive パーティション形式**: S3 AP 経由の Athena クエリでパーティションプルーニングが自動適用

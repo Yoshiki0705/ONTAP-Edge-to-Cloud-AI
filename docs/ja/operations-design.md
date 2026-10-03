@@ -76,7 +76,7 @@
 [SNS: alert] message_id=abc-123
 ```
 
-**CloudWatch Logs Insights クエリ例:**
+CloudWatch Logs Insights クエリ例:
 ```
 fields @timestamp, @message
 | filter message_id = "abc-123"
@@ -438,7 +438,7 @@ AI分析の精度は時間とともに劣化する可能性がある（プリン
 | データ量が 1TB を超えた | メタデータ管理の効率化 |
 | 複数クエリエンジンからのアクセス | Athena + Redshift + EMR |
 
-**現時点で Iceberg が不要な理由:**
+現時点で Iceberg が不要な理由:
 - Append-only ワークロード（画像メタデータ、センサーデータ）
 - 単一書き込み元（Amazon Data Firehose / Glue ETL）
 - データ量が小さい（PoC: 数GB/月）

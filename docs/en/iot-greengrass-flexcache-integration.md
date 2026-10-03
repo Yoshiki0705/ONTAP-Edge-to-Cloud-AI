@@ -136,7 +136,7 @@ Key conclusions:
 - Stream Manager is not used: it requires an S3 bucket name, and whether an access point ARN
   passes is **untested here** ([compatibility and constraints](./s3ap-compatibility-matrix.md) §4)
 
-**IoT Core MQTT → Lambda → S3 AP path:**
+IoT Core MQTT → Lambda → S3 AP path:
 - Telemetry (small, high-frequency) sent via IoT Core MQTT
 - IoT Core rules engine → Lambda function → Lambda PutObject to S3 AP
 - Amazon Data Firehose requires an S3 bucket ARN. **Unverified** ([compatibility and constraints](./s3ap-compatibility-matrix.md) §4),
@@ -191,7 +191,7 @@ Key conclusions:
   differential flush on reconnection. Data not yet flushed exists only at the edge, so a
   cache-side disk failure loses it — RAID or HA on the edge system is a precondition
 
-**FlexCache Write-Back IoT value:**
+FlexCache Write-Back IoT value:
 
 | Property | Effect |
 |----------|--------|
@@ -202,7 +202,7 @@ Key conclusions:
 | Inline deduplication/compression | Maximizes storage efficiency for small file bulk writes |
 | XLD (exclusive lock delegation) | Guarantees per-file write consistency |
 
-**Requirements:**
+Requirements:
 - Both Origin (FSx for ONTAP) and Cache (edge ONTAP) must be ONTAP 9.15.1 or later
   ([FlexCache write-back interoperability](https://docs.netapp.com/us-en/ontap/flexcache-writeback/flexcache-write-back-interoperability.html))
 - NetApp states that **9.15.1 does not carry all the fixes write-back needs and is not
@@ -235,7 +235,7 @@ Key conclusions:
 - Suitable when edge is the authoritative data master
 - FSx for ONTAP destination requires SnapMirror break before S3 AP attachment
 
-**FlexCache write-back vs SnapMirror selection:**
+FlexCache write-back vs SnapMirror selection:
 
 | Axis | FlexCache Write-Back | SnapMirror |
 |------|---------------------|------------|
@@ -467,7 +467,7 @@ graph TD
       └── device-registry.json
 ```
 
-**Design rules:**
+Design rules:
 1. **Per-device directory isolation**: FlexCache write-back XLD is granted per-file to one Cache only. Per-device directories prevent XLD conflicts
 2. **Hive partition format**: Athena partition pruning auto-applied via S3 AP queries
 3. **FlexGroup constituent distribution**: Many subdirectories → even distribution across FlexGroup constituents → improved FlexCache efficiency

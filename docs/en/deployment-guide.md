@@ -114,11 +114,11 @@ Tokyo region (`ap-northeast-1`) is recommended. The `jp.` prefix on Bedrock mode
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Dependencies:**
+Dependencies:
 - Use-case stacks reference the `ingestion` stack Outputs via `Fn::ImportValue`
 - The `fsxn` stack is independent — skip it if FSx for ONTAP is not needed
 
-**Where data lands:**
+Where data lands:
 
 The `ingestion` stack creates a standard S3 bucket, `DataLakeBucket`. Which paths use it and
 which complete inside the FSx for ONTAP S3 access point differ.

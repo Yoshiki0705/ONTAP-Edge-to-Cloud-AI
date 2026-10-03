@@ -100,7 +100,7 @@ mosquitto_pub \
   }'
 ```
 
-**Alternative (AWS CLI — no certificates needed):**
+Alternative (AWS CLI — no certificates needed):
 
 ```bash
 aws iot-data publish \

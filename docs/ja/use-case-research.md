@@ -10,7 +10,7 @@
 
 現場の IoT デバイス（Raspberry Pi、カメラ、センサー等）が生成するデータは、デバイスごと・拠点ごとに分散しサイロ化しやすい。本調査では、ONTAP（FAS/AFF、ONTAP Select、FSx for ONTAP）をデータ集約先として活用し、AWS AI/分析サービスで組織横断のデータ活用を実現するパターンを整理した。
 
-**調査で確認したこと:**
+調査で確認したこと:
 
 1. **ONTAP の多層的活用**: FPolicy によるイベント駆動連携、SnapMirror によるエッジ→クラウド同期、FlexCache による低遅延キャッシュ、ARP/AI によるセキュリティ、S3 Access Points による AWS サービス直接連携の5つの軸で活用可能
 2. **FPolicy イベント駆動パイプライン**: エッジデバイスが NFS/SMB で ONTAP に書き込むだけで、FPolicy が Lambda をトリガーし Bedrock 分析を自動実行。デバイス側にクラウド連携コードが不要

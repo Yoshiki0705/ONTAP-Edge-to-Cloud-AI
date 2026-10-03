@@ -114,11 +114,11 @@ aws lambda update-function-code \
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**依存関係:**
+依存関係:
 - ユースケーススタックは `ingestion` スタックの Outputs を `Fn::ImportValue` で参照する
 - `fsxn` スタックは独立 — FSx for ONTAP が不要であれば省略可
 
-**データの格納先:**
+データの格納先:
 
 `ingestion` スタックは標準の S3 バケット `DataLakeBucket` を作ります。どの経路がそれを使い、
 どの経路が FSx for ONTAP の S3 Access Point で完結するかは分かれています。
