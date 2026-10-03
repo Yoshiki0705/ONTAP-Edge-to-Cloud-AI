@@ -142,7 +142,7 @@ aws s3api list-objects-v2 \
 }
 ```
 
-### 3.2 GetObject — Read back the written data
+### 3.2 GetObject: read back the written data
 
 ```bash
 KEY=$(aws s3api list-objects-v2 \
@@ -169,7 +169,7 @@ aws s3api get-object \
 }
 ```
 
-### 3.3 Verify via NFS (optional — requires EC2 in same VPC)
+### 3.3 Verify via NFS (optional; requires EC2 in same VPC)
 
 ```bash
 # On EC2 instance with NFS mount to FSx for ONTAP

@@ -241,7 +241,7 @@ FlexCache write-back vs SnapMirror の使い分け:
 
 ---
 
-## 4. 読み取り配信 (Burst) — FlexCache Read Cache
+## 4. 読み取り配信（Burst, FlexCache Read Cache）
 
 Origin (FSx for ONTAP) に集約されたデータを、複数拠点のワークロードに低遅延で配信する。
 

@@ -30,7 +30,7 @@
 [AWS Pricing Calculator](https://calculator.aws/) か
 [Price List API](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/price-changes.html) で行ってください。
 
-## 桁を知る必要があるもの — FSx for ONTAP
+## 桁を知る必要があるもの（FSx for ONTAP）
 
 削除を忘れると請求が三桁ドルになります。PoC が終わったら
 [`scripts/teardown.sh`](../../scripts/teardown.sh) で消してください。
@@ -56,7 +56,7 @@ Single-AZ、HDD、容量プール階層（FabricPool）は単価が異なりま�
 > **注**: 容量は GiB で指定し、課金は GB-月 の単位で表されます。この差は上の式では
 > 無視しています。厳密な見積りが必要なら Pricing Calculator を使ってください。
 
-## 式だけにしているもの — Bedrock のモデル料金
+## 式だけにしているもの（Bedrock のモデル料金）
 
 **絶対額を書きません。** 理由が 2 つあります。
 

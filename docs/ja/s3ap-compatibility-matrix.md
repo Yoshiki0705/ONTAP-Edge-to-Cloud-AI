@@ -1,6 +1,6 @@
 > 🌐 Language: **日本語** | [English](../en/s3ap-compatibility-matrix.md)
 
-# FSx for ONTAP S3 Access Points — 互換性と制約
+# FSx for ONTAP S3 Access Points の互換性と制約
 
 > 最終確認: 2026-08-19
 

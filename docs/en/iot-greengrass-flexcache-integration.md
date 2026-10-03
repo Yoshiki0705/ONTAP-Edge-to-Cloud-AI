@@ -248,7 +248,7 @@ FlexCache write-back vs SnapMirror selection:
 
 ---
 
-## 4. Read Delivery (Burst) — FlexCache Read Cache
+## 4. Read Delivery (Burst, FlexCache Read Cache)
 
 Delivers Origin-aggregated data to workloads at multiple sites with low latency.
 
