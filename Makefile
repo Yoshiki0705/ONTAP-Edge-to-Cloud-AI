@@ -134,6 +134,15 @@ headings: ## Japanese section headings must be noun phrases
 	@python3 scripts/check_heading_style.py --selftest >/dev/null
 	@python3 scripts/check_heading_style.py
 
+# Ported byte-for-byte from the Hub (tools/ai_style_rules.py). --selftest runs first,
+# like `make headings`: a detector whose regex has loosened still exits 0 over the
+# tree, so a green run on its own does not say the check can still fail. Report-only
+# for now — no --fail, so it prints the summary table and never blocks. FEAT-003
+# flips it to --fail once a negative control proves the fail tier is 0.
+ai-style: ## Report AI-style writing-quality findings (report-only, never fails)
+	@python3 scripts/ai_style_rules.py --selftest >/dev/null
+	@python3 scripts/ai_style_rules.py docs README.md README_en.md docs/demo-guides --exclude 'docs/articles/*' --exclude '.venv/*' --summary
+
 # The hooks in .pre-commit-config.yaml used to run only in the CI job, so a missing
 # final newline in a generated file was invisible until a PR was opened. pre-commit
 # is already pinned in requirements-dev.txt and counted as a gate tool; this target
@@ -241,7 +250,7 @@ clean: ## Remove caches and build output
 	find . -name __pycache__ -type d -not -path './$(VENV)/*' -prune -exec rm -rf {} +
 
 .PHONY: help venv-check dev-install tool-versions test test-verbose lint lint-py \
-	lint-cfn headings links links-external action-pins action-pins-verify hygiene \
+	lint-cfn headings ai-style links links-external action-pins action-pins-verify hygiene \
 	security bandit secrets deps-audit deps-resolve ci-install ci-lock drift \
 	agent-config diagram-fonts diagram-flow check \
 	precommit-install clean

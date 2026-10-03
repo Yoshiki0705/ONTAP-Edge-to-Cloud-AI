@@ -80,6 +80,13 @@ jobs:
         run: make action-pins-verify
       - name: bandit over PY_DIRS
         run: make bandit
+      - name: ai-style gate
+        # Report-only for now: prints the summary table and never fails (no --fail).
+        # Its own named step on purpose — CI runs neither `make check` nor the
+        # aggregate `make lint`, so a gate added only to one of those would never
+        # run here (the Cyber-Resilience bug). scripts/tests/test_ai_style_rules.py
+        # asserts this step keeps invoking it.
+        run: make ai-style
 
   drift:
     runs-on: ubuntu-latest
