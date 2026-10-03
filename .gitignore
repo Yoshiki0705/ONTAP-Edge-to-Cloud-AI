@@ -1,5 +1,7 @@
 # IDE & Editor
 .kiro/
+# Agent workflow-orchestration metadata: process artifacts, not published content.
+.agents/
 .vscode/
 .idea/
 *.swp
