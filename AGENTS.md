@@ -80,6 +80,7 @@ headings` enforces this; the rule, the exclusions and the
 | Editing a GitHub Actions workflow; adding a dependency | [docs/agent/supply-chain-security.md](docs/agent/supply-chain-security.md) |
 | Naming an AWS service in a design; correcting an existing mention | [docs/agent/service-lifecycle.md](docs/agent/service-lifecycle.md) |
 | Writing or revising a reference doc or guide | [docs/agent/reference-doc-quality.md](docs/agent/reference-doc-quality.md) |
+| Judging prose style; reading an ai-style finding; choosing which documents to review by eye | [Hub writing-quality criteria](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/agent/writing-quality.md) |
 | Changing an architecture diagram; the `.drawio` files are generated, not edited | [docs/diagrams/README.md](docs/diagrams/README.md) |
 | Anything touching network boundaries, device identity or plant equipment | [docs/ja/security-design.md](docs/ja/security-design.md) |
 | Working with AgentCore Gateway/Lambda targets or Quick Desktop MCP | [docs/agent/agentcore-pitfalls.md](docs/agent/agentcore-pitfalls.md) |
