@@ -70,19 +70,46 @@ def test_planted_d1_fails_with_fail_flag(tmp_path):
     assert "D1" in result.stdout
 
 
-def test_report_only_scan_does_not_fail_on_a_planted_d1(tmp_path):
-    """The gate ships report-only (no --fail): a D1 is listed, exit stays 0."""
+def test_report_only_scan_lists_a_planted_d1_without_the_fail_flag(tmp_path):
+    """Without --fail the gate still only reports: a D1 is listed, exit stays 0.
+    This isolates the gating to the flag, so the flip is what makes a D1 break."""
     write(tmp_path, "docs/ja/dirty.md", "# 見出し\n\n" + D1_POSITIVE)
     result = run_gate(["docs", "--summary"], tmp_path)
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_the_makefile_defines_the_target():
-    """An orphaned gate runs nowhere. The target must exist and the recipe must
-    call the real script."""
+def _ai_style_recipe(makefile: str) -> str:
+    """The lines of the `ai-style:` recipe (the target line plus its tab-indented
+    body), so an assertion about the recipe cannot be satisfied by --fail sitting
+    on some unrelated target."""
+    lines = makefile.splitlines()
+    start = next(i for i, line in enumerate(lines) if line.startswith("ai-style:"))
+    body = [lines[start]]
+    for line in lines[start + 1 :]:
+        if line.startswith("\t") or not line.strip():
+            body.append(line)
+            if line.strip():
+                continue
+        else:
+            break
+    return "\n".join(body)
+
+
+def test_the_makefile_defines_the_target_and_gates_with_fail():
+    """An orphaned gate runs nowhere, and a gate without --fail never blocks. The
+    target must exist, call the real script, and the scan line must carry --fail."""
     makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
     assert "ai-style:" in makefile
     assert "scripts/ai_style_rules.py" in makefile
+    recipe = _ai_style_recipe(makefile)
+    assert "scripts/ai_style_rules.py" in recipe
+    # The flip: the scan command (not --selftest) now gates with --fail.
+    scan_line = next(
+        line
+        for line in recipe.splitlines()
+        if "ai_style_rules.py" in line and "--selftest" not in line
+    )
+    assert "--fail" in scan_line, scan_line
     phony = next(
         (line for line in makefile.splitlines() if "ai-style" in line and ".PHONY" in line),
         None,
@@ -92,8 +119,14 @@ def test_the_makefile_defines_the_target():
     assert "ai-style" in makefile.split(".PHONY:", 1)[1].split("\n\n", 1)[0], phony
 
 
-def test_ci_lint_job_invokes_the_gate():
+def test_ci_lint_job_invokes_the_gate_and_documents_fail():
     """CI runs neither `make check` nor `make lint`, so the gate has to be its own
-    named step in test.yml's lint job or it never runs in CI."""
+    named step in test.yml's lint job or it never runs in CI. The step invokes
+    `make ai-style`, which carries --fail, and the step records that it gates so the
+    flip is visible where CI is read."""
     workflow = (REPO_ROOT / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
     assert "make ai-style" in workflow
+    # The ai-style step block must mention --fail, so the gating is not invisible to
+    # a reader of the workflow (the Makefile is the source of truth for the flag).
+    step = workflow.split("ai-style gate", 1)[1].split("- name:", 1)[0]
+    assert "--fail" in step, step

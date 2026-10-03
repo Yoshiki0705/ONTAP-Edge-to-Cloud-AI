@@ -136,12 +136,14 @@ headings: ## Japanese section headings must be noun phrases
 
 # Ported byte-for-byte from the Hub (tools/ai_style_rules.py). --selftest runs first,
 # like `make headings`: a detector whose regex has loosened still exits 0 over the
-# tree, so a green run on its own does not say the check can still fail. Report-only
-# for now — no --fail, so it prints the summary table and never blocks. FEAT-003
-# flips it to --fail once a negative control proves the fail tier is 0.
-ai-style: ## Report AI-style writing-quality findings (report-only, never fails)
+# tree, so a green run on its own does not say the check can still fail. Gating with
+# --fail: the fail tier (D1/D2/D5/D14) is 0 across the tree, proven by a negative
+# control (plant a D1, confirm non-zero exit, remove it, confirm exit 0), so a new
+# fail-tier finding now blocks the commit and the CI lint job. Warning-tier findings
+# are still only counted by --summary and never block.
+ai-style: ## Gate on fail-tier AI-style findings (D1/D2/D5/D14); warnings only counted
 	@python3 scripts/ai_style_rules.py --selftest >/dev/null
-	@python3 scripts/ai_style_rules.py docs README.md README_en.md docs/demo-guides --exclude 'docs/articles/*' --exclude '.venv/*' --summary
+	@python3 scripts/ai_style_rules.py docs README.md README_en.md docs/demo-guides --exclude 'docs/articles/*' --exclude '.venv/*' --summary --fail
 
 # The hooks in .pre-commit-config.yaml used to run only in the CI job, so a missing
 # final newline in a generated file was invisible until a PR was opened. pre-commit
