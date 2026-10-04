@@ -1,0 +1,35 @@
+# ONTAP-Edge-to-Cloud-AI
+
+> Reference architectures and deployable code for aggregating IoT and edge data from Raspberry Pi and SORACOM devices into a storage layer, analyzing it with Kafka and ClickHouse, and handing it off to AWS AI services. The storage layer is shown with Amazon FSx for NetApp ONTAP, with the differences for Amazon S3 and Amazon EFS noted alongside.
+
+## Entry points
+
+- [README (Japanese)](README.md): Primary hub. Japanese is the authoritative version, covering the problem, the data flow, the storage options, and the current verification state.
+- [README (English)](README_en.md): English hub, same section structure as the Japanese README.
+- [AGENTS.md](AGENTS.md): Conventions, naming rules, and prohibitions for coding agents working in this repository.
+- [CONTRIBUTING.md](CONTRIBUTING.md): Authoring conventions and the review gate.
+
+## Components
+
+Each line keeps the maturity label the repository's own README uses: **実装あり / implemented** (deployable code is here), **設計のみ / design-only** (the design is written, no code), **概念 / concept** (an outline only).
+
+- [Edge collection on Raspberry Pi](edge/raspberry-pi/): the collection component — camera capture, sensor reads, Kafka publish, and local buffering with replay after a reconnect. **実装あり / implemented.**
+- [Kafka integration design](docs/ja/kafka-integration.md): the Kafka / ClickHouse analytics component — the deployment topology and topic design for Edge → Kafka → ClickHouse. **設計のみ / design-only** (awaiting the managed Kafka deployment). The ClickHouse table definitions that this design targets exist as code in [ClickHouse DDL](cloud/clickhouse/ddl/).
+- [Bedrock image analyzer](cloud/ai/image_analyzer/): the hand-off to AWS AI services — a two-stage image analysis that screens with a cheaper model and escalates only suspected cases to a higher-accuracy model. **実装あり / implemented.**
+
+## Architecture and design
+
+- [S3 Access Point compatibility and constraints](docs/ja/s3ap-compatibility-matrix.md) ([English](docs/en/s3ap-compatibility-matrix.md)): which AWS services can read through an FSx for ONTAP S3 Access Point, the two-layer authorization, and where a standard S3 bucket is still required.
+- [MQTT ingestion to S3 Access Points](cloud/iot_ingestion/): the AWS IoT Core → AWS Lambda → S3 Access Point write path (PutObject landing on FSx for ONTAP). **実装あり / implemented.**
+- [Agentic AI on AWS](docs/ja/agentic-ai-on-aws.md): the design for connecting the aggregated data to agent-based AWS AI services.
+- [AWS pattern catalog](docs/ja/aws-patterns/README.md) ([English](docs/en/aws-patterns/README.md)): the design patterns for edge-to-cloud, each with its maturity label and a how-to-choose guide.
+
+## Measurement and verification
+
+- [Verification status](docs/ja/verification-status.md) ([English](docs/en/verification-status.md)): what has actually been run on real AWS, what remains unverified, and which number may be cited from which evidence. Numbers are kept here rather than restated elsewhere, so a figure is read from this document and not from this file.
+- [Cost model](docs/ja/cost-model.md): the pricing baseline date, Region, and formula behind the two-stage analysis cost — the figures live here, not inline.
+
+## Hub / Related
+
+- https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/llms.txt
+- https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/ja/reference/workload-entry-map.md
