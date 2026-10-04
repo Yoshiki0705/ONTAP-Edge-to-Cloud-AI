@@ -13,10 +13,10 @@ accuracy, latency or per-call price.
 | Stage of the path | In this repository | Location |
 |---|---|---|
 | Edge capture → local storage | Implemented | [`edge/raspberry-pi/camera/`](../../../edge/raspberry-pi/camera/) |
-| Preparing training data (labelling, splits) | None | — |
-| Training on SageMaker | None | — |
-| Model placement and inference | None | — |
-| Model delivery to the edge | None | — |
+| Preparing training data (labelling, splits) | None | N/A |
+| Training on SageMaker | None | N/A |
+| Model placement and inference | None | N/A |
+| Model delivery to the edge | None | N/A |
 | Collecting inference results and retraining | Partial (feedback recording only) | [`cloud/ai/feedback_recorder/`](../../../cloud/ai/feedback_recorder/) |
 
 **There is no SageMaker code in this repository.** This is a design.

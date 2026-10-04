@@ -80,6 +80,15 @@ jobs:
         run: make action-pins-verify
       - name: bandit over PY_DIRS
         run: make bandit
+      - name: ai-style gate
+        # Gating: `make ai-style` runs the detector with --fail, so a fail-tier
+        # finding (D1/D2/D5/D14) exits non-zero and breaks this job. Warning-tier
+        # findings are only counted. Its own named step on purpose — CI runs neither
+        # `make check` nor the aggregate `make lint`, so a gate added only to one of
+        # those would never run here (the Cyber-Resilience bug).
+        # scripts/tests/test_ai_style_rules.py asserts this step keeps invoking the
+        # gate and that the recipe carries --fail.
+        run: make ai-style
 
   drift:
     runs-on: ubuntu-latest

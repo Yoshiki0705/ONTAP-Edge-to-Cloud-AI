@@ -11,10 +11,10 @@
 
 | 経路の段 | このリポジトリ | 場所 |
 |---|---|---|
-| 文書のファイルストレージへの集約 | なし | — |
+| 文書のファイルストレージへの集約 | なし | 該当なし |
 | S3 Access Point の作成 | 一部（FSx のテンプレートはある） | [`cloud/fsxn/`](../../../cloud/fsxn/) |
 | Knowledge Base の作成と同期 | なし | 下記の公式手順 |
-| 検索とモデル呼び出し | なし | — |
+| 検索とモデル呼び出し | なし | 該当なし |
 | エージェントによる多段の検索 | なし | [Agentic AI on AWS](../agentic-ai-on-aws.md) |
 
 **このリポジトリに実装はありません。** ただし **AWS が公式手順を公開しています**（下記）。
@@ -106,7 +106,7 @@ graph LR
 
 ## 前提と制約
 
-- **AWS が公式手順を公開しています**:
+- AWS が公式手順を公開しています:
   [Build a RAG application using Amazon Bedrock Knowledge Bases](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/tutorial-build-rag-with-bedrock.html)。
   データソースには S3 Access Point の alias を指定します
 - **記述の食い違いがあります。** Bedrock 側のデータソースのドキュメントには

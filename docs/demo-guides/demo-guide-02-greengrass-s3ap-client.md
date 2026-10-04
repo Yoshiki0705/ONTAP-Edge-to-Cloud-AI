@@ -154,7 +154,7 @@ aws greengrassv2 list-effective-deployments \
 
 ---
 
-## Step 5: Test — Write Files to Incoming Directory
+## Step 5: Test by writing files to the incoming directory
 
 On the Greengrass core device:
 

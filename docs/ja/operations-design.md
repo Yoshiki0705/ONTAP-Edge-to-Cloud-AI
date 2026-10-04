@@ -76,7 +76,7 @@
 [SNS: alert] message_id=abc-123
 ```
 
-**CloudWatch Logs Insights クエリ例:**
+CloudWatch Logs Insights クエリ例:
 ```
 fields @timestamp, @message
 | filter message_id = "abc-123"
@@ -416,7 +416,7 @@ AI分析の精度は時間とともに劣化する可能性がある（プリン
 
 | レベル | 対応時間目標 | 通知手段 | 判断権限 |
 |--------|------------|---------|---------|
-| L1 | 即時 (自動) | — | 自動スクリプト |
+| L1 | 即時 (自動) | 該当なし | 自動スクリプト |
 | L2 | 15分以内 | Slack | サービス再起動、デバイス再起動 |
 | L3 | 1時間以内 | 電話/PagerDuty | コード修正、設定変更 |
 | L4 | 即時 (重大時) | 電話 | サービス停止、顧客通知 |
@@ -438,7 +438,7 @@ AI分析の精度は時間とともに劣化する可能性がある（プリン
 | データ量が 1TB を超えた | メタデータ管理の効率化 |
 | 複数クエリエンジンからのアクセス | Athena + Redshift + EMR |
 
-**現時点で Iceberg が不要な理由:**
+現時点で Iceberg が不要な理由:
 - Append-only ワークロード（画像メタデータ、センサーデータ）
 - 単一書き込み元（Amazon Data Firehose / Glue ETL）
 - データ量が小さい（PoC: 数GB/月）

@@ -16,9 +16,9 @@ than "concept".
 
 | Stage of the path | In this repository | Location |
 |---|---|---|
-| Installing the edge runtime | None | — |
-| Placing the local model | None | — |
-| Local inference | None | — |
+| Installing the edge runtime | None | N/A |
+| Placing the local model | None | N/A |
+| Local inference | None | N/A |
 | The escalation decision | None | Below |
 | Cloud-side agent runtime | None | [Agentic AI on AWS](../agentic-ai-on-aws.md) |
 | Collecting inference logs | Partial (the feedback recording frame only) | [`cloud/ai/feedback_recorder/`](../../../cloud/ai/feedback_recorder/) |

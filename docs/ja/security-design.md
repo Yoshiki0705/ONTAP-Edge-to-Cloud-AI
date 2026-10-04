@@ -354,8 +354,8 @@ security login role create -vserver svm-iot \
 | シークレット | 保管場所 | ローテーション |
 |------------|---------|--------------|
 | ONTAP REST API パスワード | Pi: 環境変数 (systemd EnvironmentFile) | 90日ごと |
-| SORACOM API Key/Token | 使用しない (SIM認証のみ) | — |
-| AWS 認証情報 | 使用しない (FPolicy→Lambda は ONTAP 側で処理、セルラー時は SORACOM AssumeRole) | — |
+| SORACOM API Key/Token | 使用しない (SIM認証のみ) | 該当なし |
+| AWS 認証情報 | 使用しない (FPolicy→Lambda は ONTAP 側で処理、セルラー時は SORACOM AssumeRole) | 該当なし |
 | FPolicy SSL 証明書 | Pi: /etc/fpolicy/certs/ (600 permission) | 1年ごと |
 | SSH 鍵 (Pi 管理用) | 管理者のローカルマシン | 1年ごと |
 
@@ -551,13 +551,13 @@ IoT ポリシーは Thing 単位に絞る。ワイルドカードの publish を
 
 ### 13.5 未対応・確認していないこと
 
-- **NFS の暗号化**: PoC は NFSv4.1 + 専用 VLAN で代替している。
+- NFS の暗号化: PoC は NFSv4.1 + 専用 VLAN で代替している。
   回線が共有される環境では Kerberos が必要（§5、§12）。
-- **OT プロトコルの直接収集**: Modbus / OPC-UA からの直接読み取りは
+- OT プロトコルの直接収集: Modbus / OPC-UA からの直接読み取りは
   このリポジトリでは実装していない。実装する場合、OT プロトコルは
   概して認証を持たないため、収集点をどのセグメントに置くかが
   そのまま権限境界になる。
-- **IEC 62443 / NIST SP 800-82 への適合**: 評価していない。
+- IEC 62443 / NIST SP 800-82 への適合: 評価していない。
   規制対象設備への接続は本ドキュメントの範囲外。
 
 ## 14. プライベート接続とエンドポイント
@@ -683,17 +683,17 @@ GuardDuty、Inspector、Config などの結果が分散していると、対応�
 
 ### 17.3 この節で未対応のこと
 
-- **Lake Formation の導入**: 未実施（§15）
-- **Security Hub の導入**: 未実施（§16）
-- **デバイス側の挙動監視**: 未実装（§16）
-- **ログの相関分析**: 4 か所のログを突き合わせる仕組みは設計していない
-- **保持期間の根拠**: 各ログの保持期間を決めた理由を記録していない
+- Lake Formation の導入: 未実施（§15）
+- Security Hub の導入: 未実施（§16）
+- デバイス側の挙動監視: 未実装（§16）
+- ログの相関分析: 4 か所のログを突き合わせる仕組みは設計していない
+- 保持期間の根拠: 各ログの保持期間を決めた理由を記録していない
 
 ---
 
 ## 関連ドキュメント
 
-- [品質ゲート](../agent/quality-gates.md) — この設計を検証するゲート
+- [品質ゲート](../agent/quality-gates.md)：この設計を検証するゲート
 - [運用設計](operations-design.md)
 - [データスキーマ設計](data-schema-design.md)
 - [IoT Greengrass / FlexCache 統合](iot-greengrass-flexcache-integration.md)

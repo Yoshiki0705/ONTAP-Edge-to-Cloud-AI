@@ -30,7 +30,7 @@
 [AWS Pricing Calculator](https://calculator.aws/) か
 [Price List API](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/price-changes.html) で行ってください。
 
-## 桁を知る必要があるもの — FSx for ONTAP
+## 桁を知る必要があるもの（FSx for ONTAP）
 
 削除を忘れると請求が三桁ドルになります。PoC が終わったら
 [`scripts/teardown.sh`](../../scripts/teardown.sh) で消してください。
@@ -56,7 +56,7 @@ Single-AZ、HDD、容量プール階層（FabricPool）は単価が異なりま�
 > **注**: 容量は GiB で指定し、課金は GB-月 の単位で表されます。この差は上の式では
 > 無視しています。厳密な見積りが必要なら Pricing Calculator を使ってください。
 
-## 式だけにしているもの — Bedrock のモデル料金
+## 式だけにしているもの（Bedrock のモデル料金）
 
 **絶対額を書きません。** 理由が 2 つあります。
 
@@ -154,15 +154,15 @@ graph TD
 
 ## 段階的なコスト管理の手順
 
-1. **デプロイ前**: この doc の式に自分の単価を入れて桁を出す。FSx for ONTAP を使うなら
+1. デプロイ前: この doc の式に自分の単価を入れて桁を出す。FSx for ONTAP を使うなら
    削除予定日を決める
-2. **デプロイ直後**: [AWS Budgets](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html)
+2. デプロイ直後: [AWS Budgets](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html)
    でアラートを設定する。PoC では見積りの 1.5 倍あたりが実用的な閾値
-3. **1 日運用したら**: `InputTokens` / `OutputTokens` の実測から 1 画像あたりのトークン数を
+3. 1 日運用したら: `InputTokens` / `OutputTokens` の実測から 1 画像あたりのトークン数を
    確定し、式に戻す
-4. **単価を確定したら**: 上の 4 つの環境変数を設定して `CostPerImage` を出す。
+4. 単価を確定したら: 上の 4 つの環境変数を設定して `CostPerImage` を出す。
    [運用設計](operations-design.md)のアラーム閾値はこのメトリクスを前提にしている
-5. **PoC 終了時**: [`scripts/teardown.sh`](../../scripts/teardown.sh) で削除する。
+5. PoC 終了時: [`scripts/teardown.sh`](../../scripts/teardown.sh) で削除する。
    データレイクのバケットは `DeletionPolicy: Retain` で残るので別途削除する
 
 ## FAQ
@@ -194,8 +194,8 @@ A: ありません。スタックをデプロイした記録がないので、�
 
 ## 関連ドキュメント
 
-- [検証状態](verification-status.md) — どの数値をどの根拠で引けるか
-- [デプロイガイド](deployment-guide.md) — 構築手順。§8 はこの doc を参照する
-- [運用設計](operations-design.md) — `CostPerImage` を含むメトリクスとアラーム
-- [S3 AP 互換性と制約](s3ap-compatibility-matrix.md) — 経路の選択がコストに影響する箇所
-- [AWS パターンカタログ](aws-patterns/README.md) — パターンごとの「費用を駆動する要素」
+- [検証状態](verification-status.md)：どの数値をどの根拠で引けるか
+- [デプロイガイド](deployment-guide.md)：構築手順。§8 はこの doc を参照する
+- [運用設計](operations-design.md)：`CostPerImage` を含むメトリクスとアラーム
+- [S3 AP 互換性と制約](s3ap-compatibility-matrix.md)：経路の選択がコストに影響する箇所
+- [AWS パターンカタログ](aws-patterns/README.md)：パターンごとの「費用を駆動する要素」

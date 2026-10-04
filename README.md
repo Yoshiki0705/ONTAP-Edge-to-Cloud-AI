@@ -44,22 +44,25 @@
 
 ![エッジ拠点のカメラと振動センサーが書いたファイルをローカルストレージ経由で Amazon FSx for NetApp ONTAP に集約し、S3 Access Point から Amazon Bedrock、Amazon Athena、Amazon SageMaker AI に渡す構成。Athena の先には Amazon Quick Sight が続き、オンプレミス側では振動センサーのイベントが Kafka と ClickHouse を通ってダッシュボードに出る](docs/images/architecture-file-path.svg)
 
-図 1: ファイル経路 — NFS で書き、S3 Access Point で読む（[.drawio](docs/diagrams/architecture-file-path.drawio) / [English](docs/images/architecture-file-path-en.svg)）
+図 1: ファイル経路（NFS で書き、S3 Access Point で読む）（[.drawio](docs/diagrams/architecture-file-path.drawio) / [English](docs/images/architecture-file-path-en.svg)）
 
 ![AWS IoT Core と AWS Lambda を通る MQTT 経路が S3 Access Point に PutObject して Amazon FSx for NetApp ONTAP に着地する構成と、SORACOM プラットフォームから Amazon Kinesis Data Streams、Amazon Data Firehose を経由して標準の S3 バケットに書き AWS Glue が読むセルラー経路](docs/images/architecture-api-paths.svg)
 
-図 2: S3 API で書く 2 経路 — MQTT とセルラー（[.drawio](docs/diagrams/architecture-api-paths.drawio) / [English](docs/images/architecture-api-paths-en.svg)）
+図 2: S3 API で書く 2 経路（MQTT とセルラー）（[.drawio](docs/diagrams/architecture-api-paths.drawio) / [English](docs/images/architecture-api-paths-en.svg)）
 
 **図が 2 枚なのは、書き込みの方向が 2 つあるからです。** 1 枚に収めると 13 個のクラウド
 ノードが横に並び、読者のカラム幅に入れたときにラベルが 8px 相当まで縮みます。
 
-**データの流れ:**
-- **ペイロード** (画像、CSV、ログ): エッジ → NFS → ONTAP (正本データ)
-- **イベント** (メタデータ): エッジ → Kafka → ClickHouse (分析)
-- **AI 分析**: ONTAP → S3 AP → Bedrock / Lambda (品質判定)
-- **MQTT**: AWS IoT Core → Lambda → **S3 AP に PutObject**（標準バケットを経由しない）
-- **セルラー（任意）**: SORACOM → Kinesis → Firehose → **標準の S3 バケット** → Glue
-- **バックアップ**: ClickHouse → ONTAP S3 (S3 互換ストレージ)
+データの流れ:
+
+| 種別 | 経路 |
+|------|------|
+| ペイロード（画像、CSV、ログ） | エッジ → NFS → ONTAP（正本データ） |
+| イベント（メタデータ） | エッジ → Kafka → ClickHouse（分析） |
+| AI 分析 | ONTAP → S3 Access Points → Bedrock / Lambda（品質判定） |
+| MQTT | AWS IoT Core → Lambda → S3 Access Points に PutObject（標準バケットを経由しない） |
+| セルラー（任意） | SORACOM → Kinesis → Firehose → 標準の S3 バケット → Glue |
+| バックアップ | ClickHouse → ONTAP S3（S3 互換ストレージ） |
 
 書き込みの方向が 2 つあります。エッジがファイルプロトコルで書いて S3 AP で読む経路と、
 S3 API で書いて ONTAP を正本データにする経路（`cloud/iot_ingestion/`）です。後者は
@@ -89,7 +92,7 @@ S3 API で書いて ONTAP を正本データにする経路（`cloud/iot_ingesti
 工場や拠点では、IoT デバイス（カメラ、センサー、制御 PC 等）がデータを日々生成しています。
 しかし多くの場合、これらのデータはデバイスごと・拠点ごとに分散し、サイロ化しています。
 
-**よくある状況:**
+よくある状況:
 - カメラの画像はプリンター内蔵クラウドに、センサーデータは Pi の SD カードに、設備ログは Windows PC にバラバラに保存
 - 拠点 A と拠点 B のデータを横断して分析する手段がない
 - 個別のデバイスデータは見えるが、全体像（相関分析、トレンド）が把握できない
@@ -105,14 +108,14 @@ S3 API で書いて ONTAP を正本データにする経路（`cloud/iot_ingesti
 分散した IoT データをストレージ層に集約し、Kafka + ClickHouse で分析、AWS の AI サービスで
 画像判定を行うハイブリッドパイプラインです。
 
-**データフロー:**
+データフロー:
 1. エッジデバイスは NFS でストレージに書き込む（ペイロード: 画像、CSV）
 2. 同時に Kafka に構造化イベントを publish（メタデータ: いつ、どこで、何を）
 3. ClickHouse が Kafka から取り込み、ダッシュボードと異常検知を提供
 4. Amazon Bedrock (Lambda) が画像を分析し、品質判定を返す
 5. Databricks が curated データセットを管理し、AI 学習データを生成
 
-**Before → After:**
+Before → After:
 
 | | Before | After |
 |---|--------|-------|
@@ -123,10 +126,12 @@ S3 API で書いて ONTAP を正本データにする経路（`cloud/iot_ingesti
 
 ### 対象読者
 
-- **IoT / エッジ開発者**: デバイスが生成するデータの集約・活用方法を探している方
-- **データ活用推進者**: 分散したデータのサイロ化を解消し、組織横断で分析したい方
-- **既存 ONTAP ユーザー**: ONTAP を IoT データの集約先として活用したい方
-- **AWS ユーザー**: S3 以外のストレージソースから Athena / Bedrock / SageMaker を使いたい方
+| 読者 | 関心 |
+|------|------|
+| IoT / エッジ開発者 | デバイスが生成するデータの集約・活用方法を探している |
+| データ活用推進者 | 分散したデータのサイロ化を解消し、組織横断で分析したい |
+| 既存 ONTAP ユーザー | ONTAP を IoT データの集約先として活用したい |
+| AWS ユーザー | S3 以外のストレージソースから Athena / Bedrock / SageMaker を使いたい |
 
 ### ストレージ層の選択肢
 
@@ -138,7 +143,7 @@ S3 API で書いて ONTAP を正本データにする経路（`cloud/iot_ingesti
 | **EFS** | エッジ → NFS → EFS → Lambda/Bedrock | NFS マウント可能。Linux デバイスと親和性が高い。自動スケール。AWS Backup で保護 | SMB 非対応。S3 API 直接アクセス不可。イベント駆動は Lambda + CloudWatch で構築。リージョン間レプリケーションは EFS Replication で対応 |
 | **ONTAP** | エッジ → NFS/SMB → ONTAP → S3 AP → AWS AI | NFS + SMB + S3 を同一データで提供。FPolicy でファイル到着トリガー。SnapMirror で差分同期。FlexCache でリモート拠点へ低遅延配信。ARP/AI でランサムウェア異常検知・自動 Snapshot 保護 | ONTAP 環境が必要。S3 AP は条件付き書き込み非対応で、[他にも制約がある](docs/ja/s3ap-compatibility-matrix.md)。運用に ONTAP の知識が必要 |
 
-**どれを選ぶべきか:**
+どれを選ぶべきか:
 - データがまだない / 新規構築 → **S3 直接**が最もシンプル
 - Linux デバイスから NFS で書きたい / VPC 内で完結 → **EFS**
 - 既に ONTAP/NAS にデータがある / NFS+SMB 両方必要 / データコピーを避けたい → **ONTAP**
@@ -173,6 +178,8 @@ S3 API で書いて ONTAP を正本データにする経路（`cloud/iot_ingesti
 | FSx for ONTAP | AWS クラウド | フルマネージド。SnapMirror 先、S3 AP 対応（ONTAP 9.17.1 以降） |
 
 ## クイックスタート
+
+前提条件を確認し、共有基盤のテンプレートをデプロイし、エッジデバイスをセットアップする順に進めます。
 
 ### 前提条件
 
@@ -239,34 +246,34 @@ aws cloudformation deploy \
 
 ### 現在の制約と限界
 
-- **実機テスト未完了**: エッジデバイス（Raspberry Pi、カメラ）が未到着のため、エンドツーエンドの
+- 実機テスト未完了。エッジデバイス（Raspberry Pi、カメラ）が未到着のため、エンドツーエンドの
   実機テストは未実施。実 AWS で測定したのは Amazon Bedrock の 2 段階分析だけで、SAM テンプレートを
   デプロイした記録はない。段ごとの状況は[検証状態](docs/ja/verification-status.md)にある
-- **AI 精度は 2 種類のテストの結果**: ベンダーが公開しているドキュメント中の実写 4 枚で 4/4、
+- AI 精度は 2 種類のテストの結果。ベンダーが公開しているドキュメント中の実写 4 枚で 4/4、
   テキストで書いた症状の記述 5 件で 5/5。合成画像（OpenCV 生成）は別ラウンドで、非実写として
   正しく識別された。**この 2 つは測っているものが違うので合算しない**。実環境（照明、カメラ角度、
   フィラメント色）での精度は未検証
-- **ONTAP 連携は設計のみ**: FPolicy、SnapMirror、S3 AP の連携コードは実装済みだが、
+- ONTAP 連携は設計のみ。FPolicy、SnapMirror、S3 Access Points の連携コードは実装済みだが、
   実 ONTAP 環境での動作確認は未実施（モックテストのみ）
-- **単一デバイス構成**: 複数デバイスの同時運用、スケールアウトは未検証
-- **Kafka / ClickHouse は準備中**: マネージドプラットフォームのデプロイ待ち。
+- 単一デバイス構成のみ検証。複数デバイスの同時運用、スケールアウトは未検証
+- Kafka / ClickHouse は準備中。マネージドプラットフォームのデプロイ待ちで、
   経路の検証は [`local-demo/`](local-demo/) で代替している
 
 ### ここまでで学んだこと
 
-- **2 段階 AI 分析でモデル呼び出しのコストを下げられる**: 安価なモデルでスクリーニングし、
-  異常疑いのみ高精度モデルに回す。**削減幅は異常率で決まり**、異常率が高いほど縮む。
-  異常率 100% では 2 段構成のほうが高くなる。月額は書かない — 以前ここにあった $259 と $40 は
+- 2 段階 AI 分析でモデル呼び出しのコストを下げられる。安価なモデルでスクリーニングし、
+  異常疑いのみ高精度モデルに回す。削減幅は異常率で決まり、異常率が高いほど縮む。
+  異常率 100% では 2 段構成のほうが高くなる。月額は書かない。以前ここにあった $259 と $40 は
   出典の異なる単価から来ていて再現できなかったため撤回した。式と現行単価は
   [コストモデル](docs/ja/cost-model.md) にある。設計パターン自体は他の AI パイプラインにも応用できる
-- **プロンプトだけで産業用画像判定が実用精度に達する**: カスタムモデル学習なしで、
+- プロンプトだけで産業用画像判定が実用精度に達した。カスタムモデル学習なしで、
   Claude Vision のプロンプトのみで、公開ドキュメント中の実写 4 枚を 4/4 判定。ただし実環境での
   検証はこれから
-- **FSx for ONTAP S3 Access Points には制約がある**: 条件付き書き込み非対応、イベント通知非対応の
+- FSx for ONTAP S3 Access Points には制約がある。条件付き書き込み非対応、イベント通知非対応の
   ため、Iceberg / Delta Lake の直接書き込みはできず、FPolicy で補完する設計が必要。
-  制約の一覧と各項目の根拠は [S3 AP 互換性と制約](docs/ja/s3ap-compatibility-matrix.md) にある
-- **ONTAP REST API は IoT テレメトリ収集に使える**: 性能メトリクス、容量、健全性を 1 分間隔で
-  取得できる。ポーリングベースだが PoC には足りる
+  制約の一覧と各項目の根拠は [S3 Access Points 互換性と制約](docs/ja/s3ap-compatibility-matrix.md) にある
+- ONTAP REST API は IoT テレメトリ収集に使える。性能メトリクス、容量、健全性を 1 分間隔で
+  取得でき、ポーリングベースだが PoC には足りる
 
 ### このリポジトリを作った理由
 
@@ -277,9 +284,9 @@ SA / SE として現場を訪問する中で、「IoT デバイスやセンサ�
 
 以下が揃ったことで「集約 → 横断分析」を低コストで組めるようになったと考え、検証を始めました。
 
-- **FSx for ONTAP S3 Access Points**: 集約したデータにデータコピーなしで S3 API アクセス
-- **マルチモーダル AI の成熟**: 汎用プロンプトで産業用画像判定が実用精度に到達
-- **Raspberry Pi 5 (16GB)**: エッジでの前処理・軽量推論が現実的な性能に
+- FSx for ONTAP S3 Access Points により、集約したデータにデータコピーなしで S3 API アクセスができる
+- マルチモーダル AI の成熟により、汎用プロンプトで産業用画像判定が実用精度に到達した
+- Raspberry Pi 5 (16GB) により、エッジでの前処理・軽量推論が現実的な性能になった
 
 最初の検証対象として **3D プリント品質監視** を選びました（視覚的にわかりやすく、失敗が頻繁に
 起きるためテストデータが集まりやすい）。
@@ -289,14 +296,14 @@ SA / SE として現場を訪問する中で、「IoT デバイスやセンサ�
 **このリポジトリは IoT / エッジという 1 つの縦方向を担当します。** 同じ主題を 2 か所に置くと
 片方だけが更新されるため、下記に委ねている範囲はこちらでは複製せず、リンクで返します。
 
-- [FSx-for-ONTAP-Adoption-Playbook](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook) — **FSx for ONTAP の仕様・上限値・決定木・エビデンス階層の正典**。ライフサイクル（評価 → 設計 → 移行 → 構築 → 運用 → 最適化）とテーマの 2 軸で引けます
-  - このリポジトリが従っているもの: [知見の分類ポリシー](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/ja/evidence-policy.md) ([English](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/en/evidence-policy.md)) — `documented` / `verified` / `hypothesis` / `open` の定義は同ドキュメントが正典で、[検証状態](docs/ja/verification-status.md)はそれを適用した結果だけを持ちます
-- [fsxn-lakehouse-integrations](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations) — FSx for ONTAP S3 AP × Lakehouse 統合（**Kafka + ClickHouse + Databricks 側の実装はこちら**）
-  - 連携の実体: [integrations/manufacturing-data-platform](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/tree/main/integrations/manufacturing-data-platform) — 製造データプラットフォーム連携
-  - 同期ドキュメント: [Edge ↔ Lakehouse 同期](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/ja/14_edge_lakehouse_sync.md) ([English](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/en/14_edge_lakehouse_sync.md)) — スキーマ・トピック・責任分担の同期記録
-- [FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns) — FSx for ONTAP S3 AP のサーバーレスパターン集（業種別、イベント駆動、FlexCache など）
-- [FSx-for-ONTAP-Observability-integrations](https://github.com/Yoshiki0705/FSx-for-ONTAP-Observability-integrations) — 可観測性統合。**ONTAP REST API の実機知見（HTTP 202 とジョブのポーリング、エラーコード、EMS ペイロードのキー形式）はこちら**。[`edge/raspberry-pi/sensors/ontap_telemetry.py`](edge/raspberry-pi/sensors/ontap_telemetry.py) を触るときは同じ調査をやり直さず参照します
-- [S3-Burst-on-ONTAP-Files](https://github.com/Yoshiki0705/S3-Burst-on-ONTAP-Files) — S3 API で収集し FlexCache の NFS/SMB で利用する構成。**S3 Access Point 操作の実測値を持つ**リポジトリです。ただし測定条件が違うため引き写せません（条件は[検証状態](docs/ja/verification-status.md#姉妹リポジトリの数値を引くときの条件)）
+- [FSx-for-ONTAP-Adoption-Playbook](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook)：FSx for ONTAP の仕様・上限値・決定木・エビデンス階層の正典。ライフサイクル（評価 → 設計 → 移行 → 構築 → 運用 → 最適化）とテーマの 2 軸で引けます
+  - このリポジトリが従っているもの: [知見の分類ポリシー](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/ja/evidence-policy.md) ([English](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/en/evidence-policy.md))。`documented` / `verified` / `hypothesis` / `open` の定義は同ドキュメントが正典で、[検証状態](docs/ja/verification-status.md)はそれを適用した結果だけを持ちます
+- [fsxn-lakehouse-integrations](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations)：FSx for ONTAP S3 Access Points × Lakehouse 統合（Kafka + ClickHouse + Databricks 側の実装はこちら）
+  - 連携の実体: [integrations/manufacturing-data-platform](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/tree/main/integrations/manufacturing-data-platform)（製造データプラットフォーム連携）
+  - 同期ドキュメント: [Edge ↔ Lakehouse 同期](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/ja/14_edge_lakehouse_sync.md) ([English](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/en/14_edge_lakehouse_sync.md))。スキーマ・トピック・責任分担の同期記録です
+- [FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns)：FSx for ONTAP S3 Access Points のサーバーレスパターン集（業種別、イベント駆動、FlexCache など）
+- [FSx-for-ONTAP-Observability-integrations](https://github.com/Yoshiki0705/FSx-for-ONTAP-Observability-integrations)：可観測性統合。ONTAP REST API の実機知見（HTTP 202 とジョブのポーリング、エラーコード、EMS ペイロードのキー形式）はこちら。[`edge/raspberry-pi/sensors/ontap_telemetry.py`](edge/raspberry-pi/sensors/ontap_telemetry.py) を触るときは同じ調査をやり直さず参照します
+- [S3-Burst-on-ONTAP-Files](https://github.com/Yoshiki0705/S3-Burst-on-ONTAP-Files)：S3 API で収集し FlexCache の NFS/SMB で利用する構成。S3 Access Points 操作の実測値を持つリポジトリです。ただし測定条件が違うため引き写せません（条件は[検証状態](docs/ja/verification-status.md#姉妹リポジトリの数値を引くときの条件)）
 
 ## ライセンス
 

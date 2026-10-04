@@ -76,7 +76,7 @@ Include `message_id` in all logs and metrics for cross-service tracing:
 [SNS: alert] message_id=abc-123
 ```
 
-**CloudWatch Logs Insights query example:**
+CloudWatch Logs Insights query example:
 ```
 fields @timestamp, @message
 | filter message_id = "abc-123"
@@ -416,7 +416,7 @@ Recovery confirmation: Next day's export succeeds, Parquet arrives in Databricks
 
 | Level | Response Time Target | Notification | Authority |
 |-------|---------------------|-------------|-----------|
-| L1 | Immediate (auto) | — | Auto scripts |
+| L1 | Immediate (auto) | N/A | Auto scripts |
 | L2 | Within 15 min | Slack | Service restart, device reboot |
 | L3 | Within 1 hour | Phone/PagerDuty | Code fix, config change |
 | L4 | Immediate (critical) | Phone | Service stop, customer notification |
@@ -438,7 +438,7 @@ Currently operating with Parquet + Hive-style partitions. Consider Apache Iceber
 | Data volume exceeds 1TB | Metadata management efficiency |
 | Multiple query engines access data | Athena + Redshift + EMR |
 
-**Why Iceberg is NOT needed now:**
+Why Iceberg is NOT needed now:
 - Append-only workload (image metadata, sensor data)
 - Single write source (Amazon Data Firehose / Glue ETL)
 - Small data volume (PoC: several GB/month)

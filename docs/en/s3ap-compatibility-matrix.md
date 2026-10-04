@@ -1,6 +1,6 @@
 > 🌐 Language: [日本語](../ja/s3ap-compatibility-matrix.md) | **English**
 
-# FSx for ONTAP S3 Access Points — Compatibility and Constraints
+# FSx for ONTAP S3 Access Points: Compatibility and Constraints
 
 > Last verified: 2026-08-19
 
@@ -119,8 +119,8 @@ Files reached through an S3 AP return a `StorageClass` of `FSX_ONTAP`
 ([source](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/access-points-for-fsxn-usage-examples.html)).
 
 > **On numbers**: "slower" above carries no multiplier. The related project records one,
-> but its measurement environment — ONTAP version, file count, directory shape, throughput
-> capacity — differs from this one, so quoting it here would misrepresent it. Measure in
+> but its measurement environment (ONTAP version, file count, directory shape, throughput
+> capacity) differs from this one, so quoting it here would misrepresent it. Measure in
 > your own configuration.
 
 ---
@@ -171,8 +171,8 @@ Writes arrive from two directions, and the access point plays the opposite role 
 The second row is the shape
 [S3 Burst on ONTAP Files](https://github.com/Yoshiki0705/s3-burst-on-ontap-files)
 covers: collect over the S3 API, keep ONTAP as the source of truth, and fan out to
-consuming sites over NFS / SMB. Pipelines that begin at a cloud API — this repository's
-cellular and MQTT entry points among them — fit that direction directly.
+consuming sites over NFS / SMB. Pipelines that begin at a cloud API (this repository's
+cellular and MQTT entry points among them) fit that direction directly.
 
 The fourth row currently has the template pass a standard bucket. `boto3` accepts an access
 point ARN as `Bucket` unchanged, so no handler change is expected, but this has not been
@@ -187,7 +187,7 @@ confirmed against real infrastructure (see the
 | IoT Core telemetry stored directly on an S3 AP | Via a Lambda rule action | Adds Lambda invocation cost and latency |
 | Firehose Parquet conversion delivered to an S3 AP | Aggregate in Lambda and PutObject, or materialize into an Iceberg table with MSK Express brokers streaming tables | Firehose's managed conversion and buffering are unavailable |
 | SiteWise time series stored on an S3 AP | Via an S3 bucket plus DataSync | Two copies of the data, and added delay |
-| Handing files to external partners | AWS Transfer Family over an S3 AP (**documented**) | — |
+| Handing files to external partners | AWS Transfer Family over an S3 AP (**documented**) | N/A |
 
 ---
 
@@ -206,8 +206,8 @@ Not confirmed in this project. Remove a row once it is.
 
 ## Related documents
 
-- [IoT Greengrass + FlexCache integration](./iot-greengrass-flexcache-integration.md) — write paths and FlexCache
-- [Databricks integration design](./databricks-integration.md) — Unity Catalog connection paths
-- [Deployment guide](./deployment-guide.md) — actual build steps
-- [AWS pattern catalog](./aws-patterns/README.md) — how these constraints bear on each design
+- [IoT Greengrass + FlexCache integration](./iot-greengrass-flexcache-integration.md): write paths and FlexCache
+- [Databricks integration design](./databricks-integration.md): Unity Catalog connection paths
+- [Deployment guide](./deployment-guide.md): actual build steps
+- [AWS pattern catalog](./aws-patterns/README.md): how these constraints bear on each design
 - [FAQ](./faq.md)

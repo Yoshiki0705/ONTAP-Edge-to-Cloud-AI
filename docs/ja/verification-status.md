@@ -77,14 +77,14 @@ FSx for ONTAP を含む経路は実行していません。SAM テンプレー�
 | 合成画像を非実写と識別 | `verified` | 同上。OpenCV で生成した画像に対する別ラウンドの結果 |
 | Haiku 平均 1,417 ms / Sonnet 平均 7,186 ms | `verified` | n=4、逐次実行、クライアント側での計測。VPC 内の AWS Lambda からではない |
 | FSx for ONTAP の PoC 構成が月 $500.61 | `documented` | AWS Price List Query API から 2026-08-19 取得、ap-northeast-1、単価の effectiveDate 2026-07-01。1024 GiB × $0.300/GB-月 + 128 MBps × $1.511/MBps-月。ストレージとスループットの 2 軸のみで、バックアップ等は含まない（[コストモデル](cost-model.md)） |
-| 画像あたり $0.005〜0.011 | — | **撤回しました。** 公開価格からの手計算で、その実行はトークン数を記録していません。測定結果の表に並んでいたため実測値に見えていました |
-| 2 段階構成で月 $259 → $40 | — | **撤回しました。** 同じ前提で `tests/sample_images/README.md` の式は月 $78 になり、リポジトリ内で 3 通りの答えが出ていました。どの単価も出典を再現できません |
-| 1 画像あたりのトークン数 | — | まだ記録がありません。`handler.py` は `usage` を取得するようになり `InputTokens` / `OutputTokens` を出しますが、スタックをデプロイしていないため実測値はありません |
+| 画像あたり $0.005〜0.011 | 該当なし | **撤回しました。** 公開価格からの手計算で、その実行はトークン数を記録していません。測定結果の表に並んでいたため実測値に見えていました |
+| 2 段階構成で月 $259 → $40 | 該当なし | **撤回しました。** 同じ前提で `tests/sample_images/README.md` の式は月 $78 になり、リポジトリ内で 3 通りの答えが出ていました。どの単価も出典を再現できません |
+| 1 画像あたりのトークン数 | 該当なし | まだ記録がありません。`handler.py` は `usage` を取得するようになり `InputTokens` / `OutputTokens` を出しますが、スタックをデプロイしていないため実測値はありません |
 | 異常を 60 秒以内に検知 | `hypothesis` | 設計目標。未計測 |
 | S3 Access Point は ONTAP 9.17.1 以降が必要 | `documented` | AWS 公式ドキュメント。[S3 AP 互換性と制約](s3ap-compatibility-matrix.md) |
 | S3 Access Point はイベント通知に対応しない | `documented` | 同上。FPolicy / 明示的な呼び出し / ポーリングで補う |
 | FlexCache write-back は 9.15.1 以降。ただし本番非推奨 | `documented` | NetApp のガイドラインと FAQ。[Greengrass + FlexCache 連携](iot-greengrass-flexcache-integration.md) |
-| 実環境での判定精度 | — | 主張していません。照明・カメラ角度・フィラメント色の影響は未確認 |
+| 実環境での判定精度 | 該当なし | 主張していません。照明・カメラ角度・フィラメント色の影響は未確認 |
 
 ## 数値を公開するときに併記するもの
 
@@ -162,7 +162,7 @@ FSx for ONTAP を含む経路は実行していません。SAM テンプレー�
 
 ## 関連ドキュメント
 
-- [S3 AP 互換性と制約](s3ap-compatibility-matrix.md) — 制約ごとの根拠区分
-- [FAQ](faq.md) — 未検証の項目に触れている箇所
-- [デプロイガイド](deployment-guide.md) — 実行手順（実行結果ではない）
-- [`tests/sample_images/README.md`](../../tests/sample_images/README.md) — Bedrock の測定の生記録
+- [S3 AP 互換性と制約](s3ap-compatibility-matrix.md)：制約ごとの根拠区分
+- [FAQ](faq.md)：未検証の項目に触れている箇所
+- [デプロイガイド](deployment-guide.md)：実行手順（実行結果ではない）
+- [`tests/sample_images/README.md`](../../tests/sample_images/README.md)：Bedrock の測定の生記録

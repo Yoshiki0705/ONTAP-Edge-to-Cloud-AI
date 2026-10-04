@@ -45,23 +45,26 @@ collected under [About this repository](#about-this-repository).
 
 ![Files written by cameras and vibration sensors at an edge site are aggregated through local storage into Amazon FSx for NetApp ONTAP, and reach Amazon Bedrock, Amazon Athena and Amazon SageMaker AI through an S3 access point. Amazon Quick Sight follows Athena, and on the on-premises side the vibration sensor's events pass through Kafka and ClickHouse to dashboards](docs/images/architecture-file-path-en.svg)
 
-Figure 1: the file path — written over NFS, read through an S3 access point ([.drawio](docs/diagrams/architecture-file-path-en.drawio) / [日本語](docs/images/architecture-file-path.svg))
+Figure 1: the file path (written over NFS, read through an S3 access point) ([.drawio](docs/diagrams/architecture-file-path-en.drawio) / [日本語](docs/images/architecture-file-path.svg))
 
 ![The MQTT path through AWS IoT Core and AWS Lambda puts objects through an S3 access point and lands them in Amazon FSx for NetApp ONTAP. The cellular path goes from the SORACOM platform through Amazon Kinesis Data Streams and Amazon Data Firehose into a standard S3 bucket, which AWS Glue reads](docs/images/architecture-api-paths-en.svg)
 
-Figure 2: the two paths that write over the S3 API — MQTT and cellular ([.drawio](docs/diagrams/architecture-api-paths-en.drawio) / [日本語](docs/images/architecture-api-paths.svg))
+Figure 2: the two paths that write over the S3 API (MQTT and cellular) ([.drawio](docs/diagrams/architecture-api-paths-en.drawio) / [日本語](docs/images/architecture-api-paths.svg))
 
 **There are two figures because writes arrive from two directions.** In one figure the
 thirteen cloud nodes sit in a single row, and scaled into a reader's column their labels
 arrive at the equivalent of 8px.
 
-**Data paths:**
-- **Payload** (images, CSV, logs): edge → NFS → ONTAP (source of truth)
-- **Events** (metadata): edge → Kafka → ClickHouse (analytics)
-- **AI analysis**: ONTAP → S3 AP → Bedrock / Lambda (quality verdict)
-- **MQTT**: AWS IoT Core → Lambda → **PutObject through the S3 AP** (no standard bucket)
-- **Cellular (optional)**: SORACOM → Kinesis → Firehose → **standard S3 bucket** → Glue
-- **Backup**: ClickHouse → ONTAP S3 (S3-compatible storage)
+Data paths:
+
+| Kind | Path |
+|------|------|
+| Payload (images, CSV, logs) | edge → NFS → ONTAP (source of truth) |
+| Events (metadata) | edge → Kafka → ClickHouse (analytics) |
+| AI analysis | ONTAP → S3 Access Points → Bedrock / Lambda (quality verdict) |
+| MQTT | AWS IoT Core → Lambda → PutObject through the S3 Access Points (no standard bucket) |
+| Cellular (optional) | SORACOM → Kinesis → Firehose → standard S3 bucket → Glue |
+| Backup | ClickHouse → ONTAP S3 (S3-compatible storage) |
 
 Writes arrive from two directions. The edge writes over a file protocol and the data is
 read through the S3 AP; separately, `cloud/iot_ingestion/` writes over the S3 API and keeps
@@ -76,7 +79,7 @@ bucket. See [S3 AP compatibility and limits](docs/en/s3ap-compatibility-matrix.m
 
 **Constraints a figure cannot draw:** a figure shows paths, and the six below do not take the
 shape of a line. They used to sit in a notes box inside the figure, but a box's longest line
-fixed the figure's width, and a wider figure is scaled down further in a reader's column — so
+fixed the figure's width, and a wider figure is scaled down further in a reader's column, so
 the annotation was taking legibility from every other label to buy its own.
 
 | Constraint | What it says | Detail |
@@ -90,13 +93,13 @@ the annotation was taking legibility from every other label to buy its own.
 
 ## The problem
 
-Factories and sites generate data continuously from IoT devices — cameras, sensors, control PCs.
+Factories and sites generate data continuously from IoT devices (cameras, sensors, control PCs).
 In most cases that data ends up scattered per device and per site.
 
-**What this looks like:**
+What this looks like:
 - Camera images in the printer vendor's cloud, sensor data on the Pi's SD card, equipment logs on a Windows PC
 - No way to analyse data from site A alongside site B
-- Individual device data is visible, but the whole picture — correlation, trends — is not
+- Individual device data is visible, but the whole picture (correlation, trends) is not
 - Analysis with AI is wanted, but the data is scattered and no pipeline can be built
 
 On the edge and on-premises side:
@@ -109,14 +112,14 @@ On the edge and on-premises side:
 A hybrid pipeline: aggregate scattered IoT data into a storage layer, analyse with Kafka and
 ClickHouse, and run image analysis on AWS AI services.
 
-**Data flow:**
+Data flow:
 1. Edge devices write to storage over NFS (payload: images, CSV)
 2. In parallel, they publish a structured event to Kafka (metadata: when, where, what)
 3. ClickHouse ingests from Kafka and serves dashboards and anomaly detection
 4. Amazon Bedrock (via Lambda) analyses images and returns a quality verdict
 5. Databricks manages curated datasets and produces AI training data
 
-**Before → After:**
+Before → After:
 
 | | Before | After |
 |---|--------|-------|
@@ -134,7 +137,7 @@ ClickHouse, and run image analysis on AWS AI services.
 
 ### Storage layer options
 
-The core pattern — edge collection, aggregation, AI analysis — holds with a different aggregation
+The core pattern (edge collection, aggregation, AI analysis) holds with a different aggregation
 point.
 
 | Storage | Data flow | Characteristics | Constraints |
@@ -143,7 +146,7 @@ point.
 | **EFS** | Edge → NFS → EFS → Lambda/Bedrock | NFS mountable. Good fit for Linux devices. Auto-scaling. Protected by AWS Backup | No SMB. No direct S3 API access. Event-driven has to be built with Lambda + CloudWatch. Cross-Region via EFS Replication |
 | **ONTAP** | Edge → NFS/SMB → ONTAP → S3 AP → AWS AI | NFS, SMB and S3 over the same data. FPolicy for file-arrival triggers. SnapMirror for differential sync. FlexCache for low-latency delivery to remote sites. ARP/AI for ransomware anomaly detection with automatic Snapshot protection | Requires an ONTAP environment. S3 AP does not support conditional writes, and [has other constraints](docs/en/s3ap-compatibility-matrix.md). Operating it requires ONTAP knowledge |
 
-**How to choose:**
+How to choose:
 - No data yet, building fresh → **S3 directly** is simplest
 - Writing over NFS from Linux devices, staying inside a VPC → **EFS**
 - Data already on ONTAP/NAS, both NFS and SMB needed, avoiding a copy → **ONTAP**
@@ -177,6 +180,8 @@ and [limits and quotas](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Pl
 | FSx for ONTAP | AWS cloud | Fully managed. SnapMirror destination, supports S3 AP (ONTAP 9.17.1 or later) |
 
 ## Quick start
+
+Check the prerequisites, deploy the shared-infrastructure template, then set up the edge device.
 
 ### Prerequisites
 
@@ -250,8 +255,8 @@ For maintainers: [quality gates](docs/agent/quality-gates_en.md) /
 - **AI accuracy comes from two different tests**: 4/4 on four photographs published in vendor
   documentation, and 5/5 on five written descriptions of symptoms. Synthetic images generated with
   OpenCV were a separate round and were correctly identified as not photographic. **The two measure
-  different things and are not additive.** Accuracy under real conditions — lighting, camera angle,
-  filament colour — is unverified
+  different things and are not additive.** Accuracy under real conditions (lighting, camera angle,
+  filament colour) is unverified
 - **ONTAP integration is design only**: the FPolicy, SnapMirror and S3 AP code is written, but has
   not run against a real ONTAP system (mock tests only)
 - **Single device**: concurrent operation of multiple devices and scale-out are unverified
@@ -300,14 +305,14 @@ happen often enough to gather test data.
 **This repository covers one vertical: IoT and edge.** Holding the same subject in two places means
 one of them silently goes stale, so what is delegated below is linked rather than duplicated here.
 
-- [FSx-for-ONTAP-Adoption-Playbook](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook) — **the source of truth for FSx for ONTAP specifications, limits, decision trees and the evidence tiers**. Navigable by lifecycle (assess → design → migrate → build → operate → optimise) and by theme
-  - What this repository follows: [evidence policy](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/en/evidence-policy.md) ([日本語](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/ja/evidence-policy.md)) — that document defines `documented` / `verified` / `hypothesis` / `open`; [verification status](docs/en/verification-status.md) only holds the result of applying it
-- [fsxn-lakehouse-integrations](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations) — FSx for ONTAP S3 AP × lakehouse integration (**the Kafka, ClickHouse and Databricks side lives here**)
+- [FSx-for-ONTAP-Adoption-Playbook](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook): the source of truth for FSx for ONTAP specifications, limits, decision trees and the evidence tiers. Navigable by lifecycle (assess → design → migrate → build → operate → optimise) and by theme
+  - What this repository follows: [evidence policy](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/en/evidence-policy.md) ([日本語](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/ja/evidence-policy.md)). That document defines `documented` / `verified` / `hypothesis` / `open`; [verification status](docs/en/verification-status.md) only holds the result of applying it
+- [fsxn-lakehouse-integrations](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations): FSx for ONTAP S3 Access Points × lakehouse integration (the Kafka, ClickHouse and Databricks side lives here)
   - The integration itself: [integrations/manufacturing-data-platform](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/tree/main/integrations/manufacturing-data-platform)
-  - Sync record: [Edge ↔ Lakehouse sync](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/en/14_edge_lakehouse_sync.md) ([日本語](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/ja/14_edge_lakehouse_sync.md)) — schema, topics and division of responsibility
-- [FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns) — serverless patterns for FSx for ONTAP S3 AP (industry, event-driven, FlexCache and others)
-- [FSx-for-ONTAP-Observability-integrations](https://github.com/Yoshiki0705/FSx-for-ONTAP-Observability-integrations) — observability integration. **The ONTAP REST API findings from a real filesystem live there** (HTTP 202 and job polling, error codes, the key shape of an EMS payload). Consult it rather than repeating that investigation when touching [`edge/raspberry-pi/sensors/ontap_telemetry.py`](edge/raspberry-pi/sensors/ontap_telemetry.py)
-- [S3-Burst-on-ONTAP-Files](https://github.com/Yoshiki0705/S3-Burst-on-ONTAP-Files) — collect over the S3 API, consume over FlexCache NFS/SMB. **Holds measured S3 Access Point operation latency**, which cannot be transcribed here because the conditions differ (they are stated in [verification status](docs/en/verification-status.md#conditions-for-citing-a-sibling-repositorys-numbers))
+  - Sync record: [Edge ↔ Lakehouse sync](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/en/14_edge_lakehouse_sync.md) ([日本語](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/ja/14_edge_lakehouse_sync.md)). Schema, topics and division of responsibility
+- [FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns): serverless patterns for FSx for ONTAP S3 Access Points (industry, event-driven, FlexCache and others)
+- [FSx-for-ONTAP-Observability-integrations](https://github.com/Yoshiki0705/FSx-for-ONTAP-Observability-integrations): observability integration. The ONTAP REST API findings from a real filesystem live there (HTTP 202 and job polling, error codes, the key shape of an EMS payload). Consult it rather than repeating that investigation when touching [`edge/raspberry-pi/sensors/ontap_telemetry.py`](edge/raspberry-pi/sensors/ontap_telemetry.py)
+- [S3-Burst-on-ONTAP-Files](https://github.com/Yoshiki0705/S3-Burst-on-ONTAP-Files): collect over the S3 API, consume over FlexCache NFS/SMB. Holds measured S3 Access Point operation latency, which cannot be transcribed here because the conditions differ (they are stated in [verification status](docs/en/verification-status.md#conditions-for-citing-a-sibling-repositorys-numbers))
 
 ## License
 

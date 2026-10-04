@@ -375,7 +375,7 @@ LIMIT 12;
 |----|---------|----------------|------|
 | **raw/** | 90日 (S3 Standard) → 1年 (S3 IA) → 3年 (Glacier) | S3 Lifecycle Policy | 原本保全、監査、再処理 |
 | **processed/** | 1年 (S3 Standard) → 3年 (S3 IA) | S3 Lifecycle Policy | 日常分析、ダッシュボード |
-| **curated/** | 無期限 (S3 Standard) | — | BI、ML学習データ、レポート |
+| **curated/** | 無期限 (S3 Standard) | 該当なし | BI、ML学習データ、レポート |
 
 ### ライフサイクルポリシー (例)
 

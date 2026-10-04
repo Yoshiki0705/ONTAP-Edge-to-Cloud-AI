@@ -16,9 +16,9 @@ AWS が Greengrass でデバイス群にエージェントを配布する Guidan
 
 | 経路の段 | このリポジトリ | 場所 |
 |---|---|---|
-| エッジランタイムの導入 | なし | — |
-| ローカルモデルの配置 | なし | — |
-| ローカルでの推論 | なし | — |
+| エッジランタイムの導入 | なし | 該当なし |
+| ローカルモデルの配置 | なし | 該当なし |
+| ローカルでの推論 | なし | 該当なし |
 | クラウドへの委譲判断 | なし | 下記 |
 | クラウド側のエージェント実行基盤 | なし | [Agentic AI on AWS](../agentic-ai-on-aws.md) |
 | 推論ログの収集 | 一部（フィードバック記録の枠組みのみ） | [`cloud/ai/feedback_recorder/`](../../../cloud/ai/feedback_recorder/) |
@@ -109,7 +109,7 @@ graph LR
 ## 前提と制約
 
 - **このリポジトリに実装はありません。** 設計として読んでください
-- **AWS が Guidance を公開しています**:
+- AWS が Guidance を公開しています:
   [Deploying AI agents to device fleets using AWS IoT Greengrass](https://docs.aws.amazon.com/solutions/deploying-ai-agents-to-device-fleets-using-aws-iot-greengrass/)。
   ローカルの小型モデルを使う構成が扱われています
 - **エッジランタイムの選択肢が広がっています。** リソース制約のあるデバイス向けの

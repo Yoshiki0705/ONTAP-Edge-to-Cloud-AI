@@ -13,12 +13,14 @@
 
 **S3 標準バケットを介さず、FSx for ONTAP S3 Access Points を直接のデータインジェスト先とする**ことで、IoT/エッジワークロード特有の課題（小ファイル大量書き込みのオーバーヘッド、クロスリージョン転送コスト、ストレージ二重持ち）を解決する。さらに **FlexCache write-back (ONTAP 9.15.1+)** をエッジローカルの書き込みバッファとして活用し、オフライン耐性と低遅延ローカル書き込みを両立させる。
 
-**主要な結論:**
+主要な結論:
 
-1. **FSx for ONTAP S3 AP が唯一のデータ集約点** — S3 標準バケットを経由しない。PutObject で直接 FSx for ONTAP ボリュームに書き込み、同一データに NFS/SMB/S3 でマルチプロトコルアクセス
-2. **FlexCache write-back がエッジ書き込みバッファ** — エッジ側 ONTAP (ONTAP Select / FAS / AFF) の FlexCache Cache Volume に write-back モードで書き込み、非同期で Origin (FSx for ONTAP) にフラッシュ。オフライン耐性 + ローカル速度の書き込み
-3. **FlexCache read cache がデータバースト配信** — Origin に集約されたデータを他拠点の GPU/HPC ワークロードに低遅延で読み取り配信
-4. **Greengrass カスタム S3 クライアントコンポーネント** — Stream Manager (S3 バケット専用) ではなく、AWS SDK 直接利用で S3 AP ARN へ PutObject する専用コンポーネント
+| # | 要素 | 内容 |
+|---|------|------|
+| 1 | FSx for ONTAP S3 Access Points が唯一のデータ集約点 | S3 標準バケットを経由しない。PutObject で直接 FSx for ONTAP ボリュームに書き込み、同一データに NFS/SMB/S3 でマルチプロトコルアクセス |
+| 2 | FlexCache write-back がエッジ書き込みバッファ | エッジ側 ONTAP (ONTAP Select / FAS / AFF) の FlexCache Cache Volume に write-back モードで書き込み、非同期で Origin (FSx for ONTAP) にフラッシュ。オフライン耐性とローカル速度の書き込みを両立 |
+| 3 | FlexCache read cache がデータバースト配信 | Origin に集約されたデータを他拠点の GPU/HPC ワークロードに低遅延で読み取り配信 |
+| 4 | Greengrass カスタム S3 クライアントコンポーネント | Stream Manager (S3 バケット専用) ではなく、AWS SDK 直接利用で S3 Access Points ARN へ PutObject する専用コンポーネント |
 
 ---
 
@@ -130,13 +132,13 @@
 └───────────────────────────────┘
 ```
 
-**Stream Manager を使わない理由:**
+Stream Manager を使わない理由:
 - Greengrass Stream Manager は S3 バケット名を要求する（access point ARN を受け付ける記述が
   見つからない）。**このプロジェクトでは未検証**（[互換性と制約](./s3ap-compatibility-matrix.md) §4）
 - カスタムコンポーネントで boto3 (Python) / AWS SDK を使い、S3 AP ARN を直接ターゲットに PutObject を実行
 - ローカルディスクバッファ + エクスポネンシャルバックオフでオフライン耐性を自前実装
 
-**IoT Core MQTT → Lambda → S3 AP 経路:**
+IoT Core MQTT → Lambda → S3 AP 経路:
 - テレメトリ（小容量・高頻度）は IoT Core MQTT で送信
 - IoT Core ルールエンジン → Lambda 関数 → Lambda 内で PutObject to S3 AP
 - Amazon Data Firehose は S3 バケット ARN を要求する。**未検証**（[互換性と制約](./s3ap-compatibility-matrix.md) §4）のため、
@@ -180,7 +182,7 @@
 └────────────────────────────────────────┘
 ```
 
-**FlexCache Write-Back の IoT における価値:**
+FlexCache Write-Back の IoT における価値:
 
 | 特性 | 効果 |
 |------|------|
@@ -191,7 +193,7 @@
 | インライン重複排除/圧縮 | 小ファイル大量書き込みのストレージ効率を最大化 |
 | XLD (排他ロック委任) | ファイル単位の書き込み一貫性を保証 |
 
-**要件:**
+要件:
 - Origin (FSx for ONTAP) と Cache (エッジ ONTAP) の両方が ONTAP 9.15.1 以上
   （[FlexCache write-back の相互運用性](https://docs.netapp.com/us-en/ontap/flexcache-writeback/flexcache-write-back-interoperability.html)）
 - ただし NetApp は **9.15.1 では write-back に必要な修正が揃っておらず本番ワークロードには推奨しない**としており、
@@ -225,7 +227,7 @@
 └──────────────────────────────┘
 ```
 
-**FlexCache write-back vs SnapMirror の使い分け:**
+FlexCache write-back vs SnapMirror の使い分け:
 
 | 比較軸 | FlexCache Write-Back | SnapMirror |
 |--------|---------------------|------------|
@@ -239,7 +241,7 @@
 
 ---
 
-## 4. 読み取り配信 (Burst) — FlexCache Read Cache
+## 4. 読み取り配信（Burst, FlexCache Read Cache）
 
 Origin (FSx for ONTAP) に集約されたデータを、複数拠点のワークロードに低遅延で配信する。
 
@@ -266,7 +268,7 @@ Origin (FSx for ONTAP) に集約されたデータを、複数拠点のワーク
 > EMR Serverless / CloudFront / Transfer Family で、SageMaker はこの一覧にありません
 > （[S3 AP 互換性と制約](./s3ap-compatibility-matrix.md)）。
 
-**Read Cache の IoT ユースケース:**
+Read Cache の IoT ユースケース:
 
 | 配信先 | データ種別 | FlexCache 効果 |
 |--------|-----------|---------------|
@@ -465,12 +467,12 @@ graph TD
       └── device-registry.json
 ```
 
-**設計ルール:**
+設計ルール:
 
-1. **デバイス別ディレクトリ分離**: FlexCache write-back の XLD (排他ロック委任) はファイル単位で 1 Cache に付与される。デバイスごとにディレクトリを分けることで XLD 競合を回避
-2. **Hive パーティション形式**: S3 AP 経由の Athena クエリでパーティションプルーニングが自動適用
-3. **FlexGroup constituent 分散**: 多数のサブディレクトリにより FlexGroup 内の各 constituent に均等分散 → FlexCache 効率向上
-4. **`/models/` は読み取り専用配信**: FlexCache read cache の最適ユースケース。write-around モードで配信
+1. デバイス別ディレクトリ分離: FlexCache write-back の XLD (排他ロック委任) はファイル単位で 1 Cache に付与される。デバイスごとにディレクトリを分けることで XLD 競合を回避
+2. Hive パーティション形式: S3 AP 経由の Athena クエリでパーティションプルーニングが自動適用
+3. FlexGroup constituent 分散: 多数のサブディレクトリにより FlexGroup 内の各 constituent に均等分散 → FlexCache 効率向上
+4. `/models/` は読み取り専用配信: FlexCache read cache の最適ユースケース。write-around モードで配信
 
 ---
 
@@ -532,9 +534,9 @@ streaming tables で Iceberg テーブルとして materialize する経路も�
 ### Q7: エッジに ONTAP がない場合はどうすればよいですか?
 
 **A**:
-- **接続が安定**: Greengrass カスタム S3 クライアントコンポーネントで S3 AP に直接 PutObject (Tier 1)
-- **オフライン耐性が必要**: ONTAP Select の導入を検討（汎用 x86 サーバー上、最小 1TB）。FlexCache write-back でエッジバッファ + クラウド集約を実現
-- **小規模 PoC**: Greengrass のローカルディスクバッファ + リトライで簡易的なオフライン耐性を確保
+- 接続が安定: Greengrass カスタム S3 クライアントコンポーネントで S3 AP に直接 PutObject (Tier 1)
+- オフライン耐性が必要: ONTAP Select の導入を検討（汎用 x86 サーバー上、最小 1TB）。FlexCache write-back でエッジバッファ + クラウド集約を実現
+- 小規模 PoC: Greengrass のローカルディスクバッファ + リトライで簡易的なオフライン耐性を確保
 
 ---
 
@@ -614,12 +616,12 @@ streaming tables で Iceberg テーブルとして materialize する経路も�
 
 ## 13. 今後の検討事項
 
-1. **Greengrass S3 AP クライアントコンポーネントの実装**: boto3 PutObject + ローカルバッファ + リトライのテンプレート化
-2. **FlexCache write-back パフォーマンス検証**: IoT ワークロード (小ファイル大量 / 画像ファイル) での書き込みレイテンシ + Origin フラッシュ遅延計測
-3. **ONTAP Select on Raspberry Pi 5 / Jetson の可能性調査**: ARM 対応状況の確認（現時点では x86 のみ → 小型 x86 Edge サーバーが必要）
-4. **Lambda バッチ集約の最適ウィンドウ検証**: IoT Core → Lambda の呼び出し頻度 vs S3 AP PutObject のオブジェクトサイズトレードオフ
-5. **IoT Core Basic Ingest と S3 AP の組み合わせ**: ルールエンジンのメッセージブローカー回避でコスト削減
-6. **FlexCache write-back + FabricPool の組み合わせ**: エッジ→クラウド→階層化の End-to-End データライフサイクル管理
+1. Greengrass S3 AP クライアントコンポーネントの実装: boto3 PutObject + ローカルバッファ + リトライのテンプレート化
+2. FlexCache write-back パフォーマンス検証: IoT ワークロード (小ファイル大量 / 画像ファイル) での書き込みレイテンシ + Origin フラッシュ遅延計測
+3. ONTAP Select on Raspberry Pi 5 / Jetson の可能性調査: ARM 対応状況の確認（現時点では x86 のみ → 小型 x86 Edge サーバーが必要）
+4. Lambda バッチ集約の最適ウィンドウ検証: IoT Core → Lambda の呼び出し頻度 vs S3 AP PutObject のオブジェクトサイズトレードオフ
+5. IoT Core Basic Ingest と S3 AP の組み合わせ: ルールエンジンのメッセージブローカー回避でコスト削減
+6. FlexCache write-back + FabricPool の組み合わせ: エッジ→クラウド→階層化の End-to-End データライフサイクル管理
 
 ---
 

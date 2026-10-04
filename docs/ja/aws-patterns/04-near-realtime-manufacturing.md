@@ -67,10 +67,10 @@ graph LR
 
 このパターンは AI そのものより、AI に渡すデータの整形を担います。
 
-- **特徴量の生成**: ロールアップで作った集計を、学習データの特徴量として渡す
-- **即時判定との組み合わせ**: [Pattern 01](01-edge-ai-bedrock.md) の画像判定結果を
+- 特徴量の生成: ロールアップで作った集計を、学習データの特徴量として渡す
+- 即時判定との組み合わせ: [Pattern 01](01-edge-ai-bedrock.md) の画像判定結果を
   イベントとして流し込み、センサー値と相関を見る
-- **キュレーション層**: Bronze / Silver / Gold のような層構造で、生データと学習用データを分ける
+- キュレーション層: Bronze / Silver / Gold のような層構造で、生データと学習用データを分ける
   （[databricks-integration](../databricks-integration.md)）
 
 ### Iceberg テーブルとの使い分け
@@ -123,8 +123,8 @@ Kafka トピックを列指向データベースに入れる代わりに、Icebe
 
 ## 参考
 
-- [databricks-integration](../databricks-integration.md) — 接続パスと Unity Catalog 設計
-- [kafka-integration](../kafka-integration.md) — トポロジーとトピック設計
+- [databricks-integration](../databricks-integration.md)：接続パスと Unity Catalog 設計
+- [kafka-integration](../kafka-integration.md)：トポロジーとトピック設計
 - [Streaming tables with Amazon MSK](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-tables-streaming-msk.html)
 - 関連: [Pattern 03](03-industrial-iot-analytics.md)（バッチ寄りの分析） /
   [Flexible AI Data Layer](../flexible-ai-data-layer.md)（テーブル形式とカタログの相互運用）

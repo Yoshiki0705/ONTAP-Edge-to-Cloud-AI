@@ -47,7 +47,7 @@ with whether a managed offering is involved.
 
 | Item | Availability | Source |
 |---|---|---|
-| Iceberg tables on object storage, read by several engines | Supported today | — |
+| Iceberg tables on object storage, read by several engines | Supported today | N/A |
 | S3 Tables (a table bucket with built-in Iceberg support) | Supported today | [source](https://docs.aws.amazon.com/sagemaker-lakehouse-architecture/latest/userguide/lakehouse-s3-tables-integration.html) |
 | Iceberg V3 deletion vectors and row lineage (Glue Data Catalog) | Supported today | [source](https://aws.amazon.com/sagemaker/lakehouse/features/) |
 | The Iceberg V3 Variant type (S3 Tables) | Supported today | [source](https://aws.amazon.com/about-aws/whats-new/2026/07/amazon-s3-tables-variant-iceberg-v3/) |

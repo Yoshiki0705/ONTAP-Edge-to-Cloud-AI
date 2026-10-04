@@ -7,7 +7,7 @@
 ## Conclusion
 
 **FSx for ONTAP is the only thing here whose order of magnitude will hurt you.** The PoC
-configuration — 1 TiB SSD, 128 MBps, Multi-AZ — is **$500.61/month**, calculated from unit
+configuration (1 TiB SSD, 128 MBps, Multi-AZ) is **$500.61/month**, calculated from unit
 prices that were looked up. Everything else is single or double-digit dollars at PoC scale,
 and only the model rates depend strongly on how you use them.
 
@@ -32,7 +32,7 @@ written so that substituting a rate is all that is needed. Re-derive with the
 [AWS Pricing Calculator](https://calculator.aws/) or the
 [Price List API](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/price-changes.html).
 
-## Worth knowing the magnitude of — FSx for ONTAP
+## Worth knowing the magnitude of (FSx for ONTAP)
 
 Forget to delete it and the bill reaches three figures. When the PoC is done, remove it with
 [`scripts/teardown.sh`](../../scripts/teardown.sh).
@@ -58,7 +58,7 @@ provisioned IOPS add to this. The formula covers those two axes and nothing else
 > **Note**: capacity is provisioned in GiB and billed in GB-month units. The formula above
 > ignores that difference. Use the Pricing Calculator when the estimate has to be exact.
 
-## Formula only — Bedrock model rates
+## Formula only (Bedrock model rates)
 
 **No absolute figures here**, for two reasons.
 
@@ -66,7 +66,7 @@ provisioned IOPS add to this. The formula covers those two axes and nothing else
    here becomes wrong at the next generation and a reader cannot tell that it has.
 2. **The Price List API does not attribute a rate to a model.**
    `AmazonBedrockFoundationModels` returns token rates for ap-northeast-1 with an **empty**
-   `operation` field. The values are retrievable — $2, $5 and $10 per 1M input tokens — but
+   `operation` field. The values are retrievable ($2, $5 and $10 per 1M input tokens), but
    which one is Haiku and which is Sonnet cannot be determined from the API. There is no
    path to recompute automatically, so there is no path to generate this either.
 
@@ -112,7 +112,7 @@ cheap image rather than a missing rate. Token counts are emitted either way.
 
 ## The other services
 
-At PoC scale — one device, 60-second intervals — everything besides the two above adds up to
+At PoC scale (one device, 60-second intervals) everything besides the two above adds up to
 single or double-digit dollars. No absolute figures; only what moves them.
 
 | Service | What drives the cost |
@@ -201,8 +201,8 @@ list prices (see the [verification status](verification-status.md)).
 
 ## Related documents
 
-- [Verification status](verification-status.md) — which figures rest on what
-- [Deployment guide](deployment-guide.md) — the build procedure; §8 refers here
-- [Operations design](operations-design.md) — metrics and alarms, including `CostPerImage`
-- [S3 AP compatibility and limits](s3ap-compatibility-matrix.md) — where a path choice affects cost
-- [AWS pattern catalog](aws-patterns/README.md) — what drives cost per pattern
+- [Verification status](verification-status.md): which figures rest on what
+- [Deployment guide](deployment-guide.md): the build procedure; §8 refers here
+- [Operations design](operations-design.md): metrics and alarms, including `CostPerImage`
+- [S3 AP compatibility and limits](s3ap-compatibility-matrix.md): where a path choice affects cost
+- [AWS pattern catalog](aws-patterns/README.md): what drives cost per pattern

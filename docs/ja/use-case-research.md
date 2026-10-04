@@ -10,12 +10,12 @@
 
 現場の IoT デバイス（Raspberry Pi、カメラ、センサー等）が生成するデータは、デバイスごと・拠点ごとに分散しサイロ化しやすい。本調査では、ONTAP（FAS/AFF、ONTAP Select、FSx for ONTAP）をデータ集約先として活用し、AWS AI/分析サービスで組織横断のデータ活用を実現するパターンを整理した。
 
-**調査で確認したこと:**
+調査で確認したこと:
 
-1. **ONTAP の多層的活用**: FPolicy によるイベント駆動連携、SnapMirror によるエッジ→クラウド同期、FlexCache による低遅延キャッシュ、ARP/AI によるセキュリティ、S3 Access Points による AWS サービス直接連携の5つの軸で活用可能
-2. **FPolicy イベント駆動パイプライン**: エッジデバイスが NFS/SMB で ONTAP に書き込むだけで、FPolicy が Lambda をトリガーし Bedrock 分析を自動実行。デバイス側にクラウド連携コードが不要
-3. **FSx for ONTAP S3 AP の活用パターン**: エッジで収集したデータの集約先として FSx for ONTAP を使い、S3 AP 経由で Athena / Glue / Bedrock Knowledge Bases に直接接続することで、データコピーなしに横断分析が可能（SageMaker は AWS の対応サービス一覧に無く未検証。[S3 AP 互換性と制約](s3ap-compatibility-matrix.md)）
-4. **PoC 構成例**: Raspberry Pi 5 + カメラ + 3Dプリンター + ONTAP の組み合わせで、データ集約 → AI 分析の一連のフローを小規模に検証可能
+1. ONTAP の多層的活用: FPolicy によるイベント駆動連携、SnapMirror によるエッジ→クラウド同期、FlexCache による低遅延キャッシュ、ARP/AI によるセキュリティ、S3 Access Points による AWS サービス直接連携の5つの軸で活用可能
+2. FPolicy イベント駆動パイプライン: エッジデバイスが NFS/SMB で ONTAP に書き込むだけで、FPolicy が Lambda をトリガーし Bedrock 分析を自動実行。デバイス側にクラウド連携コードが不要
+3. FSx for ONTAP S3 AP の活用パターン: エッジで収集したデータの集約先として FSx for ONTAP を使い、S3 AP 経由で Athena / Glue / Bedrock Knowledge Bases に直接接続することで、データコピーなしに横断分析が可能（SageMaker は AWS の対応サービス一覧に無く未検証。[S3 AP 互換性と制約](s3ap-compatibility-matrix.md)）
+4. PoC 構成例: Raspberry Pi 5 + カメラ + 3Dプリンター + ONTAP の組み合わせで、データ集約 → AI 分析の一連のフローを小規模に検証可能
 
 ---
 
@@ -359,7 +359,7 @@ ONTAP                                               FSx for ONTAP
 | Bedrock (Claude Vision) | $5-20/月 | ~2,880回/日 × 30日、入力トークン課金 |
 | Lambda (FPolicy トリガー) | $0-2/月 | FPolicy イベント処理 |
 | Athena | $1-5/月 | 数GB/月のスキャン |
-| 合計 | — | **合算しません**。ドル建ての行と円建ての行が混在しており、為替レートとその基準日なしには足せません |
+| 合計 | 該当なし | **合算しません**。ドル建ての行と円建ての行が混在しており、為替レートとその基準日なしには足せません |
 
 > **注意**: 上記は PoC 規模の概算で、価格の基準日も出典もありません。以前あった「約 ¥1,500-4,000/月」の合計は、ドル行と円行を為替レートなしで足していたため撤回しました。有線LAN環境ではセルラー通信費が不要のため SORACOM 費用は発生しません。桁を間違えると事故る FSx for ONTAP の金額と、基準日付きの単価は [コストモデル](cost-model.md) にあります。正確な見積もりは [AWS Pricing Calculator](https://calculator.aws/) で。
 
@@ -619,4 +619,4 @@ Phase 3 (2週間): AI予測
 | 5 | NFS マウント + ONTAP 書き込みテスト | 30分 | Step 4 + ONTAP NFS設定済み |
 | 6 | カメラ設置 + 画角調整 | 1時間 | Pi + カメラ + プリンター |
 | 7 | 24時間連続運転テスト | 24時間 | Step 6 完了 |
-| 8 | Go/No-Go 判定 → Phase 2 移行 | — | Step 7 の結果次第 |
+| 8 | Go/No-Go 判定 → Phase 2 移行 | 該当なし | Step 7 の結果次第 |

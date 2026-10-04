@@ -3,7 +3,7 @@
 > Created: 2026-06-15
 > Status: Design Complete (synchronized with Lakehouse project)
 > Related: [fsxn-lakehouse-integrations/poc-templates/04-databricks-integration](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/tree/main/poc-templates/04-databricks-integration)
-> Edge ↔ Lakehouse sync record: [14_edge_lakehouse_sync.md](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/en/14_edge_lakehouse_sync.md) — Schema / topic / responsibility-matrix sync status
+> Edge ↔ Lakehouse sync record: [14_edge_lakehouse_sync.md](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/integrations/manufacturing-data-platform/docs/en/14_edge_lakehouse_sync.md) (schema / topic / responsibility-matrix sync status)
 
 ---
 
@@ -144,9 +144,9 @@ aws cloudformation deploy \
 
 ---
 
-### 2.5 Path D: Kafka → Lakebase — LTAP (Future Candidate)
+### 2.5 Path D: Kafka → Lakebase (LTAP, future candidate)
 
-> **Status**: Design exploration — Lakebase is GA but Kafka → Lakebase connector documentation pending
+> **Status**: Design exploration. Lakebase is GA, but the Kafka → Lakebase connector documentation is pending
 > **Context**: LTAP (Lake Transactional/Analytical Processing) announced at DAIS 2026 (2026-06-16)
 > **References**: [LTAP Press Release](https://www.databricks.com/company/newsroom/press-releases/databricks-launches-ltap-first-lake-transactionalanalytical) / [Lakebase Search](https://www.databricks.com/blog/announcing-lakebase-search-agent-native-retrieval-built-lakebase-postgres)
 
@@ -190,7 +190,7 @@ simple_capture.py  -event-> factory.events.raw -> Kafka Connector (TBD)
 
 - **No edge-side changes**: Local ONTAP + Kafka topic design remains unchanged
 - **Cloud-side alternative path**: Added as a parallel option, not replacing existing Path A (Structured Streaming → Delta)
-- **Operational AI scenarios**: Enables use cases difficult with Delta alone — real-time quality verdict APIs, image metadata search via Lakebase Search
+- **Operational AI scenarios**: Enables use cases difficult with Delta alone, for example real-time quality verdict APIs and image metadata search via Lakebase Search
 
 #### Verification Required
 
@@ -215,8 +215,8 @@ PoC validation will begin when the following conditions are met:
 
 #### Constraints
 
-- Lakehouse//RT is **Preview** — production adoption requires GA
-- LTAP has **no on-premises option** — cloud-side only impact
+- Lakehouse//RT is **Preview**, so production adoption requires GA
+- LTAP has **no on-premises option**, so the impact is cloud-side only
 - Edge-side design (local ONTAP + Kafka) remains unchanged
 - Existing Paths A/B/C **coexist** with LTAP (not replaced)
 
@@ -253,7 +253,7 @@ PoC validation will begin when the following conditions are met:
 
 **Decision for this project**:
 
-In this project, Kafka serves as a **general-purpose event bus** delivering events to multiple consumers (ClickHouse, Lambda, Databricks, etc.). Zerobus Ingest specializes in Databricks ingestion, so it is positioned as an **additional option** for Databricks-specific ingestion, **not a Kafka replacement**.
+In this project, Kafka is a **general-purpose event bus** that delivers events to multiple consumers (ClickHouse, Lambda, Databricks, etc.). Zerobus Ingest specializes in Databricks ingestion, so it is an **additional option** for Databricks-specific ingestion, **not a Kafka replacement**.
 
 Scenarios where Zerobus Ingest is suitable:
 - Adding a new data source where Databricks is the sole consumer
@@ -273,7 +273,7 @@ Scenarios where Zerobus Ingest is suitable:
 
 **Impact on Path A**:
 
-Since Real-Time Mode has reached GA, the existing Path A (Kafka → Structured Streaming → Delta) pipeline can achieve millisecond latency by simply switching the trigger mode — without major code rewrites. This potentially covers some use cases that Path D (LTAP: Kafka → Lakebase) targets.
+Since Real-Time Mode has reached GA, the existing Path A (Kafka → Structured Streaming → Delta) pipeline can achieve millisecond latency by switching the trigger mode, without major code rewrites. This potentially covers some use cases that Path D (LTAP: Kafka → Lakebase) targets.
 
 #### Relationship with Path D (LTAP)
 
@@ -312,11 +312,11 @@ Since Real-Time Mode has reached GA, the existing Path A (Kafka → Structured S
 
 #### Constraints
 
-- Zerobus Ingest is **Databricks-only** — no general-purpose multi-consumer delivery like Kafka
-- Real-Time Mode is **GA** (DBR 16.2+) — ready for production adoption
-- Lakeflow is **Databricks-managed** — no on-premises option
+- Zerobus Ingest is **Databricks-only**, with no general-purpose multi-consumer delivery like Kafka
+- Real-Time Mode is **GA** (DBR 16.2+) and ready for production adoption
+- Lakeflow is **Databricks-managed**, with no on-premises option
 - Edge-side Kafka Producer design remains unchanged (cloud-side receiving only)
-- Vendor-versus framing of Lakeflow/Zerobus against Kafka is inappropriate — choose based on use case
+- Vendor-versus framing of Lakeflow/Zerobus against Kafka is avoided; choose based on use case
 
 ---
 
@@ -478,4 +478,4 @@ Edge capture (Pi)
 | ClickHouse → S3 export automation | Designed | After ClickHouse deployment |
 | DataSync Agent (ONTAP NFS → S3) | Validated in Lakehouse project | FSx for ONTAP environment |
 | LTAP (Kafka → Lakebase) connector validation | Awaiting documentation | Lakebase GA / connector spec published |
-| Lakehouse//RT GA evaluation | Preview — awaiting GA | Databricks roadmap |
+| Lakehouse//RT GA evaluation | Preview (awaiting GA) | Databricks roadmap |

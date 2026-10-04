@@ -18,7 +18,7 @@ place.
 | Writing to a time-series database | None | See "choosing a time-series database" below |
 | Asset model (structural representation of equipment) | None | [Pattern 08](08-unified-namespace.md) |
 | Generating explanations | None | [Agentic AI on AWS](../agentic-ai-on-aws.md) |
-| Visualization layer | None | — |
+| Visualization layer | None | N/A |
 
 ## Data flow
 

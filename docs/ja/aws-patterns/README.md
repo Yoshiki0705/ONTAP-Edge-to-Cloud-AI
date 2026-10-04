@@ -55,19 +55,19 @@
 
 すべてのパターンに共通する制約です。各 doc で再掲しません。
 
-- **S3 Access Point の制約**: 条件付き書き込み・イベント通知・オブジェクトバージョニングが
+- S3 Access Point の制約: 条件付き書き込み・イベント通知・オブジェクトバージョニングが
   使えず、ONTAP 9.17.1 以降が必要。同一リージョン・同一アカウント・junction path 必須。
   一覧と根拠は [S3 AP 互換性と制約](../s3ap-compatibility-matrix.md)。同 doc の
   「S3 AP 経由で使える AWS サービス」は**閉じた一覧**で、そこに無いサービスは
   「AWS が手順を公開していない」状態です
-- **どこまで実機で動かしたか**: 成熟度ラベルは「このリポジトリにコードがあるか」を表します。
+- どこまで実機で動かしたか: 成熟度ラベルは「このリポジトリにコードがあるか」を表します。
   コードが実際に AWS で走ったかは別の軸で、[検証状態](../verification-status.md)が正典です
-- **セキュリティ統制**: IAM、ネットワーク分離、暗号化、監査は
+- セキュリティ統制: IAM、ネットワーク分離、暗号化、監査は
   [セキュリティ設計](../security-design.md) に集約
-- **イベントスキーマ**: [データスキーマ設計](../data-schema-design.md)
-- **エージェント処理の設計論点**: [Agentic AI on AWS](../agentic-ai-on-aws.md)
-- **将来の構成候補**: [Flexible AI Data Layer](../flexible-ai-data-layer.md)
-- **規模・業種による差分**: [デプロイメントモデル](../deployment-models/README.md)
+- イベントスキーマ: [データスキーマ設計](../data-schema-design.md)
+- エージェント処理の設計論点: [Agentic AI on AWS](../agentic-ai-on-aws.md)
+- 将来の構成候補: [Flexible AI Data Layer](../flexible-ai-data-layer.md)
+- 規模・業種による差分: [デプロイメントモデル](../deployment-models/README.md)
 
 ## リポジトリ構造との対応
 

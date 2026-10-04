@@ -110,7 +110,7 @@ graph LR
 
 ## 参考
 
-- [デプロイガイド](../deployment-guide.md) — 実際の構築手順
-- [パターンカタログ](../aws-patterns/README.md) — AI 経路の選択
+- [デプロイガイド](../deployment-guide.md)：実際の構築手順
+- [パターンカタログ](../aws-patterns/README.md)：AI 経路の選択
 - [セキュリティ設計](../security-design.md)
-- [Model B: 複数工場](model-b-multi-factory.md) — 拠点が増えるときの差分
+- [Model B: 複数工場](model-b-multi-factory.md)：拠点が増えるときの差分

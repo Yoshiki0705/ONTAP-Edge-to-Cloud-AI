@@ -65,7 +65,7 @@ KAFKA_BOOTSTRAP_SERVERS=<kafka-vm-ip>:9092
 | `factory.events.raw` | `site_id-equipment_id` | All events (primary) |
 | `factory.events.quality` | `event_id` | AI analysis results |
 | `factory.events.anomaly` | `event_id` | Anomaly detections |
-| `factory.events.dlq` | — | Processing failures |
+| `factory.events.dlq` | N/A | Processing failures |
 
 ### 3.3 Event Flow
 
