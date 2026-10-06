@@ -102,21 +102,23 @@ access point 作成時にファイルシステムユーザー ID を指定する
 | 制約 | 影響 | 回避策 | 区分 |
 |------|------|--------|------|
 | 条件付き書き込み非対応 (If-None-Match) | Delta Lake / Iceberg / Hudi のトランザクション書き込みができない | 読み取り専用分析、または書き込みは S3 側で行う | プロジェクト検証 |
-| S3 イベント通知非対応 | オブジェクト作成イベントを起点にした自動取り込みができない | FPolicy → Lambda、スケジュールポーリング、ONTAP REST API | プロジェクト検証 |
+| S3 イベント通知非対応 | オブジェクト作成イベントを起点にした自動取り込みができない | NFS / SMB で書く経路では FPolicy → Lambda。S3 Access Points 経由の書き込みでは FPolicy の通知が出ない（[実測](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns/blob/main/docs/errata-fpolicy-s3ap-coverage.md)、2026-08-26、ap-northeast-1、ONTAP 9.18.1P3D1）ため、§5 の S3 API で書く経路ではスケジュールポーリングか ONTAP REST API | プロジェクト検証 |
 | SnapMirror S3 非対応 | ONTAP S3 バケットから S3 へのレプリケーションができない | AWS DataSync (NFS → S3) | プロジェクト検証 |
-| ListObjectsV2 のレイテンシ | 小さいディレクトリでネイティブ S3 より遅い | ファイルリストの事前生成、ファイルサイズを大きくする、結果のキャッシュ | プロジェクト検証 |
+| ListObjectsV2 のレイテンシ | 10〜1,000 オブジェクトでネイティブ S3 の 1.3〜1.4 倍（中央値の比）。5,000 オブジェクトのフラット配置では 0.9 倍（[測定記録](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/verification-pack/s3ap-list-latency/evidence/2026-08-05/benchmark-result.yaml)、2026-08-05） | ファイルリストの事前生成、ファイルサイズを大きくする、結果のキャッシュ | プロジェクト検証 |
 | SSE-FSX のみ | SSE-S3 / SSE-KMS / SSE-C は使えない | 既定の SSE-FSX を使う | プロジェクト検証 |
 | オブジェクトバージョニング非対応 | S3 バージョニングが使えない | ONTAP Snapshot | プロジェクト検証 |
-| Presigned URL | 公式にサポートが明記されていない | 重要な経路では IAM ベースのアクセスを使う | 未検証 |
+| Presigned URL | 公式の[対応表](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/access-points-for-fsxn-object-api-support.html)は 2026-10-06 の確認時点で `Presign` を Supported と記載。別プロジェクトの 2026-08-19 の記録は、当時の同表が Not supported と記載していたとしたうえで、presigned URL の `PutObject` / `HeadObject` / `GetObject` が成功したと記録している（[測定記録](https://github.com/Yoshiki0705/S3-Burst-on-ONTAP-Files/blob/main/docs/ja/verification/s3ap-operations.md)、ap-northeast-1、AWS 外のクライアント） | 表の記載が変わっているため、重要な経路では IAM ベースのアクセスを使うか、自環境で確認してから依存する | 公式 |
 
 対応 S3 API の網羅的な一覧は公式の
 [Access point compatibility](https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-points-service-api-support.html) を参照。
 S3 AP 経由のファイルは `StorageClass` が `FSX_ONTAP` として返る
 （[出典](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/access-points-for-fsxn-usage-examples.html)）。
 
-> **数値について**: 上の「遅い」は倍率を書いていない。別プロジェクトでは倍率が記録されている
-> が、測定環境（ONTAP バージョン、ファイル数、ディレクトリ構成、スループット設定）が
-> このプロジェクトと異なるため、そのまま引用しない。自分の構成で測ること。
+> **数値について**: 別プロジェクトに以前記録されていた倍率は、同プロジェクトが 2026-08-05 の
+> 再測定で再現できず、撤回している。上の 1.3〜1.4 倍はその再測定の値で、条件は
+> ap-northeast-1、SINGLE_AZ_1 / 128 MBps、VPC 外の端末からインターネット経由、
+> 1 ファイルシステム・1 日・最大 5,000 オブジェクト。絶対値にはインターネットの往復が含まれる。
+> このプロジェクトの構成では測っていないので、自分の構成で測ること（§7 の 4）。
 
 ---
 
@@ -190,7 +192,7 @@ ARN をそのまま受けるのでハンドラ側の変更は不要と見込ん�
 | # | 項目 | 確認方法 |
 |---|------|---------|
 | 1 | §4 の 6 サービスで access point ARN / alias が通るか | 各サービスの設定に指定して結果を記録する |
-| 2 | Presigned URL の扱い | 公式ドキュメントの記載を探す。無ければ実測 |
+| 2 | Presigned URL がこのリポジトリの経路で動くか | 自環境で実測する（公式表の記載と別プロジェクトの実測は §3） |
 | 3 | Unity Catalog の External Location に S3 AP を登録できるか | 登録を試す（[Databricks 連携](./databricks-integration.md) 参照） |
 | 4 | ListObjectsV2 のレイテンシがこの構成でどの程度か | 自環境で測定し、測定条件とともに記録する |
 

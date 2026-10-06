@@ -106,22 +106,24 @@ tested in May 2026.
 | Constraint | Impact | Workaround | Basis |
 |------------|--------|-----------|-------|
 | No conditional writes (If-None-Match) | Delta Lake, Iceberg and Hudi transactional writes do not work | Read-only analytics, or write on the S3 side | Project-tested |
-| No S3 event notifications | No object-created event to trigger ingestion | FPolicy → Lambda, scheduled polling, ONTAP REST API | Project-tested |
+| No S3 event notifications | No object-created event to trigger ingestion | FPolicy → Lambda on paths that write over NFS / SMB. Writes through S3 Access Points raise no FPolicy notification ([measured](https://github.com/Yoshiki0705/FSx-for-ONTAP-S3AccessPoints-Serverless-Patterns/blob/main/docs/errata-fpolicy-s3ap-coverage.en.md), 2026-08-26, ap-northeast-1, ONTAP 9.18.1P3D1), so the §5 paths that write through the S3 API need scheduled polling or the ONTAP REST API | Project-tested |
 | No SnapMirror S3 | No replication from an ONTAP S3 bucket to S3 | AWS DataSync (NFS → S3) | Project-tested |
-| ListObjectsV2 latency | Slower than native S3 on small directories | Pre-generate file lists, use larger files, cache results | Project-tested |
+| ListObjectsV2 latency | 1.3–1.4× native S3 at 10–1,000 objects (ratio of medians); 0.9× at 5,000 objects in a flat layout ([measurement record](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/verification-pack/s3ap-list-latency/evidence/2026-08-05/benchmark-result.yaml), 2026-08-05) | Pre-generate file lists, use larger files, cache results | Project-tested |
 | SSE-FSX only | SSE-S3, SSE-KMS and SSE-C are unavailable | Use the default SSE-FSX | Project-tested |
 | No object versioning | S3 versioning is unavailable | ONTAP Snapshot | Project-tested |
-| Presigned URLs | Support is not stated in the documentation | Use IAM-based access on paths that matter | Unverified |
+| Presigned URLs | The official [support table](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/access-points-for-fsxn-object-api-support.html) lists `Presign` as Supported as of a check on 2026-10-06. A related project's record of 2026-08-19 states that the same table then read Not supported, and records presigned `PutObject` / `HeadObject` / `GetObject` succeeding ([measurement record](https://github.com/Yoshiki0705/S3-Burst-on-ONTAP-Files/blob/main/docs/ja/verification/s3ap-operations.md) (Japanese), ap-northeast-1, client outside AWS) | The table's statement has changed, so on paths that matter use IAM-based access, or confirm in your own environment before depending on it | Official |
 
 For the exhaustive list of supported S3 API operations, see
 [Access point compatibility](https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-points-service-api-support.html).
 Files reached through an S3 AP return a `StorageClass` of `FSX_ONTAP`
 ([source](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/access-points-for-fsxn-usage-examples.html)).
 
-> **On numbers**: "slower" above carries no multiplier. The related project records one,
-> but its measurement environment (ONTAP version, file count, directory shape, throughput
-> capacity) differs from this one, so quoting it here would misrepresent it. Measure in
-> your own configuration.
+> **On numbers**: the multiplier the related project used to record could not be reproduced
+> when it re-measured on 2026-08-05, and it has been withdrawn. The 1.3–1.4× above comes from
+> that re-measurement: ap-northeast-1, SINGLE_AZ_1 / 128 MBps, a client outside the VPC over
+> the public internet, one file system, one day, up to 5,000 objects. Absolute values include
+> the internet round trip. This configuration has not been measured, so measure in your own
+> (§7, item 4).
 
 ---
 
@@ -198,7 +200,7 @@ Not confirmed in this project. Remove a row once it is.
 | # | Item | How to confirm |
 |---|------|----------------|
 | 1 | Whether an access point ARN or alias passes for the six services in §4 | Configure each and record the result |
-| 2 | How presigned URLs behave | Look for a statement in the documentation; measure if there is none |
+| 2 | Whether presigned URLs work on this repository's paths | Measure locally (the official table and the related project's measurement are in §3) |
 | 3 | Whether an S3 AP can be registered as a Unity Catalog external location | Attempt the registration (see [Databricks integration](./databricks-integration.md)) |
 | 4 | ListObjectsV2 latency in this configuration | Measure locally and record the conditions alongside the number |
 
