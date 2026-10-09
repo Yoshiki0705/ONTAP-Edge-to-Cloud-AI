@@ -11,7 +11,7 @@
 # Install:  make dev-install     (targets .venv, not the system interpreter)
 
 bandit==1.9.4
-cfn-lint==1.55.1
+cfn-lint==1.57.2
 pre-commit==4.6.2
 pytest==9.1.1
-ruff==0.16.3
+ruff==0.17.0
