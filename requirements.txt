@@ -15,7 +15,7 @@
 
 # Edge (Raspberry Pi)
 paho-mqtt==2.1.0
-boto3==1.43.89
+boto3==1.43.111
 gpiozero==2.0.1.post3
 requests==2.34.2
 # 2.x, because opencv-python-headless 4.14 requires numpy>=2. The first attempt at
@@ -23,7 +23,7 @@ requests==2.34.2
 # ABI; that combination does not resolve at all, and nothing installed these files, so
 # only `make deps-resolve` found it.
 numpy==2.5.3
-confluent-kafka==2.15.0
+confluent-kafka==2.16.0
 
 # Data processing
 pandas==2.3.3

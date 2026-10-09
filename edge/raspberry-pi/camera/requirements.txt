@@ -5,5 +5,5 @@
 # `make deps-resolve` is what asks whether a file's pins can be installed at all.
 opencv-python-headless==4.14.0.94
 numpy==2.5.3
-boto3==1.43.89
+boto3==1.43.111
 requests==2.34.2
