@@ -4,6 +4,6 @@
 # earlier pairing with 1.26.4 was unsatisfiable — pip would have failed on the device.
 # `make deps-resolve` is what asks whether a file's pins can be installed at all.
 opencv-python-headless==4.14.0.94
-numpy==2.5.3
-boto3==1.43.89
+numpy==2.5.4
+boto3==1.43.123
 requests==2.34.2

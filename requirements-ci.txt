@@ -22,5 +22,5 @@
 # what the edge and Lambda code is pinned to rather than the latest release.
 requests==2.34.2
 opencv-python-headless==4.14.0.94
-numpy==2.5.3
-boto3==1.43.89
+numpy==2.5.4
+boto3==1.43.123
