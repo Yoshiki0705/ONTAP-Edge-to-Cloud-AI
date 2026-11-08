@@ -85,3 +85,4 @@ headings` enforces this; the rule, the exclusions and the
 | Anything touching network boundaries, device identity or plant equipment | [docs/ja/security-design.md](docs/ja/security-design.md) |
 | Working with AgentCore Gateway/Lambda targets or Quick Desktop MCP | [docs/agent/agentcore-pitfalls.md](docs/agent/agentcore-pitfalls.md) |
 | Running or extending the test suites | [TESTING.md](TESTING.md) |
+| Driving a multi-step task autonomously (pattern add, verification run, IaC change) | [docs/agent/autonomous-operation.md](docs/agent/autonomous-operation.md) |
