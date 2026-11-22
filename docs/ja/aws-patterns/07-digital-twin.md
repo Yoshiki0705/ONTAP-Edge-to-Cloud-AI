@@ -64,9 +64,9 @@ graph LR
 
 ### 時系列データベースの選択
 
-**Amazon Timestream for LiveAnalytics は 2025-06-20 付で新規顧客のアクセスが終了しています**
+**Amazon Timestream for LiveAnalytics は 2025-06-20 付で新規の利用者のアクセスが終了しています**
 （[出典](https://docs.aws.amazon.com/timestream/latest/developerguide/AmazonTimestreamForLiveAnalytics-availability-change.html)）。
-既存顧客のワークロードは継続します。新規に構築する場合は選べません。
+既存の利用者のワークロードは継続します。新規に構築する場合は選べません。
 
 新規構築の選択肢を対称に並べます。
 
@@ -117,12 +117,12 @@ Timestream for InfluxDB を推奨としています
 
 ## 前提と制約
 
-- **時系列データベースは選び直しが必要です。** LiveAnalytics は新規顧客に開いていません（上記）
+- **時系列データベースは選び直しが必要です。** LiveAnalytics は新規の利用者に開いていません（上記）
 - **アセットモデル（設備の構造表現）はこのパターンの前提ですが、実装がありません。**
   OT 側の名前空間設計から入る場合は [Pattern 08](08-unified-namespace.md) を先に読んでください
 - **IoT Core の S3 アクションが S3 Access Point を受け付けるかは未検証**です
   （[§4](../s3ap-compatibility-matrix.md)）。このリポジトリは Lambda 経由です
-- **産業機器向けの一部の機能は新規顧客に非開放になっています。** 設備監視の機能を
+- **産業機器向けの一部の機能は新規の利用者に非開放になっています。** 設備監視の機能を
   設計に入れる前に提供状況を確認してください
   （[サービスの提供状況](../../agent/service-lifecycle.md)）
 - **可視化層は ap-northeast-1 で利用可能です**（AWS のリージョン別提供状況で確認、
