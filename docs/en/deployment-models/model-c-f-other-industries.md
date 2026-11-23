@@ -22,8 +22,8 @@ having the material.
 
 ## Four axes
 
-Four axes carry most of the difference from A and B. Thinking in these axes transfers better than
-per-sector detail.
+Four axes carry most of the difference from A and B. These axes carry over to sectors not listed
+here, which per-sector detail does not.
 
 | Axis | What changes |
 |---|---|

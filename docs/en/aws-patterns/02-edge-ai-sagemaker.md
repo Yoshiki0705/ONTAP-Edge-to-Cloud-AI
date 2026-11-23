@@ -79,7 +79,7 @@ conditions.
 | Training data | Little, or unlabelled | Labelled data has accumulated |
 | Nature of the judgement | A written explanation is wanted; subjects vary | Classes are fixed and the boundary is subtle |
 | Latency | Seconds are enough | Milliseconds needed, or offline required |
-| Cost shape | Per-call price is acceptable | Calls are frequent and fixed cost beats per-call |
+| Cost shape | Per-call price is acceptable | Calls are frequent enough that a fixed cost is lower than per-call |
 
 Training and inference placement are separable decisions. Training in the cloud with inference at the
 edge is the typical combination here. For inference spanning on-premises storage and the cloud,

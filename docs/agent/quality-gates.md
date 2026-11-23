@@ -47,7 +47,7 @@ make check           # lint + security + test + drift（CI と同じ）
 | `check_dependency_pins.py` | `requirements-dev.txt` のレンジ指定、CI の Python 版と Lambda ランタイムの不一致、CI のインライン `pip install` |
 | `check_sql_interpolation.py` | `scripts/reviewed_sql_sites.txt` に無い SQL 組み立て箇所、および実体を失った記載 |
 | `check_doc_parity.py` | JA/EN 対訳ペアの見出しレベル列の不一致、**片方の言語にしかない図やコード例**（fenced block 数の差）、片側のみ存在するファイル、`scripts/known_doc_parity_gaps.txt` の実体を失った記載 |
-| `check_sunset_services.py` | 新規顧客に非開放のサービスを、状況の注記なしに挙げている doc |
+| `check_sunset_services.py` | 新規の利用者に非開放のサービスを、状況の注記なしに挙げている doc |
 | `check_diagram_assets.py` | コミットされたアイコンライブラリ、再エクスポート漏れで欠けた図の SVG/PNG、英語版の成果物に残った日本語 |
 | `check_verification_ledger.py` | 検証状態の台帳が出荷物を説明しなくなった状態（測定に使ったモデル ID がコードから消えた、片方の言語にだけ行が増えた、根拠リンクが切れた、借用した語彙にない段階が足された） |
 | `check_lambda_env_contract.py` | テンプレートが渡す環境変数とハンドラが読む環境変数の不一致、`usecases/handler-map.txt` が must-set と宣言した上書きの欠落、ハンドラが解析するキーを要求しないプロンプト、map に載っていない Lambda 定義 |
