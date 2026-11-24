@@ -624,6 +624,31 @@ Do not pick 9.15.1 exactly for production.
 
 ---
 
+## 14. Sensitive Raw Recordings at the Edge
+
+When sensitive raw recordings, such as neural or other biological recordings, are captured at the
+edge, decide per write path how long a copy stays at the edge, how the data is encrypted in transit,
+and how much can be held while offline. This section is technical design. It is not a legal
+determination or legal advice.
+
+| Write path | How long a copy stays at the edge | Encryption in transit | Limit while offline | Verification tier |
+|---|---|---|---|---|
+| Tier 1 (direct write to S3 Access Points) | In the edge's local buffer until the upload succeeds | HTTPS. S3 Access Points accept HTTPS only (Amazon S3 [access points restrictions](https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-points-restrictions-limitations-naming-rules.html)) | The capacity allotted to the buffer. Put deletion from the buffer after a successful upload into the design | Not run |
+| Tier 2 (FlexCache write-back) | A write first lands in the edge cache's stable storage and is written back to the Origin after reconnection (Q5). How long it stays in the cache after write-back is not measured in this document | Depends on the cluster peering configuration. Check it with `cluster peer show -fields encryption`; no default value is stated here | The capacity of the cache volume | Not run |
+| Tier 3 (SnapMirror) | For as long as the edge volume and the retention rules of its Snapshots keep it. Manage deletion at the edge and Snapshot expiry separately | Same as Tier 2: depends on the cluster peering configuration | The capacity of the edge volume | Not run |
+
+For a recording that must honour a withdrawal of consent, do not add the edge and cloud retention
+periods together. The longest single period is the upper bound. If the edge Snapshot retention is
+the longest, for example, that period is the bound on how long a withdrawal takes to complete. The
+inventory of remaining copies, including those on the cloud side, is in
+[deletion requests and retained copies](https://github.com/Yoshiki0705/FSx-for-ONTAP-Cyber-Resilience-Patterns/blob/main/docs/data-protection/deletion-requests-and-retained-copies.md).
+
+Material for deciding how to handle neural and biological recordings is in the Hub's decision note
+([Japanese](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/ja/domains/security-governance/notes/neural-and-biometric-recordings.md),
+[English](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/en/domains/security-governance/notes/neural-and-biometric-recordings.md)).
+
+---
+
 ## Related Documents
 
 - [S3 AP + FlexCache / SnapMirror Design Considerations](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/docs/en/s3ap-flexcache-snapmirror-considerations.md)
