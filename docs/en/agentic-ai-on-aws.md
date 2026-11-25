@@ -148,9 +148,61 @@ later unless it was recorded. Three things to keep.
 |---|---|
 | An agent implementation in this repository | None |
 | Verifying tool connections over MCP | Not done |
-| Sync design between AgentCore Memory and the source of truth | Not designed |
+| Sync design between AgentCore Memory and the source of truth | Design proposal only (**Conceptual**, not run). [Proposal below](#design-proposal-for-syncing-agentcore-memory-with-the-source-of-truth) |
 | Operational load of one knowledge base per permission boundary | Unverified |
 | Running an agent at the edge | Not done ([Pattern 09](aws-patterns/09-edge-agentic-ai.md)) |
+
+### Design proposal for syncing AgentCore Memory with the source of truth
+
+This subsection is an outline with no documented basis, which is **Conceptual** in this file's
+availability labels. It has not been run. §4 says to decide what happens to memory and vectors when
+an original is deleted; the options for that decision are set out here.
+
+#### Paths for propagating an original's deletion to memory and vectors
+
+| Path | Mechanism | Advantage | Constraint |
+|---|---|---|---|
+| (a) Events on the original | Writes and deletes through S3 Access Points can be recorded as CloudTrail data events. A deletion process is started from that event | A deletion propagates quickly | Deletions made over NFS and SMB do not appear in this event |
+| (b) Periodic scan | Compare the list of originals with the list of sources recorded in memory and vectors, and delete what no longer has an original | Independent of the path used to write and delete | Delayed by the scan interval |
+
+#### Permissions of the consolidation process
+
+Give the role of the process that deletes memory and vectors only read access to the originals and
+deletion of memory and vectors. Do not give it permission to modify the originals. Keep an audit
+record of who deleted which record, when, and because of which original's deletion.
+
+#### A path that reads deleted data from a Snapshot
+
+After a file was deleted from the original, `GetObject` through S3 Access Points on the key
+`.snapshot/<Snapshot name>/<path>` still read it while a Snapshot containing the file existed.
+This was measured on 2026-11-24 in ap-northeast-1, on a first-generation SINGLE_AZ_1 file system,
+ONTAP 9.19.1P4, with a UNIX-style volume
+([deletion requests and retained copies](https://github.com/Yoshiki0705/FSx-for-ONTAP-Cyber-Resilience-Patterns/blob/main/docs/data-protection/deletion-requests-and-retained-copies.md)).
+That measurement is not from this repository, and it was not tried on the edge path.
+
+For the access point the agent's role uses, the proposal is to deny the following in the access
+point policy.
+
+```json
+{
+  "Effect": "Deny",
+  "Principal": {"AWS": "<agent-role-arn>"},
+  "Action": "s3:GetObject",
+  "Resource": "<access point ARN>/object/.snapshot/*"
+}
+```
+
+#### Paths for returning state learned at the edge to the cloud
+
+| Path | Mechanism | Advantage | Constraint |
+|---|---|---|---|
+| FlexCache write-back | What is written at the edge returns to the Origin asynchronously | No operation is needed to bring it back | ONTAP 9.15.1 is the floor; do not choose exactly 9.15.1 for production ([Q4](iot-greengrass-flexcache-integration.md#q4-what-ontap-version-supports-flexcache-write-back)) |
+| SnapMirror | Replicates the whole edge volume | The cloud side keeps an independent volume | The edge and the cloud hold separate volumes. Bringing state back requires an operation that reverses the direction of the relationship |
+
+#### Unconfirmed points in this proposal
+
+None of these paths has been run. The content CloudTrail data events record, the denial of
+`.snapshot` through an access point policy, and the behaviour on the edge path are all unconfirmed.
 
 ## References
 

@@ -625,6 +625,31 @@ streaming tables で Iceberg テーブルとして materialize する経路も�
 
 ---
 
+## 14. エッジに置く機微な生記録の扱い
+
+脳波などの神経の記録や生体の記録のように機微な生の記録をエッジで取るときは、エッジにコピーが
+残る期間、転送中の暗号化、オフラインの間に保持できる上限を、書き込み経路ごとに決めます。
+ここに書くのは技術的な設計で、法令上の判断や法的助言ではありません。
+
+| 書き込み経路 | エッジにコピーが残る期間 | 転送中の暗号化 | オフラインの間の上限 | 確認の段階 |
+|---|---|---|---|---|
+| Tier 1（S3 Access Points への直接書き込み） | エッジのローカルのバッファに、アップロードが成功するまで残る | HTTPS。S3 Access Points は HTTPS だけを受け付ける（Amazon S3 の [access points restrictions](https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-points-restrictions-limitations-naming-rules.html)） | バッファに割り当てた容量。アップロードが成功したらバッファから消す処理を設計に入れる | 未実行 |
+| Tier 2（FlexCache の write-back） | 書き込みはまずエッジのキャッシュの安定ストレージに入り、再接続後に Origin へ書き戻される（Q5）。書き戻しのあともキャッシュに残る期間は、この文書では測っていない | クラスタピアリングの設定による。`cluster peer show -fields encryption` で確かめる。既定の値はここに書かない | キャッシュのボリュームの容量 | 未実行 |
+| Tier 3（SnapMirror） | エッジのボリュームと、その Snapshot の保持ルールの期間だけ残る。エッジ側の削除と Snapshot の期限を別に管理する | Tier 2 と同じく、クラスタピアリングの設定による | エッジのボリュームの容量 | 未実行 |
+
+同意の撤回に応じる必要がある記録は、エッジのコピーとクラウドのコピーの期限を足し合わせるのではなく、
+最も長い期限が上限になります。たとえばエッジの Snapshot の保持が最も長ければ、撤回に応じ終えるまでの
+上限はその期間です。クラウド側を含めた残るコピーの洗い出しは
+[削除の依頼と削除後も残るコピー](https://github.com/Yoshiki0705/FSx-for-ONTAP-Cyber-Resilience-Patterns/blob/main/docs/data-protection/deletion-requests-and-retained-copies.md)
+にあります。
+
+神経の記録と生体の記録を扱うときの判断の材料は、Hub の判断ノート
+（[日本語](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/ja/domains/security-governance/notes/neural-and-biometric-recordings.md)、
+[English](https://github.com/Yoshiki0705/FSx-for-ONTAP-Adoption-Playbook/blob/main/docs/en/domains/security-governance/notes/neural-and-biometric-recordings.md)）
+にあります。
+
+---
+
 ## Related Documents
 
 - [S3 AP + FlexCache / SnapMirror 設計考慮事項](https://github.com/Yoshiki0705/fsxn-lakehouse-integrations/blob/main/docs/ja/s3ap-flexcache-snapmirror-considerations.md)
